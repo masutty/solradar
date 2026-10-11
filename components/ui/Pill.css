@@ -1,0 +1,122 @@
+.vc-sora-pill-base {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-weight: 600;
+    white-space: nowrap;
+    user-select: none;
+    box-sizing: border-box;
+    line-height: 1.2;
+}
+
+/* --- Sizes --- */
+
+.vc-sora-pill-iconOnly {
+    gap: 0;
+    justify-content: center;
+    aspect-ratio: 1 / 1;
+}
+
+.vc-sora-pill-xs {
+    padding: 1px 6px;
+    font-size: 10px;
+}
+
+.vc-sora-pill-small {
+    padding: 2px 7px;
+    font-size: 11px;
+}
+
+.vc-sora-pill-medium {
+    padding: 3px 10px;
+    font-size: 12px;
+}
+
+.vc-sora-pill-min {
+    padding: 3px 6px;
+    font-size: 12px;
+}
+
+/* --- Radius --- */
+
+.vc-sora-pill-radius-full {
+    border-radius: 9999px;
+}
+
+.vc-sora-pill-radius-lg {
+    border-radius: var(--radius-lg, 12px);
+}
+
+.vc-sora-pill-radius-md {
+    border-radius: var(--radius-md, 8px);
+}
+
+.vc-sora-pill-radius-sm {
+    border-radius: var(--radius-sm, 4px);
+}
+
+.vc-sora-pill-radius-xs {
+    border-radius: var(--radius-xs, 2px);
+}
+
+.vc-sora-pill-radius-none {
+    border-radius: 0;
+}
+
+/* --- Border --- */
+
+.vc-sora-pill-border-none {
+    border: 1px solid transparent;
+}
+
+/* text color at low opacity */
+.vc-sora-pill-border-subtle {
+    border: 1px solid color-mix(in srgb, currentcolor 30%, transparent);
+}
+
+/* solid text color */
+.vc-sora-pill-border-strong {
+    border: 1px solid currentcolor;
+}
+
+/* --- Variants --- */
+
+.vc-sora-pill-green {
+    background: color-mix(in srgb, var(--green-360) 15%, transparent);
+    color: var(--green-360);
+}
+
+.vc-sora-pill-red {
+    background: color-mix(in srgb, var(--red-400) 15%, transparent);
+    color: var(--red-400);
+}
+
+.vc-sora-pill-yellow {
+    background: color-mix(in srgb, var(--yellow-360) 15%, transparent);
+    color: var(--yellow-360);
+}
+
+.vc-sora-pill-blue {
+    background: color-mix(in srgb, var(--blue-345) 15%, transparent);
+    color: var(--blue-345);
+}
+
+.vc-sora-pill-purple {
+    background: color-mix(in srgb, purple 15%, transparent);
+    color: purple;
+}
+
+.vc-sora-pill-pink {
+    background: color-mix(in srgb, pink 15%, transparent);
+    color: pink;
+}
+
+.vc-sora-pill-brand {
+    background: color-mix(in srgb, var(--brand-500) 15%, transparent);
+    color: var(--brand-360);
+}
+
+.vc-sora-pill-muted {
+    background: var(--control-secondary-background-default);
+    color: var(--text-muted);
+}

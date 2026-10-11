@@ -1,0 +1,9 @@
+.vc-sora-stats-seg {
+    height: 100%;
+    border-radius: 3px;
+    transition: filter 0.1s ease-out;
+}
+
+.vc-sora-stats-seg:hover {
+    filter: brightness(1.2);
+}

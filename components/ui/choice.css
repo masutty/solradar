@@ -1,0 +1,32 @@
+/* Hover for pick-one buttons. The active look stays inline (it depends on a per-option color),
+   so inactive buttons must leave background and color to these rules. */
+
+/* Segmented control: buttons sit on a darker track */
+.vc-sora-seg {
+    background: none;
+    color: var(--text-muted);
+    transition: background 0.15s ease-out, color 0.15s ease-out;
+}
+
+.vc-sora-seg[aria-pressed="false"]:hover {
+    background: var(--background-mod-subtle);
+    color: var(--text-default);
+}
+
+/* Tile grid: each button is its own filled box */
+.vc-sora-tile {
+    background: var(--background-mod-strong);
+    color: var(--text-muted);
+    transition: background 0.15s ease-out, color 0.15s ease-out;
+}
+
+.vc-sora-tile[aria-pressed="false"]:hover {
+    background: color-mix(in srgb, var(--text-default) 8%, var(--background-mod-strong));
+    color: var(--text-default);
+}
+
+.vc-sora-seg:focus-visible,
+.vc-sora-tile:focus-visible {
+    outline: 2px solid var(--focus-primary, var(--brand-500));
+    outline-offset: 1px;
+}

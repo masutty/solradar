@@ -1,0 +1,108 @@
+/* --- EditableActionButton --- */
+
+.vc-sora-eab-wrapper {
+    position: relative;
+    display: inline-flex;
+}
+
+/* --- Indicator dot --- */
+
+.vc-sora-eab-indicator {
+    position: absolute;
+    top: 3px;
+    right: 3px;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    pointer-events: none;
+    transition: background-color 0.2s ease;
+}
+
+.vc-sora-eab-indicator-default {
+    background-color: var(--text-muted);
+    opacity: 0.5;
+}
+
+.vc-sora-eab-indicator-custom {
+    background-color: var(--brand-500);
+    opacity: 1;
+}
+
+/* --- Modal: content area --- */
+
+.vc-sora-eab-modal-content {
+    padding: 16px 0 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.vc-sora-eab-modal-hint {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin: 0;
+    line-height: 1.4;
+}
+
+/* --- Modal: field group --- */
+
+.vc-sora-eab-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.vc-sora-eab-field-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    color: var(--header-secondary);
+}
+
+/* --- Modal: divider --- */
+
+.vc-sora-eab-divider {
+    height: 1px;
+    background-color: var(--background-modifier-accent);
+    margin: 2px 0;
+}
+
+/* --- Modal: footer --- */
+
+.vc-sora-eab-modal-footer {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+}
+
+/* --- Preview row --- */
+
+.vc-sora-eab-preview {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 10px;
+    background-color: rgb(0 0 0 / 15%);
+    border: 1px solid var(--border-subtle);
+    border-radius: 6px;
+}
+
+.vc-sora-eab-preview-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.vc-sora-eab-preview-value {
+    font-size: 12px;
+    color: var(--text-normal);
+    font-family: var(--font-code);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}

@@ -1,0 +1,24 @@
+/* stylelint-disable declaration-empty-line-before */
+
+/* --- DeleteButton --- */
+
+.vc-sora-deletebtn-wrapper {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    display: flex;
+    gap: 6px;
+
+    opacity: 0;
+    transform: translateY(-4px);
+    transition: all 0.12s ease;
+
+    pointer-events: none;
+}
+
+/* visible on hover + shift */
+.vc-sora-deletebtn-wrapper.visible {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+}

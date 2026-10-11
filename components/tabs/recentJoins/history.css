@@ -1,0 +1,231 @@
+/* --- Buttons next to the search bar and in the modal --- */
+
+.vc-sora-history-iconbtn {
+    display: grid;
+    place-items: center;
+    width: 26px;
+    height: 26px;
+    border: none;
+    border-radius: 6px;
+    padding: 0;
+    background: var(--background-mod-strong);
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s;
+}
+
+.vc-sora-history-iconbtn:hover {
+    background: var(--background-mod-normal);
+    color: var(--text-default);
+}
+
+.vc-sora-history-sbtn {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    gap: 6px;
+    height: 38px;
+    padding: 0 12px;
+    border: none;
+    border-radius: 8px;
+    background: var(--background-mod-subtle);
+    color: var(--text-muted);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s;
+}
+
+.vc-sora-history-sbtn:hover {
+    background: var(--background-mod-normal);
+    color: var(--text-default);
+}
+
+.vc-sora-history-sbtn.active {
+    color: var(--sora-c);
+    background: color-mix(in srgb, var(--sora-c) 14%, transparent);
+}
+
+/* Shift delete only shows on the hovered card */
+.vc-sora-history-card:not(:hover) .vc-sora-deletebtn-wrapper {
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* --- Day headings --- */
+
+.vc-sora-history-day {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 12px 2px 6px;
+    color: var(--text-muted);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.vc-sora-history-day:first-child {
+    margin-top: 2px;
+}
+
+.vc-sora-history-day::after {
+    content: "";
+    flex: 1;
+    order: 1;
+    height: 1px;
+    background: var(--background-mod-subtle);
+}
+
+.vc-sora-history-day-count {
+    order: 2;
+    color: var(--text-muted);
+    font-weight: 500;
+    letter-spacing: 0;
+    text-transform: none;
+    opacity: 0.8;
+}
+
+/* --- Card: one full-width row per snipe --- */
+
+.vc-sora-history-card {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 4px;
+    padding: 9px 12px;
+    border-radius: 8px;
+    background: var(--background-mod-subtle);
+    cursor: pointer;
+    user-select: none;
+    animation: vc-sora-card-in 0.28s cubic-bezier(0.2, 0, 0, 1) both;
+    transition: background 0.15s, opacity 0.15s;
+}
+
+.vc-sora-history-card:hover {
+    background: var(--background-mod-normal);
+}
+
+/* Nothing really happened: faded, back to (almost) full on hover */
+.vc-sora-history-card.quiet {
+    opacity: 0.55;
+}
+
+.vc-sora-history-card.quiet:hover {
+    opacity: 0.9;
+}
+
+.vc-sora-history-card.quiet .vc-sora-history-icon img {
+    filter: grayscale(0.7);
+}
+
+/* The result is a dot on the trigger icon, named in its tooltip */
+.vc-sora-history-icon {
+    position: relative;
+    display: flex;
+    flex-shrink: 0;
+}
+
+.vc-sora-history-badge {
+    position: absolute;
+    right: -4px;
+    bottom: -4px;
+    display: grid;
+    place-items: center;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--sora-s);
+    color: #fff;
+    box-shadow: 0 0 0 3px var(--background-base-low, var(--background-secondary));
+    cursor: help;
+}
+
+.vc-sora-history-side {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    justify-content: center;
+    gap: 2px;
+    flex-shrink: 0;
+    color: var(--text-muted);
+    font-size: 11.5px;
+    font-variant-numeric: tabular-nums;
+}
+
+.vc-sora-history-clock {
+    color: var(--text-default);
+    font-family: var(--font-code);
+    font-size: 12px;
+}
+
+.vc-sora-history-stats {
+    display: flex;
+    gap: 8px;
+}
+
+.vc-sora-history-title {
+    overflow: hidden;
+    color: var(--control-secondary-text-default);
+    font-size: 14.5px;
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Author, channel and server share one line; author and channel are capped so the server always shows */
+.vc-sora-history-line {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    height: 18px;
+    color: var(--text-muted);
+    font-size: 12.5px;
+    line-height: 18px;
+    white-space: nowrap;
+}
+
+.vc-sora-history-field {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* The avatar is an inline-flex box: as a plain block it adds space under the text and lifts it */
+.vc-sora-history-field.author {
+    display: flex;
+    align-items: center;
+    flex: 0 1 auto;
+    max-width: 32%;
+}
+
+.vc-sora-history-field.channel {
+    flex: 0 1 auto;
+    max-width: 34%;
+}
+
+.vc-sora-history-field.server {
+    flex: 1 1 auto;
+}
+
+.vc-sora-history-sep {
+    flex-shrink: 0;
+    opacity: 0.6;
+}
+
+@keyframes vc-sora-card-in {
+    from {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .vc-sora-history-card {
+        animation: none;
+        transition: none;
+    }
+}

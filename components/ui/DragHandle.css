@@ -1,0 +1,46 @@
+/* stylelint-disable declaration-empty-line-before */
+
+/* --- DragHandle --- */
+
+/* The reveal animation is shared with the ▲▼ buttons (OrderSlot.css).
+ * The hitbox is a larger pseudo-element, so it is easy to grab without making the card taller. */
+
+.vc-sora-draghandle {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 36px;
+    touch-action: none;
+    cursor: grab;
+    color: var(--text-muted);
+}
+
+.vc-sora-draghandle::before {
+    content: "";
+    position: absolute;
+    inset: -8px 0;
+}
+
+/* Higher specificity than .vc-sora-orderslot so this owns `transition`.
+ * With equal specificity one rule would replace the other and break the reveal animation. */
+.vc-sora-orderslot.vc-sora-draghandle {
+    transition: max-width 0.18s cubic-bezier(0.2, 0, 0, 1), margin-right 0.18s cubic-bezier(0.2, 0, 0, 1), opacity 0.18s ease, color 0.1s ease;
+}
+
+.vc-sora-draghandle:hover {
+    color: var(--brand-500);
+}
+
+.vc-sora-draghandle:active {
+    cursor: grabbing;
+    color: var(--brand-500);
+}
+
+.vc-sora-draghandle:focus-visible {
+    color: var(--text-muted);
+    outline: 2px solid var(--brand-500);
+    outline-offset: 1px;
+    border-radius: 3px;
+}

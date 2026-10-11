@@ -1,0 +1,18 @@
+/* Dividers for Discord's legacy ModalHeader/ModalFooter. They forward className but drop
+   style, and their `separator` prop no longer draws a line. Doubled class to beat
+   Discord's own rules. */
+
+.vc-sora-modal-header.vc-sora-modal-header {
+    border-bottom: 1px solid var(--background-mod-strong);
+}
+
+/* The legacy header is sized for one line of text. Headers with a big icon need more room. */
+.vc-sora-modal-header-tall.vc-sora-modal-header-tall {
+    height: auto;
+    min-height: 0;
+    padding-block: 14px;
+}
+
+.vc-sora-modal-footer.vc-sora-modal-footer {
+    border-top: 1px solid var(--background-mod-strong);
+}

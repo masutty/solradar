@@ -1,0 +1,378 @@
+/* --- Phase bar --- */
+
+.vc-sora-snipe-pbar {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: var(--background-mod-subtle);
+}
+
+.vc-sora-snipe-pbar-total {
+    color: var(--text-muted);
+    font-size: 13px;
+}
+
+.vc-sora-snipe-pbar-total b {
+    color: var(--text-default);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+.vc-sora-snipe-bar {
+    display: flex;
+    gap: 2px;
+    height: 10px;
+    overflow: hidden;
+    border-radius: 5px;
+}
+
+.vc-sora-snipe-bar i {
+    display: block;
+    min-width: 3px;
+}
+
+.vc-sora-snipe-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 14px;
+    color: var(--text-muted);
+    font-size: 12px;
+}
+
+.vc-sora-snipe-legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    cursor: help;
+}
+
+.vc-sora-snipe-legend-item i {
+    width: 8px;
+    height: 8px;
+    border-radius: 2px;
+}
+
+.vc-sora-snipe-legend-item b {
+    color: var(--text-default);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+.vc-sora-snipe-help {
+    border-bottom: 1px dotted var(--text-muted);
+}
+
+.vc-sora-snipe-empty {
+    padding: 10px 0;
+    color: var(--text-muted);
+    font-size: 13px;
+}
+
+/* --- Timeline (story) --- */
+
+.vc-sora-story {
+    display: grid;
+    grid-template-columns: max-content 14px minmax(0, 1fr);
+    column-gap: 8px;
+}
+
+.vc-sora-story-row {
+    display: contents;
+}
+
+.vc-sora-story-time {
+    padding-top: 2px;
+    color: var(--text-muted);
+    font-size: 11.5px;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.vc-sora-story-time.zero {
+    color: var(--text-muted);
+    opacity: 0.6;
+}
+
+.vc-sora-story-rail {
+    position: relative;
+    display: flex;
+    justify-content: center;
+}
+
+.vc-sora-story-rail::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: var(--background-mod-subtle);
+}
+
+.vc-sora-story-row.first .vc-sora-story-rail::before {
+    top: 8px;
+}
+
+.vc-sora-story-row.last .vc-sora-story-rail::before {
+    bottom: auto;
+    height: 8px;
+}
+
+.vc-sora-story-dot {
+    position: relative;
+    width: 8px;
+    height: 8px;
+    margin-top: 5px;
+    border-radius: 50%;
+}
+
+.vc-sora-story-msg {
+    min-width: 0;
+    padding-bottom: 10px;
+    color: var(--control-secondary-text-default);
+    font-size: 13.5px;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+}
+
+.vc-sora-story-row.head .vc-sora-story-msg {
+    color: var(--text-default);
+    font-weight: 600;
+}
+
+.vc-sora-story-row.warn .vc-sora-story-msg {
+    color: var(--status-warning);
+}
+
+.vc-sora-story-row.gap .vc-sora-story-time {
+    color: var(--status-warning);
+}
+
+.vc-sora-story-row.gap .vc-sora-story-rail::before {
+    background: repeating-linear-gradient(var(--background-mod-strong) 0 3px, transparent 3px 6px);
+}
+
+.vc-sora-story-row.gap .vc-sora-story-msg {
+    padding: 2px 0 10px;
+    color: var(--text-muted);
+    font-size: 12px;
+    font-style: italic;
+}
+
+/* --- Waterfall --- */
+
+.vc-sora-wf {
+    padding: 6px 0 8px;
+    border-radius: 8px;
+    background: var(--background-mod-subtle);
+    font-size: 12.5px;
+}
+
+.vc-sora-wf-row {
+    display: grid;
+    grid-template-columns: 132px minmax(0, 1fr) 46px;
+    gap: 8px;
+    align-items: center;
+    height: 24px;
+    padding: 0 10px;
+}
+
+.vc-sora-wf-row:not(.ruler):hover {
+    background: var(--background-mod-subtle);
+}
+
+.vc-sora-wf-row.ruler {
+    height: 20px;
+    margin-bottom: 2px;
+    border-bottom: 1px solid var(--background-mod-subtle);
+    color: var(--text-muted);
+    font-size: 10.5px;
+}
+
+.vc-sora-wf-label {
+    overflow: hidden;
+    color: var(--text-default);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.vc-sora-wf-row.phase .vc-sora-wf-label {
+    font-weight: 600;
+}
+
+.vc-sora-wf-row.step .vc-sora-wf-label {
+    padding-left: 14px;
+    color: var(--text-muted);
+}
+
+.vc-sora-wf-row.warn .vc-sora-wf-label {
+    color: var(--status-warning);
+}
+
+.vc-sora-wf-dur {
+    color: var(--text-muted);
+    font-size: 11.5px;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+}
+
+.vc-sora-wf-row.phase .vc-sora-wf-dur {
+    color: var(--text-default);
+    font-weight: 600;
+}
+
+.vc-sora-wf-dur.slow {
+    color: var(--status-warning);
+}
+
+.vc-sora-wf-lane {
+    position: relative;
+    height: 100%;
+}
+
+.vc-sora-wf-grid {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: var(--background-mod-subtle);
+}
+
+.vc-sora-wf-break {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    z-index: 2;
+    background: repeating-linear-gradient(135deg, transparent 0 3px, var(--background-mod-strong) 3px 5px);
+}
+
+.vc-sora-wf-span {
+    position: absolute;
+    top: 50%;
+    z-index: 1;
+    min-width: 3px;
+    height: 10px;
+    border-radius: 3px;
+    transform: translateY(-50%);
+}
+
+.vc-sora-wf-row.phase .vc-sora-wf-span {
+    height: 6px;
+}
+
+.vc-sora-wf-diamond {
+    position: absolute;
+    top: 50%;
+    z-index: 1;
+    width: 9px;
+    height: 9px;
+    border-radius: 1px;
+    transform: translate(-50%, -50%) rotate(45deg);
+}
+
+.vc-sora-wf-tick {
+    position: absolute;
+    top: 3px;
+    transform: translateX(-50%);
+    white-space: nowrap;
+}
+
+.vc-sora-wf-tick.first {
+    transform: none;
+}
+
+.vc-sora-wf-tick.last {
+    transform: translateX(-100%);
+}
+
+.vc-sora-wf-key {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    padding: 8px 10px 0;
+    color: var(--text-muted);
+    font-size: 12px;
+}
+
+.vc-sora-wf-key i {
+    display: inline-block;
+    margin-right: 6px;
+    vertical-align: -1px;
+}
+
+.vc-sora-wf-key-diamond {
+    width: 8px;
+    height: 8px;
+    background: var(--text-muted);
+    transform: rotate(45deg);
+}
+
+.vc-sora-wf-key-break {
+    width: 14px;
+    height: 8px;
+    background: repeating-linear-gradient(135deg, transparent 0 3px, var(--text-muted) 3px 5px);
+}
+
+/* --- Raw --- */
+
+.vc-sora-raw-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.vc-sora-raw-tools {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    color: var(--text-muted);
+    font-size: 12px;
+}
+
+.vc-sora-raw-tools label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+}
+
+.vc-sora-raw {
+    padding: 6px 0;
+    border-radius: 8px;
+    background: var(--background-mod-strong);
+    font-family: var(--font-code);
+    font-size: 12px;
+    line-height: 1.6;
+}
+
+.vc-sora-raw-line {
+    display: grid;
+    grid-template-columns: 90px 44px minmax(0, 1fr);
+    gap: 8px;
+    padding: 1px 10px;
+}
+
+.vc-sora-raw-line:hover {
+    background: var(--background-mod-subtle);
+}
+
+.vc-sora-raw-time {
+    color: var(--text-muted);
+}
+
+.vc-sora-raw-level {
+    padding-top: 1px;
+    font-size: 10.5px;
+    font-weight: 700;
+}
+
+.vc-sora-raw-msg {
+    color: var(--text-default);
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+}
+
+.vc-sora-raw-line.debug .vc-sora-raw-msg {
+    color: var(--text-muted);
+}

@@ -1,0 +1,134 @@
+/* --- Base --- */
+
+.vc-sora-donut-base {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    flex: 1 1 240px;
+    min-width: 220px;
+    padding: 12px 14px;
+    background: var(--background-mod-subtle);
+    border-radius: 8px;
+    box-sizing: border-box;
+}
+
+.vc-sora-donut-title {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--control-secondary-text-default);
+}
+
+.vc-sora-donut-empty {
+    font-size: 13px;
+    color: var(--text-muted);
+    padding: 20px 0;
+    text-align: center;
+}
+
+/* --- Body --- */
+
+.vc-sora-donut-body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+}
+
+.vc-sora-donut-svg-wrap {
+    position: relative;
+    flex-shrink: 0;
+}
+
+.vc-sora-donut-segment {
+    cursor: default;
+}
+
+.vc-sora-donut-center {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+}
+
+.vc-sora-donut-center-value {
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--text-default);
+    line-height: 1.1;
+}
+
+.vc-sora-donut-center-label {
+    font-size: 10px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* --- Legend --- */
+
+.vc-sora-donut-legend {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    width: 100%;
+    min-width: 0;
+}
+
+.vc-sora-donut-legend-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    min-width: 0;
+    border-radius: 4px;
+    padding: 2px 4px;
+    margin: 0 -4px;
+}
+
+.vc-sora-donut-legend-row:hover {
+    background: var(--background-mod-subtle, rgb(255 255 255 / 4%));
+}
+
+.vc-sora-donut-legend-swatch {
+    width: 8px;
+    height: 8px;
+    border-radius: 2px;
+    flex-shrink: 0;
+}
+
+.vc-sora-donut-legend-label {
+    color: var(--text-default);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+}
+
+.vc-sora-donut-legend-value {
+    color: var(--text-muted);
+    margin-left: auto;
+    padding-left: 8px;
+    flex-shrink: 0;
+    font-variant-numeric: tabular-nums;
+}
+
+/* --- Tooltip --- */
+
+.vc-sora-donut-tooltip {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.vc-sora-donut-tooltip-head {
+    font-weight: 600;
+}
+
+.vc-sora-donut-tooltip-breakdown {
+    display: flex;
+    flex-direction: column;
+    opacity: 0.8;
+}

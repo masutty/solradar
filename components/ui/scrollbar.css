@@ -1,0 +1,24 @@
+/* Matches Discord's thin scroller for native scroll areas (textareas, plain divs)
+   that can't use <ScrollerThin>. */
+
+.vc-sora-thin-scroll::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.vc-sora-thin-scroll::-webkit-scrollbar-button {
+    display: none;
+}
+
+.vc-sora-thin-scroll::-webkit-scrollbar-track,
+.vc-sora-thin-scroll::-webkit-scrollbar-corner {
+    background: transparent;
+}
+
+.vc-sora-thin-scroll::-webkit-scrollbar-thumb {
+    min-height: 40px;
+    border: 2px solid transparent;
+    border-radius: 4px;
+    background-clip: padding-box;
+    background-color: var(--scrollbar-thin-thumb, var(--background-mod-strong));
+}

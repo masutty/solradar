@@ -1,0 +1,98 @@
+{
+    "currentVersion": "1.4.2",
+    "changelog": [
+        {
+            "version": "1.4.2",
+            "entries": [
+                { "type": "Improved", "text": "Search servers, channels, users and roles by name", "description": "Every server, channel, user and role list now has a search box. Type a name or paste an ID, then press Enter or click a result." },
+                { "type": "Improved", "text": "Shorter filter lists", "description": "Each list shows 5 entries. Click \"Show all\" to see the rest in a window with its own search. Hover a name to see its ID, and click it to copy." },
+                { "type": "Added", "text": "Warnings for deleted servers, channels and roles", "description": "Entries you left, that were deleted or that you can no longer see are marked in red, with a button to remove them all. Their last known name stays visible." },
+                { "type": "Improved", "text": "Role filter", "description": "Find the role by name instead of pasting its ID and typing a label." },
+                { "type": "Improved", "text": "Snipe History uses the full width", "description": "Each snipe is one row. The result is a dot on the trigger icon (hover it for the name), with the time, reaction time and biome duration on the right." },
+                { "type": "Improved", "text": "Snipe details", "description": "A bar shows how long joining, checking the link and the biome check took. What happened has three views: Timeline, now with the time since the step before, a new Waterfall, and Raw with debug lines hidden by default." },
+                { "type": "Improved", "text": "Clearer timing names", "description": "Total is now Reaction time, and every timing explains itself on hover." },
+                { "type": "Added", "text": "Undo a biome verdict", "description": "\"Was this biome real?\" has a Timed out option, so a misclick on Real or Fake can be undone." },
+                { "type": "Improved", "text": "Snipe Debug follows the whole snipe", "description": "The debug button on messages now shows if a message would be ignored, saved to History, or joined, and what would happen after. It also tells you when a trigger that's turned off would match. Switch between a checklist and a compact trace." },
+                { "type": "Added", "text": "Fix it from Snipe Debug", "description": "When a setting stops a snipe, a button next to it fixes that setting. Check Roblox PlaceID asks Roblox which game a link opens, and Copy report gives you a summary to paste when asking for help." },
+                { "type": "Fixed", "text": "Messages built with Discord's new layouts", "description": "Bots that post with the new message layout (text blocks and buttons, no embed) are now read: their text can match triggers and links in their buttons are found. Needs Interpret embeds, which is on by default." },
+                { "type": "Fixed", "text": "Window layouts", "description": "The trigger editor and snipe details have proper header spacing, and their dividers reach both edges of the window." },
+                { "type": "Fixed", "text": "Buttons and scrollbars", "description": "Pick-one buttons (Real or Fake, Timeline or Raw, trigger type) react on hover, and text boxes and the trigger editor menu use Discord's thin scrollbar." }
+            ]
+        },
+        {
+            "version": "1.4.1",
+            "entries": [
+                { "type": "Added", "text": "Turn triggers on and off from the list", "description": "Click a trigger's icon to turn it on or off. Disabled triggers are now outlined and grey, with a Disabled tag." },
+                { "type": "Added", "text": "Global forwarding switch", "description": "Turn forwarding off for every trigger at once from the Forwarding block in Settings. Each trigger keeps its own setting for when you turn it back on." },
+                { "type": "Improved", "text": "Reorder triggers by dragging the whole card", "description": "Press anywhere on a trigger and drag it. A plain click still opens the editor." },
+                { "type": "Improved", "text": "Cleaner trigger cards", "description": "Join, Notify and Forward now show when you hover a trigger, and the full description shows in a tooltip." },
+                { "type": "Improved", "text": "Trigger stats", "description": "Each trigger in Stats is now a bar: longer means more snipes, and the colors show how many were real, bait or timed out. Hover a trigger for its full numbers, including how long its real biomes lasted." },
+                { "type": "Improved", "text": "Snipe History", "description": "Hover the dot next to a snipe to see how it ended." }
+            ]
+        },
+        {
+            "version": "1.4.0",
+            "entries": [
+                { "type": "Improved", "text": "Redesigned the whole plugin", "description": "Every tab has a new look, built to match Discord's own settings pages." },
+                { "type": "Improved", "text": "Settings tab", "description": "Settings are grouped into collapsible blocks that remember if they are open, with an overview of what is on at the top." },
+                { "type": "Added", "text": "Debug report", "description": "Something not working? Send your setup to the developer from the bottom of the Settings tab. Your Roblox token is never included." },
+                { "type": "Improved", "text": "Snipe History", "description": "Snipes are now a timeline grouped by day, colored by result. Search stays on top, and the filter and clear options moved into menus." },
+                { "type": "Improved", "text": "Snipe details", "description": "The details window shows the timing on top, the biome result, and what happened step by step. Switch to Raw to see the full log." },
+                { "type": "Improved", "text": "Trigger list", "description": "Turn Join, Notify and Forward on or off right from each trigger. Hover a button to see what it does." },
+                { "type": "Improved", "text": "Trigger editor", "description": "The tabs are replaced by a side menu. Everything you need is in Essentials, and the optional sections show a dot when they are set up." },
+                { "type": "Added", "text": "Try your own messages in the match preview", "description": "Type a message under the preview to check if your trigger would match it." },
+                { "type": "Improved", "text": "Updates, Stats, Utilities and Developer tabs", "description": "Cleaner layouts, with tooltips that explain each option." }
+            ]
+        },
+        {
+            "version": "1.3.6",
+            "entries": [
+                { "type": "Added", "text": "Snipe breakdown charts in Stats", "description": "New \"By Server\" and \"By Trigger\" charts show where your snipes are coming from at a glance. Hover a slice (or the legend) to see the exact count and its real/bait/timeout split." },
+                { "type": "Added", "text": "Right-click menu for Snipe History entries", "description": "Quick actions on any entry: view details, jump to the message, copy the server link, join server, or remove it." },
+                { "type": "Improved", "text": "Reorganized the Stats tab", "description": "The new charts sit right below the overview cards, above the per-trigger list." }
+            ]
+        },
+        {
+            "version": "1.3.4",
+            "entries": [
+                { "type": "Added", "text": "Draggable trigger reordering", "description": "Hover a trigger to reveal a drag handle on the left and reorder by dragging. Disabled while any search or filter is active." },
+                { "type": "Added", "text": "Right-click context menu for triggers", "description": "Replaced the right-click action on triggers with a menu with quick actions like enable/disable, duplicate, export, etc." },
+                { "type": "Added", "text": "Duplicate trigger action" },
+                { "type": "Added", "text": "\"Use buttons for ordering triggers\" setting", "description": "Reorder triggers with ▲▼ buttons instead of dragging them, for anyone who prefers it." },
+                { "type": "Added", "text": "\"Trigger tab context menu\" setting", "description": "Disable to go back to right-click instantly toggling enabled/disabled instead of opening the context menu." }
+            ]
+        },
+        {
+            "version": "1.3.3",
+            "entries": [
+                { "type": "Added", "text": "Send Macro Kill Signal setting", "description": "Force-kill a running macro right after joining a snipe, before it can detect the biome and send a false alert to your macro's webhook." },
+                { "type": "Added", "text": "Macro Type presets", "description": "Pick a known macro to auto-fill its kill target (Maxstellar, FishSol, Coteab, J.JARAM, SolsScope), or choose Custom to set your own." },
+                { "type": "Added", "text": "\"Check processes\" button", "description": "Confirms whether the configured process name or window title actually matches something running, before you rely on it during a live snipe." }
+            ]
+        },
+        {
+            "version": "1.3.2",
+            "entries": [
+                { "type": "Other", "text": "Internal changes" }
+            ]
+        },
+        {
+            "version": "1.3.1",
+            "entries": [
+                { "type": "Fixed", "text": "Trigger SafeExport shouldn't be exporting mentionRoles" },
+                { "type": "Added", "text": "A triggers.json file with default triggers" },
+                { "type": "Other", "text": "Reworked import trigger menu to handle default or file" }
+
+            ]
+        },
+        {
+            "version": "1.3.0",
+            "entries": [
+                { "type": "Added", "text": "Updates page" },
+                { "type": "Added", "text": "Check for updates daily", "description": "You still need to update manually through the installer, or via git. You can disable this in settings." },
+                { "type": "Added", "text": "AnonymizeEverything setting", "description": "Hide every origin information from your snipes. You can disable this in settings." },
+                { "type": "Removed", "text": "About page" }
+            ]
+        }
+    ]
+}
