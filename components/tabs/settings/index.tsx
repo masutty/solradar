@@ -213,6 +213,7 @@ type SettingEntry = {
     description?: string;
     tooltip?: string;
     chipKind?: ChipKind;
+    keywords?: boolean;
     tech?: boolean;
 };
 
@@ -414,6 +415,8 @@ export function SettingsTab() {
                 { id: "advancedEmbedFlattening", label: "Deep embed reading", description: "Also read embed fields and message component URLs when reading embeds.", tech: true },
                 { id: "interpretJoinguardLinks", label: "Accept Joinguard links", description: "Handle Sol's Stat Tracker Joinguard links. They open your browser for Cloudflare verification, so the place cannot be checked." },
                 { id: "ignoreWebhookForwards", label: "Ignore SolRadar's own forwards", description: "Skip any message whose embed footer contains \"solradar\", so the plugin never reacts to its own webhooks.", tech: true },
+                { id: "watchMessageEdits", label: "Check edited messages", description: "Experimental. Also check a message when it is edited, for people who post the link first and add the biome later.", tooltip: "Only edits made in the first minute count. An edit that keeps the same biome never makes a second snipe.", tech: true },
+                { id: "editEndedKeywords", label: "Biome ended words", keywords: true, description: "An edit that contains one of these words is ignored, since people add them when the biome is over. Leave empty to check every edit.", tooltip: "Only used by \"Check edited messages\". Matches whole words and ignores case, so \"over\" matches \"(OVER)\" but not \"overcast\".", tech: true },
             ],
         },
         {
@@ -483,7 +486,7 @@ export function SettingsTab() {
 
     const renderEntry = (e: Entry) => isCustom(e)
         ? <React.Fragment key={e.key}>{e.node}</React.Fragment>
-        : <Setting key={e.id} id={e.id} label={e.label} description={e.description} tooltip={e.tooltip} chipKind={e.chipKind} tech={e.tech} />;
+        : <Setting key={e.id} id={e.id} label={e.label} description={e.description} tooltip={e.tooltip} chipKind={e.chipKind} keywords={e.keywords} tech={e.tech} />;
 
     return (
         <div style={{ display: "flex", flexDirection: "column", gap: 8, paddingBottom: 20 }}>

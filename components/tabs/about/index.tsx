@@ -43,7 +43,7 @@ interface CreditEntry {
 }
 
 const CREDITS: CreditEntry[] = [
-    { name: "masutty", role: "Author", note: "oh hey thats me", url: "https://gitlab.com/masutty" },
+    { name: "masutty", role: "Author", note: "oh hey thats me", url: "https://github.com/masutty" },
     { name: "maxstellar", role: "Credits", note: "Biome icons", url: "https://github.com/maxstellar" },
     { name: "vexthecoder", role: "Credits", note: "Merchant icons", url: "https://github.com/vexsyx" },
     { name: "cresqnt-sys", role: "Credits", note: "Biome detection logic", url: "https://github.com/cresqnt-sys" },
@@ -52,8 +52,8 @@ const CREDITS: CreditEntry[] = [
 ];
 
 const LINKS = [
-    { label: "Plugin source", url: "https://gitlab.com/masutty/solradar" },
-    { label: "Installer source", url: "https://gitlab.com/masutty/solradar-installer" },
+    { label: "Plugin source", url: "https://github.com/masutty/solradar" },
+    { label: "Helper source", url: "https://github.com/masutty/solradar-helper" },
     { label: "Support server", url: "https://discord.gg/EfWHGGz7MG" },
 ];
 

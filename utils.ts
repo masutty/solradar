@@ -151,7 +151,7 @@ export function getCurrentChangelog(): ChangelogVersion[] {
 }
 
 export async function getLatestPublishedManifest(): Promise<VersionManifest | null> {
-    const VERSION_URL = "https://gitlab.com/api/v4/projects/80066436/repository/files/version.json/raw?ref=main";
+    const VERSION_URL = "https://raw.githubusercontent.com/masutty/solradar/main/version.json";
 
     const controller = new AbortController();
 

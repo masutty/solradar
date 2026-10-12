@@ -10,6 +10,7 @@ import { React, Select, TextInput, Tooltip } from "@webpack/common";
 
 import { settings } from "../../../settings";
 import { ChipKind, IdChipInput } from "../../ui/IdChipInput";
+import { KeywordsInput } from "../../ui/KeywordsInput";
 
 // --- Types ---
 
@@ -23,6 +24,7 @@ export type SettingProps = {
     disabled?: boolean;
     style?: React.CSSProperties;
     chipKind?: ChipKind;
+    keywords?: boolean; // comma-separated words, edited as chips
     tech?: boolean; // shows a "Technical" badge next to the label
 };
 
@@ -224,6 +226,12 @@ function IdChipControl({ id, kind, label, hint, tooltip }: {
     );
 }
 
+function KeywordsControl({ id, label, hint }: { id: SettingsKey; label: React.ReactNode; hint?: string; }) {
+    const raw = settings.use([id])[id] as string ?? "";
+    const words = raw.split(",").map(v => v.trim()).filter(Boolean);
+    return <KeywordsInput label={label} hint={hint} value={words} onChangeValue={v => { s()[id] = v.join(", "); }} />;
+}
+
 function BooleanControl({ id, disabled }: { id: SettingsKey; disabled?: boolean; }) {
     const value = settings.use([id])[id] as boolean;
     return (
@@ -329,7 +337,7 @@ function NumberControl({ id, disabled }: { id: SettingsKey; disabled?: boolean; 
 
 // --- Setting ---
 
-export function Setting({ id, label, description, tooltip, disabled, style, chipKind, tech }: SettingProps) {
+export function Setting({ id, label, description, tooltip, disabled, style, chipKind, keywords, tech }: SettingProps) {
     const def = settings.def[id] as any;
     if (!def) return null;
 
@@ -376,6 +384,11 @@ export function Setting({ id, label, description, tooltip, disabled, style, chip
             if (chipKind) return (
                 <div data-sora-setting={id}>
                     <IdChipControl id={id} kind={chipKind} label={label} hint={description} tooltip={tooltip} />
+                </div>
+            );
+            if (keywords) return (
+                <div data-sora-setting={id}>
+                    <KeywordsControl id={id} label={labelNode} hint={description} />
                 </div>
             );
             control = <StringControl id={id} disabled={disabled} />;

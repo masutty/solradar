@@ -47,6 +47,7 @@ export interface TriggerConditions {
     inChannel: string[]; // empty = ignore check
     ignoredChannels: string[];
     ignoredGuilds: string[];
+    ignoreEdits: boolean; // never fire on edited messages
     // Each bypass skips one global check for this trigger
     bypassMatchAmbiguity: boolean; // several triggers matched
     bypassMonitoredOnly: boolean; // monitored servers/channels
@@ -113,6 +114,7 @@ export const DEFAULT_CONDITIONS: TriggerConditions = {
     inChannel: [],
     ignoredChannels: [],
     ignoredGuilds: [],
+    ignoreEdits: false,
     bypassMatchAmbiguity: false,
     bypassMonitoredOnly: false,
     bypassIgnoredGuilds: false,
@@ -189,6 +191,7 @@ function migrateTrigger(raw: any): Trigger {
             inChannel: raw.conditions?.inChannel ?? [],
             ignoredChannels: raw.conditions?.ignoredChannels ?? [],
             ignoredGuilds: raw.conditions?.ignoredGuilds ?? [],
+            ignoreEdits: raw.conditions?.ignoreEdits ?? false,
             bypassMatchAmbiguity: raw.conditions?.bypassMatchAmbiguity ?? false,
             bypassMonitoredOnly: raw.conditions?.bypassMonitoredOnly ?? false,
             bypassIgnoredGuilds: raw.conditions?.bypassIgnoredGuilds ?? false,

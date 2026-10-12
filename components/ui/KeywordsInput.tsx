@@ -55,13 +55,14 @@ function KeywordChip({ label, variant, onRemove }: {
 // --- KeywordsInput ---
 
 export interface KeywordsInputProps {
-    label: string;
+    label: React.ReactNode;
     hint?: string;
     value: string[];
-    strict: boolean;
+    /** Leave strict and onChangeStrict out to hide the Strict match toggle. */
+    strict?: boolean;
     variant?: "match" | "exclude";
     onChangeValue: (v: string[]) => void;
-    onChangeStrict: (v: boolean) => void;
+    onChangeStrict?: (v: boolean) => void;
     placeholder?: string;
 }
 
@@ -164,7 +165,7 @@ export function KeywordsInput({
             )}
 
             {/* Strict match toggle */}
-            <div style={{
+            {onChangeStrict && <div style={{
                 marginTop: 8, display: "flex", alignItems: "center",
                 justifyContent: "space-between", gap: 12,
                 padding: "8px 12px", borderRadius: 6,
@@ -178,8 +179,8 @@ export function KeywordsInput({
                         When on, only matches the exact word, not partial matches.
                     </span>
                 </div>
-                <FormSwitch title="" value={strict} onChange={onChangeStrict} hideBorder />
-            </div>
+                <FormSwitch title="" value={!!strict} onChange={onChangeStrict} hideBorder />
+            </div>}
         </div>
     );
 }

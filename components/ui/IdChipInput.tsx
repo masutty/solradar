@@ -64,8 +64,7 @@ export function IdChipInput({ kind, label, hint, ids, labels, onChange }: {
                             <span className="vc-sora-idf-stack">
                                 {hidden.slice(0, 3).map(r => <RowIcon key={r.id} row={r} />)}
                             </span>
-                            Show all {rows.length}
-                            <span className="vc-sora-idf-sub">· {hidden.length} more</span>
+                            and {hidden.length} more
                         </button>
                     )}
                 </div>

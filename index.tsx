@@ -23,6 +23,7 @@ import { cancelBiomeDetection } from "./services/BiomeWatcher";
 import { forwardSnipe } from "./services/ForwardingService";
 import { isJoinLocked, join, shouldJoin } from "./services/JoinService";
 import { flattenEmbeds, getSnipableLink, isMessageAllowed, isValidMessage, resolveTrigger, sanitizeContent } from "./services/MessageProcessor";
+import { recordSnipe, shouldProcessEdit, snipedTriggers } from "./services/MessageEditWatcher";
 import { canNotify, notify } from "./services/NotificationService";
 import { isDuplicateLink, markAsSeen } from "./services/SnipeDeduplicator";
 import { settings } from "./settings";
@@ -40,7 +41,7 @@ export interface JoinResult {
 
 // --- Orchestration ---
 
-async function handleMessage(message: Message, channel: Channel, guild: Guild, tMessageReceived: number): Promise<void> {
+async function handleMessage(message: Message, channel: Channel, guild: Guild, tMessageReceived: number, fromEdit = false): Promise<void> {
     if (!isValidMessage(message)) return;
     ActiveChannelStore.registerMessage(channel, guild);
 
@@ -54,13 +55,30 @@ async function handleMessage(message: Message, channel: Channel, guild: Guild, t
     const trigger = resolveTrigger({ message, channel, guild });
     if (!trigger) return;
 
-    logger.info(`Match: "${trigger.name}" (p${trigger.state.priority}) in #${channel.name} @ ${guild.name}`);
+    // An edit that keeps the same biome (typo fix, "(ended)" added...) never makes a second snipe
+    if (fromEdit && trigger.conditions.ignoreEdits) {
+        logger.info(`Edit ignored: "${trigger.name}" only fires on new messages`);
+        return;
+    }
+    const earlier = snipedTriggers(message.id);
+    if (fromEdit && earlier.includes(trigger.name)) {
+        logger.info(`Edit ignored: this message already made a "${trigger.name}" snipe`);
+        return;
+    }
+
+    logger.info(`Match: "${trigger.name}" (p${trigger.state.priority}) in #${channel.name} @ ${guild.name}${fromEdit ? " (edited message)" : ""}`);
 
     if (!isMessageAllowed({ channel, message, trigger })) return;
     if (isJoinLocked(trigger)) return;
 
     const snipe = Snipe.create(message, link, trigger, channel, guild, tMessageReceived);
     snipe.logDebug("-- Snipe created! --");
+    recordSnipe(message.id, trigger.name);
+    if (fromEdit) {
+        snipe.logInfo(earlier.length
+            ? `Found in an edited message. Before the edit it matched: ${earlier.join(", ")}`
+            : "Found in an edited message. Before the edit it matched no trigger");
+    }
 
     if (isDuplicateLink(snipe)) return;
 
@@ -174,6 +192,23 @@ export default definePlugin({
             if (!guild) return;
 
             await handleMessage(message, channel, guild, tMessageReceived);
+        },
+
+        // Experimental: some people post the link first and add the biome in an edit
+        async MESSAGE_UPDATE({ message }: { message: Message; }) {
+            const tMessageReceived = performance.now();
+            if (!settings.store.watchMessageEdits) return;
+            if (!message?.id || !shouldProcessEdit(message)) return;
+
+            const channel = ChannelStore.getChannel(message.channel_id);
+            if (!channel) return;
+            if (channel.type === ChannelType.DM || channel.type === ChannelType.GROUP_DM) return;
+
+            const guild = GuildStore.getGuild(channel.guild_id!);
+            if (!guild) return;
+
+            // The pipeline rewrites content, so work on a copy and leave Discord's payload alone
+            await handleMessage({ ...message } as Message, channel, guild, tMessageReceived, true);
         }
     }
 });

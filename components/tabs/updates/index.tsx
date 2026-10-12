@@ -36,7 +36,7 @@ interface CreditEntry {
 }
 
 const CREDITS: CreditEntry[] = [
-    { name: "masutty", role: "Author", note: "oh hey thats me", url: "https://gitlab.com/masutty" },
+    { name: "masutty", role: "Author", note: "oh hey thats me", url: "https://github.com/masutty" },
     { name: "maxstellar", role: "Credits", note: "Biome icons", url: "https://github.com/maxstellar" },
     { name: "vexthecoder", role: "Credits", note: "Merchant icons", url: "https://github.com/vexsyx" },
     { name: "cresqnt-sys", role: "Credits", note: "Biome detection logic", url: "https://github.com/cresqnt-sys" },
@@ -106,14 +106,14 @@ const LINKS: LinkEntry[] = [
     {
         label: "Source",
         icon: "🔗",
-        tooltip: "Source code on GitLab",
-        onClick: () => window.open("https://gitlab.com/masutty/solradar", "_blank"),
+        tooltip: "Source code on GitHub",
+        onClick: () => window.open("https://github.com/masutty/solradar", "_blank"),
     },
     {
-        label: "Installer",
+        label: "Helper",
         icon: "📦",
-        tooltip: "Get SolRadar Installer, also used to update",
-        onClick: () => window.open("https://gitlab.com/masutty/solradar-installer", "_blank"),
+        tooltip: "Get SolRadar Helper, also used to update",
+        onClick: () => window.open("https://github.com/masutty/solradar-helper", "_blank"),
     },
     {
         label: "Discord",
@@ -236,7 +236,7 @@ function StatusCard({ updateAvailable, latestVersion, checkState, lastCheck, onC
                 <div style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 13, color: "var(--text-default)" }}>
                     <span>How to update</span>
                     <ol style={{ margin: 0, paddingLeft: 20, display: "flex", flexDirection: "column", gap: 4, color: "var(--text-muted)" }}>
-                        <li>Run SolRadar Installer again, or run <code>git pull</code> in the plugin folder and rebuild Vencord.</li>
+                        <li>Run SolRadar Helper again, or run <code>git pull</code> in the plugin folder and rebuild Vencord.</li>
                         <li>Restart Discord.</li>
                     </ol>
                 </div>

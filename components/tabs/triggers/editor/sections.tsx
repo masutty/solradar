@@ -335,6 +335,7 @@ function FiltersSection({ draft, patch }: { draft: Draft; patch: Patch; }) {
             <IdChipInput kind="channel" label="Only in these channels" hint="Leave empty for any monitored channel." ids={c.inChannel} onChange={ids => patchC({ inChannel: ids })} />
             <IdChipInput kind="channel" label="Never in these channels" hint="On top of the channels ignored in Settings." ids={c.ignoredChannels} onChange={ids => patchC({ ignoredChannels: ids })} />
             <IdChipInput kind="guild" label="Never in these servers" hint="Good for servers with no-sniper rules." ids={c.ignoredGuilds} onChange={ids => patchC({ ignoredGuilds: ids })} />
+            <SwitchRow label="Ignore edited messages" hint="Only fire on new messages, never on edits. Matters only when Check edited messages is on in Settings." value={c.ignoreEdits} onChange={v => patchC({ ignoreEdits: v })} />
         </>
     );
 }
@@ -381,7 +382,7 @@ export const SECTIONS: EditorSection[] = [
     { id: "forwarding", label: "Forwarding", group: "optional", visible: () => true, configured: d => d.forwarding.onMatch.enabled || d.forwarding.onDetection.enabled, Component: ForwardingSection },
     {
         id: "filters", label: "Filters", group: "optional", visible: () => true,
-        configured: d => [d.conditions.fromUser, d.conditions.inChannel, d.conditions.ignoredChannels, d.conditions.ignoredGuilds].some(a => a.length > 0),
+        configured: d => [d.conditions.fromUser, d.conditions.inChannel, d.conditions.ignoredChannels, d.conditions.ignoredGuilds].some(a => a.length > 0) || d.conditions.ignoreEdits,
         Component: FiltersSection,
     },
     { id: "bypasses", label: "Bypasses", group: "optional", tech: true, visible: () => true, configured: d => BYPASSES.some(([k]) => Boolean(d.conditions[k])), Component: BypassesSection },

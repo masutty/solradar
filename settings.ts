@@ -53,6 +53,19 @@ export const settings = definePluginSettings({
         default: false,
     },
 
+    watchMessageEdits: {
+        type: OptionType.BOOLEAN,
+        description: "Experimental. Also check messages when they are edited, for people who post the link first and add the biome later. Edits on messages older than 1 minute and edits that keep the same biome are ignored.",
+        default: false,
+        hidden: true,
+    },
+    editEndedKeywords: {
+        type: OptionType.STRING,
+        description: "Comma-separated. An edit that contains one of these words is ignored, since people add them when the biome is over.",
+        default: "ended, over, expired, finished, gone, closed, done",
+        hidden: true,
+    },
+
     // UI
     pluginIconLocation: {
         type: OptionType.SELECT,

@@ -21,7 +21,7 @@ import { DeleteButton } from "../../ui/buttons/DeleteButton";
 import Spoiler from "../../ui/Spoiler";
 import { COLORS } from "../../ui/styles";
 import { useShiftHeld } from "../../ui/useShiftHeld";
-import { FallbackImage, formatClock, getSnipeStatus } from "./components";
+import { FallbackImage, getSnipeStatus } from "./components";
 import { openJoinModal } from "./JoinModal";
 import { openSnipeContextMenu } from "./SnipeContextMenu";
 import { OutcomeGlyph } from "./SnipeTimeline";
@@ -61,6 +61,10 @@ function timeAgo(ts: number): string {
     const hours = Math.floor(minutes / 60);
     if (hours < 24) return `${hours}h ago`;
     return `${Math.floor(hours / 24)}d ago`;
+}
+
+function fullDateTime(ts: number): string {
+    return new Date(ts).toLocaleString(undefined, { dateStyle: "full", timeStyle: "medium" });
 }
 
 // --- Icons ---
@@ -190,8 +194,8 @@ function SnipeCard({ entry, index, shiftHeld }: { entry: SnipeEntry; index: numb
             </div>
 
             <div className="vc-sora-history-side">
-                <Tooltip text={timeAgo(entry.timestamp)}>
-                    {props => <span {...props} className="vc-sora-history-clock">{formatClock(entry.timestamp)}</span>}
+                <Tooltip text={fullDateTime(entry.timestamp)}>
+                    {props => <span {...props} className="vc-sora-history-clock">{timeAgo(entry.timestamp)}</span>}
                 </Tooltip>
                 {(entry.metrics || (isReal && entry.biomeDurationMs != null)) && (
                     <span className="vc-sora-history-stats">

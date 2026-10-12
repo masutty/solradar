@@ -1,6 +1,17 @@
 {
-    "currentVersion": "1.4.2",
+    "currentVersion": "1.4.3",
     "changelog": [
+        {
+            "version": "1.4.3",
+            "entries": [
+                { "type": "Added", "text": "Check edited messages", "description": "Experimental, off by default. Turn it on in Settings, under Reading messages, to catch people who post the link first and add the biome in an edit. Only edits made in the first minute count, and an edit that keeps the same biome never makes a second snipe." },
+                { "type": "Added", "text": "Biome ended words", "description": "An edit that contains one of these words, like \"ended\" or \"over\", is ignored, since people add them when the biome is over. Add or remove words in Settings, under Reading messages." },
+                { "type": "Added", "text": "Ignore edited messages per trigger", "description": "Turn on \"Ignore edited messages\" in a trigger's Filters so it only fires on new messages." },
+                { "type": "Improved", "text": "Snipe History shows how long ago", "description": "Each snipe shows how long ago it happened again, like \"5m ago\". Hover it to see the full date and time." },
+                { "type": "Improved", "text": "Shorter \"and N more\" in filter lists", "description": "The button under a long server, channel, user or role list now just says how many more there are. Click it to see them all." },
+                { "type": "Other", "text": "SolRadar moved to GitHub", "description": "The plugin now lives at github.com/masutty/solradar, and update checks use it. Links in About and Updates point there, and to SolRadar Helper. Nothing changes for you if you update with SolRadar Helper." }
+            ]
+        },
         {
             "version": "1.4.2",
             "entries": [

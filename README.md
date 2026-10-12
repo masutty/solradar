@@ -21,7 +21,7 @@ Monitors channels for private Roblox server links and, if configured, joins them
 ## Installing
 
 ### Easy install (recommended)
-Download the installer from [gitlab.com/masutty/solradar-installer](https://gitlab.com/masutty/solradar-installer) and run it. It should guide you on what you're missing and automate the Vencord installation steps.
+Download SolRadar Helper from [github.com/masutty/solradar-helper](https://github.com/masutty/solradar-helper) and run it. It should guide you on what you're missing and automate the Vencord installation steps.
 
 ### Manual install
 If you know what you're doing, clone this repository inside your Vencord `userplugins` folder.
