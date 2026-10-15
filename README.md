@@ -18,7 +18,7 @@ A Vencord plugin that watches Discord for Sol's RNG private server links and joi
 
 SolRadar runs inside Discord as a Vencord plugin. It reads the messages in the servers you choose, finds private server links for the biomes, weathers and merchants you care about, and opens them in Roblox.
 
-It is an alternative to selfbot snipers. It needs no Discord token and sends nothing extra to Discord: it reacts to the messages your Discord client already receives.
+It is an alternative to selfbot snipers. It needs no Discord token, and sniping sends nothing extra to Discord: it reacts to the messages your Discord client already receives.
 
 > [!NOTE]
 > SolRadar is not affiliated with Vencord or with Sol's RNG. Do not ask for help in Vencord's Discord server, they can't help with this plugin. Use the [SolRadar support server](https://discord.gg/EfWHGGz7MG) instead.
@@ -61,11 +61,13 @@ Build and inject Vencord as the guide describes. To update later, run `git pull`
 
 Everything is in the SolRadar menu: click the SolRadar button in the chat bar.
 
+The first time you open a tab, a short in-app tour walks you through it. Skip it anytime with **Skip tutorial**, and replay it from the **?** button at the top of the tab. The trigger editor has its own tour and its own **?**.
+
 ### Quick start
 
 1. Open the **Triggers** tab.
-2. Click **⋯** and choose **Import default triggers**, then **Add as new**.
-3. The default triggers come turned off. Click the icon of each trigger you want to turn it on.
+2. Click **⋯** and choose **Import default triggers**. If you already have triggers, choose **Add as new**.
+3. The default triggers come turned off, with auto-join and notifications ready. Click the icon of each trigger you want to turn it on.
 4. Turn on auto-join: right-click the SolRadar button in the chat bar. This turns auto-join and notifications on or off together.
 
 That's it. SolRadar now joins the links for the triggers you turned on.
@@ -94,6 +96,7 @@ That's it. SolRadar now joins the links for the triggers you turned on.
   - GitHub, once a day, to check for a new version. You can turn this off in Settings, but then you won't know when a fix comes out.
   - Roblox, only for the link check and the biome check, when you turn them on.
   - The webhooks you set for forwarding.
+  - Discord, to look up the author's profile for the avatar in the Updates tab credits, when your client doesn't have it yet. GitHub, if that fails.
 
 ## Credits
 

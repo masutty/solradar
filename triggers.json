@@ -507,7 +507,7 @@
         },
         "state": {
             "enabled": false,
-            "autojoin": false,
+            "autojoin": true,
             "notify": true,
             "joinlock": false,
             "joinlockDuration": 0,
@@ -639,7 +639,7 @@
         "state": {
             "enabled": false,
             "autojoin": true,
-            "notify": false,
+            "notify": true,
             "joinlock": true,
             "joinlockDuration": 0,
             "priority": 10,
@@ -886,6 +886,69 @@
             "inChannel": [],
             "ignoredChannels": [],
             "ignoredGuilds": [],
+            "bypassMatchAmbiguity": false,
+            "bypassMonitoredOnly": false,
+            "bypassIgnoredGuilds": false,
+            "bypassForwardIgnoredGuilds": false,
+            "bypassIgnoredChannels": false,
+            "bypassLinkVerification": false,
+            "bypassLinkDeduplication": false
+        },
+        "state": {
+            "enabled": false,
+            "autojoin": true,
+            "notify": true,
+            "joinlock": false,
+            "joinlockDuration": 0,
+            "priority": 10,
+            "notificationSound": "",
+            "notificationSoundVolume": 100
+        },
+        "forwarding": {
+            "webhookUrl": "",
+            "webhookContent": "",
+            "webhookEmbedDescription": "",
+            "excludedGuilds": [],
+            "excludedChannels": [],
+            "onMatch": {
+                "enabled": false,
+                "early": false
+            },
+            "onDetection": {
+                "enabled": false
+            }
+        }
+    },
+    {
+        "id": "e6f7cefa-6a27-4b52-b24a-22265dc47975",
+        "type": "EVENT_BIOME",
+        "name": "Incinerator",
+        "description": "?/? per ??? or 1/10 on weapon shot",
+        "iconUrl": "https://i.imgur.com/JEXAknE.png",
+        "biome": {
+            "detectionEnabled": true,
+            "detectionKeyword": "INCINERATOR",
+            "skipRedundantJoin": true
+        },
+        "conditions": {
+            "keywords": {
+                "match": {
+                    "strict": false,
+                    "value": [
+                        "incinerator"
+                    ]
+                },
+                "exclude": {
+                    "strict": false,
+                    "value": []
+                }
+            },
+            "mentionRoles": [],
+            "fromUser": [],
+            "inChannel": [],
+            "ignoredChannels": [],
+            "ignoredGuilds": [],
+            "ignoreEdits": false,
             "bypassMatchAmbiguity": false,
             "bypassMonitoredOnly": false,
             "bypassIgnoredGuilds": false,

@@ -42,7 +42,7 @@ export const IdLookup = {
             .then(() => (kind === "channel" ? lookupChannel(id) : lookupUser(id)))
             .catch(err => {
                 logger.warn(`Lookup of ${kind} ${id} failed:`, err);
-                showToast(`Couldn't check this ${kind}. Try again later.`, "failure");
+                showToast({ text: `Couldn't check this ${kind}. Try again later.`, variant: "critical" });
             })
             .finally(() => { pending.delete(id); emit(); })
             .then(() => new Promise(r => setTimeout(r, GAP_MS)));

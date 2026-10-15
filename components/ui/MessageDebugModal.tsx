@@ -99,7 +99,7 @@ function FixButtons({ fixes, onFixed }: { fixes?: Fix[]; onFixed: () => void; })
                     className="vc-sora-dbg-fix"
                     onClick={async () => {
                         await f.run();
-                        showToast(`${f.label}: done`, "success");
+                        showToast({ text: `${f.label}: done`, variant: "success" });
                         onFixed();
                     }}
                 >
@@ -315,7 +315,7 @@ function DebugModal({ modalProps, message, channel, guild }: { modalProps: Modal
             await copyToClipboard(text);
             return true;
         } catch {
-            showToast(`Couldn't copy the ${what.toLowerCase()}`, "failure");
+            showToast({ text: `Couldn't copy the ${what.toLowerCase()}`, variant: "critical" });
             return false;
         }
     };

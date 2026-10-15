@@ -70,9 +70,9 @@ export function IdRow({ row, onRemove }: { row: RowView; onRemove: () => void; }
     const copy = async () => {
         try {
             await copyToClipboard(row.id);
-            showToast("Copied ID", "success");
+            showToast({ text: "Copied ID", variant: "success" });
         } catch {
-            showToast("Couldn't copy the ID", "failure");
+            showToast({ text: "Couldn't copy the ID", variant: "critical" });
         }
     };
 

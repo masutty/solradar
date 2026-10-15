@@ -9,8 +9,11 @@ import { PluginNative } from "@utils/types";
 import { React, TextInput } from "@webpack/common";
 
 import { settings } from "../../../settings";
+import { useTourAction } from "../../../stores/TourStore";
 import { UIState } from "../../../stores/UIStateStore";
 import { getEffectiveKillTargets } from "../../../utils";
+import { TourAnchor } from "../../tour/TourAnchor";
+import { useAutoTour } from "../../tour/useAutoTour";
 import { ChipKind } from "../../ui/IdChipInput";
 import { Note } from "../../ui/Note";
 import { Block, BlockMaster } from "./Block";
@@ -308,6 +311,13 @@ export function SettingsTab() {
         },
     });
 
+    useAutoTour("settings");
+    // The tour clears the search and unfolds a block, without saving the unfold
+    useTourAction("settings.reveal", (block: string) => {
+        setSearch("");
+        if (block in DEFAULT_OPEN) setOpenBlocks(prev => ({ ...prev, [block]: true }));
+    });
+
     const handleFix = (block: BlockId, setting: string) => {
         setSearch("");
         setOpen(block, true);
@@ -439,6 +449,7 @@ export function SettingsTab() {
                 { id: "shouldCheckForUpdates", label: "Check for updates", description: "Look for a new SolRadar version on startup.", tooltip: "Runs at most once a day and shows a notification when an update is available." },
                 { id: "useButtonsForOrderingTriggers", label: "Reorder triggers with buttons", description: "Use the ▲▼ buttons instead of drag and drop." },
                 { id: "useTriggerTabContextMenu", label: "Trigger context menu", description: "Right-click a trigger for enable, edit, duplicate, export and remove. When off, right-click only toggles it." },
+                { id: "showTours", label: "Show guided tours", description: "Walk through a tab the first time you open it.", tooltip: "You can always replay a tour from the ? button at the top of this window." },
             ],
         },
         {
@@ -500,6 +511,7 @@ export function SettingsTab() {
             {!q && <Overview onFix={handleFix} />}
 
             {visibleBlocks.map(b => (
+                <TourAnchor key={b.id} id={`settings.block.${b.id}`}>
                 <Block
                     key={b.id}
                     title={b.title}
@@ -514,6 +526,7 @@ export function SettingsTab() {
                     {b.note}
                     {b.entries.map(renderEntry)}
                 </Block>
+                </TourAnchor>
             ))}
 
             {visibleBlocks.length === 0 && (

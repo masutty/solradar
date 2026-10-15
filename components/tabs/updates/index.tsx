@@ -9,7 +9,7 @@ import "./updates.css";
 import { Button } from "@components/Button";
 import { Paragraph } from "@components/Paragraph";
 import { openUserProfile } from "@utils/discord";
-import { Alerts, React, Tooltip } from "@webpack/common";
+import { Alerts, React, Tooltip, UserStore, UserUtils, useStateFromStores } from "@webpack/common";
 
 import { settings } from "../../../settings";
 import { ChangelogEntry, ChangelogVersion } from "../../../types";
@@ -33,10 +33,14 @@ interface CreditEntry {
     role: CreditRole;
     note?: string;
     url?: string;
+    /** Shows this Discord user's current avatar. */
+    discordId?: string;
+    /** Fallback avatar, from github.com/<name>.png. It's a plain image, not the rate-limited API. */
+    github?: string;
 }
 
 const CREDITS: CreditEntry[] = [
-    { name: "masutty", role: "Author", note: "oh hey thats me", url: "https://github.com/masutty" },
+    { name: "masutty", role: "Author", note: "oh hey thats me", url: "https://github.com/masutty", discordId: "188851299255713792", github: "masutty" },
     { name: "maxstellar", role: "Credits", note: "Biome icons", url: "https://github.com/maxstellar" },
     { name: "vexthecoder", role: "Credits", note: "Merchant icons", url: "https://github.com/vexsyx" },
     { name: "cresqnt-sys", role: "Credits", note: "Biome detection logic", url: "https://github.com/cresqnt-sys" },
@@ -296,7 +300,7 @@ function GroupedEntries({ entries }: { entries: ChangelogEntry[]; }) {
                             <div key={i} style={{ display: "flex", flexDirection: "column", gap: 3, padding: "10px 12px", borderRadius: 8, background: "var(--background-mod-subtle)" }}>
                                 <span style={{ fontSize: 13, color: "var(--text-default)" }}>{e.text}</span>
                                 {e.description && (
-                                    <span style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.4 }}>{e.description}</span>
+                                    <span style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.4, whiteSpace: "pre-line" }}>{e.description}</span>
                                 )}
                             </div>
                         ))}
@@ -308,8 +312,8 @@ function GroupedEntries({ entries }: { entries: ChangelogEntry[]; }) {
 }
 
 // Newest release first. The installed one (and a new one, if any) start open.
-function ReleaseList({ releases, newVersion }: { releases: ChangelogVersion[]; newVersion: string | null; }) {
-    const currentVersion = getCurrentVersion();
+export function ReleaseList({ releases, newVersion, current = getCurrentVersion() }: { releases: ChangelogVersion[]; newVersion: string | null; current?: string; }) {
+    const currentVersion = current;
     const [open, setOpen] = React.useState<Record<string, boolean>>({});
 
     const isOpen = (version: string) => open[version] ?? (version === currentVersion || version === newVersion);
@@ -319,7 +323,7 @@ function ReleaseList({ releases, newVersion }: { releases: ChangelogVersion[]; n
             {releases.map(r => (
                 <Block
                     key={r.version}
-                    title={`v${r.version}`}
+                    title={/^\d/.test(r.version) ? `v${r.version}` : r.version}
                     titleExtra={
                         r.version === currentVersion
                             ? <span style={{ fontSize: 12, fontWeight: 500, color: "var(--text-brand)" }}>{"< yours"}</span>
@@ -341,24 +345,40 @@ function ReleaseList({ releases, newVersion }: { releases: ChangelogVersion[]; n
 
 // --- Credits ---
 
+const AVATAR_SIZE = 34;
+
+/** The Discord avatar if Discord knows the user, then the GitHub one, then the first letter. */
+function CreditAvatar({ entry, color }: { entry: CreditEntry; color: string; }) {
+    const user = useStateFromStores([UserStore], () => entry.discordId ? UserStore.getUser(entry.discordId) : undefined);
+    const [failed, setFailed] = React.useState<string[]>([]);
+
+    // Fetches the user once when Discord hasn't seen them yet
+    React.useEffect(() => {
+        if (entry.discordId && !user) UserUtils.getUser(entry.discordId).catch(() => { });
+    }, [entry.discordId]);
+
+    const sources = [
+        user?.getAvatarURL(undefined, 64, false),
+        entry.github && `https://github.com/${entry.github}.png?size=64`,
+    ].filter((src): src is string => Boolean(src) && !failed.includes(src!));
+
+    const box: React.CSSProperties = { width: AVATAR_SIZE, height: AVATAR_SIZE, flexShrink: 0, borderRadius: "50%" };
+    if (sources.length) {
+        return <img src={sources[0]} alt="" style={{ ...box, objectFit: "cover" }} onError={() => setFailed(f => [...f, sources[0]])} />;
+    }
+
+    return (
+        <span style={{ ...box, display: "grid", placeItems: "center", fontSize: 15, fontWeight: 700, color, background: `color-mix(in srgb, ${color} 18%, transparent)` }}>
+            {entry.name[0].toUpperCase()}
+        </span>
+    );
+}
+
 function CreditCard({ entry }: { entry: CreditEntry; }) {
     const color = ROLE_COLOR[entry.role];
     const body = (
         <>
-            <span style={{
-                width: 34,
-                height: 34,
-                flexShrink: 0,
-                borderRadius: "50%",
-                display: "grid",
-                placeItems: "center",
-                fontSize: 15,
-                fontWeight: 700,
-                color,
-                background: `color-mix(in srgb, ${color} 18%, transparent)`,
-            }}>
-                {entry.name[0].toUpperCase()}
-            </span>
+            <CreditAvatar entry={entry} color={color} />
             <span style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0, flex: 1 }}>
                 <span style={{ display: "flex", alignItems: "baseline", gap: 6, flexWrap: "wrap" }}>
                     <span style={{ fontSize: 14, fontWeight: 600, color: COLORS.text }}>{entry.name}</span>

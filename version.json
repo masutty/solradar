@@ -1,6 +1,17 @@
 {
-    "currentVersion": "1.4.3",
+    "currentVersion": "1.5.0",
     "changelog": [
+        {
+            "version": "1.5.0",
+            "entries": [
+                { "type": "Added", "text": "Guided tours", "description": "The first time you open Triggers, the trigger editor, Snipe History or Settings, a short tour shows you around. Skip it with Skip tutorial, replay it from the ? button at the top, or turn tours off in Settings, under Interface." },
+                { "type": "Added", "text": "Delete all triggers", "description": "In the Triggers tab, click ⋯ and choose Delete all triggers. It asks first." },
+                { "type": "Added", "text": "Incinerator default trigger", "description": "The default triggers now include Incinerator. Import the defaults again to get it." },
+                { "type": "Improved", "text": "Default triggers are ready to use", "description": "Every default trigger now comes with auto-join and notifications on. Only the trigger itself is off until you turn it on." },
+                { "type": "Improved", "text": "Import defaults on an empty list", "description": "With no triggers yet, Import default triggers adds them right away, without asking Add or Replace." },
+                { "type": "Fixed", "text": "Toasts show again", "description": "A Vencord update changed how toasts work, so SolRadar's messages, like \"Trigger added!\", stopped showing. They show again." }
+            ]
+        },
         {
             "version": "1.4.3",
             "entries": [

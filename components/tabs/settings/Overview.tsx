@@ -10,6 +10,7 @@ import { React } from "@webpack/common";
 
 import { settings } from "../../../settings";
 import { parseCsv } from "../../../utils";
+import { tourAnchor } from "../../tour/TourAnchor";
 import { COLORS, descriptionText, labelText, rowCard, sectionTitle } from "../../ui/styles";
 
 export type BlockId = "join" | "biome" | "verification" | "macro" | "monitoring" | "reading" | "forwarding" | "interface" | "other" | "adb";
@@ -143,8 +144,8 @@ export function Overview({ onFix }: { onFix: (block: BlockId, setting: string) =
     const divider: React.CSSProperties = { borderTop: "1px solid var(--background-mod-subtle)" };
 
     return (
-        <div style={{ display: "flex", flexDirection: "column", gap: 12, padding: 14, borderRadius: 10, background: "var(--background-mod-subtle)" }}>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 8 }}>
+        <div {...tourAnchor("settings.overview")} style={{ display: "flex", flexDirection: "column", gap: 12, padding: 14, borderRadius: 10, background: "var(--background-mod-subtle)" }}>
+            <div {...tourAnchor("settings.switches")} style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 8 }}>
                 <ToggleTile
                     label="Auto-join"
                     description="Join when a trigger matches."

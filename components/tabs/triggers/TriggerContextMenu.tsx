@@ -31,7 +31,7 @@ function confirmRemoveTrigger(trigger: Trigger): void {
         cancelText: "Cancel",
         onConfirm: async () => {
             await deleteTrigger(trigger.id);
-            showToast("Trigger removed.", "message");
+            showToast({ text: "Trigger removed." });
         },
     });
 }

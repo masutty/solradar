@@ -17,7 +17,7 @@
  */
 
 import { Logger } from "@utils/Logger";
-import { exec as execCb, spawn } from "child_process";
+import { exec as execCb, execFile as execFileCb, spawn } from "child_process";
 import { IpcMainInvokeEvent } from "electron";
 import * as fs from "fs";
 import * as os from "os";
@@ -27,6 +27,7 @@ import { promisify } from "util";
 const logger = new Logger("SolRadar.Native");
 
 const exec = promisify(execCb);
+const execFile = promisify(execFileCb);
 
 // --- Public types ---
 
@@ -544,4 +545,115 @@ export async function robloxUsernamesToUserIds(
     } catch { }
 
     return result;
+}
+
+// --- Git ---
+
+export type GitCommit = {
+    hash: string;
+    short: string;
+    subject: string;
+    body: string;
+    author: string;
+    /** Unix seconds. */
+    date: number;
+    /** Tags on this commit, like v1.4.3. */
+    tags: string[];
+};
+
+export type GitInfo =
+    | {
+        ok: true;
+        branch: string;
+        head: string;
+        /** Nearest tag and the commits since it, like v1.4.3-5-g1a2b3c4. Just the short hash with no tags. */
+        describe: string;
+        /** Uncommitted changes in the plugin folder. */
+        dirty: boolean;
+        /** origin as owner/repo, like masutty/solradar. */
+        remote: string;
+        /** Commits on HEAD that origin doesn't have. null without an upstream. As of the last fetch. */
+        ahead: number | null;
+        /** Commits on origin that HEAD doesn't have, newest first. As of the last fetch. */
+        missing: GitCommit[];
+        commits: GitCommit[];
+    }
+    | { ok: false; error: string; };
+
+const GIT_TIMEOUT_MS = 5000;
+const FIELD = "%x1f";
+const RECORD = "%x1e";
+const FIELD_CHAR = String.fromCharCode(0x1f);
+const RECORD_CHAR = String.fromCharCode(0x1e);
+
+async function git(dir: string, args: string[]): Promise<string> {
+    const { stdout } = await execFile("git", ["-C", dir, ...args], { timeout: GIT_TIMEOUT_MS, windowsHide: true, maxBuffer: 8 * 1024 * 1024 });
+    return stdout;
+}
+
+// Natives run from <Vencord>/dist, and the plugin is cloned into <Vencord>/src/userplugins/<any folder name>
+function findPluginRepo(): string | null {
+    const root = path.join(__dirname, "..", "src", "userplugins");
+    let names: string[];
+    try { names = fs.readdirSync(root); } catch { return null; }
+    for (const name of names) {
+        const dir = path.join(root, name);
+        try {
+            if (!fs.existsSync(path.join(dir, ".git"))) continue;
+            if (/name:\s*"SolRadar"/.test(fs.readFileSync(path.join(dir, "index.tsx"), "utf8"))) return dir;
+        } catch { }
+    }
+    return null;
+}
+
+async function gitLog(dir: string, range: string[]): Promise<GitCommit[]> {
+    const out = await git(dir, ["log", ...range, `--format=%H${FIELD}%h${FIELD}%s${FIELD}%b${FIELD}%an${FIELD}%ct${FIELD}%D${RECORD}`]);
+    return out.split(RECORD_CHAR).map(r => r.trim()).filter(Boolean).map(r => {
+        const [hash, short, subject, body, author, date, refs] = r.split(FIELD_CHAR);
+        const tags = refs.split(",").map(x => x.trim()).filter(x => x.startsWith("tag: ")).map(x => x.slice(5));
+        return { hash, short, subject, body: body.trim(), author, date: Number(date), tags };
+    });
+}
+
+/** The plugin's own git state: the commit it runs on and the history around it. */
+export async function getGitInfo(_: IpcMainInvokeEvent, limit = 30): Promise<GitInfo> {
+    const dir = findPluginRepo();
+    if (!dir) return { ok: false, error: "No git folder found for the plugin." };
+
+    try {
+        const [head, describe, branch, status, remoteUrl, commits] = await Promise.all([
+            git(dir, ["rev-parse", "HEAD"]),
+            git(dir, ["describe", "--tags", "--always"]),
+            git(dir, ["rev-parse", "--abbrev-ref", "HEAD"]),
+            git(dir, ["status", "--porcelain"]),
+            git(dir, ["remote", "get-url", "origin"]).catch(() => ""),
+            gitLog(dir, [`-n${limit}`]),
+        ]);
+
+        // No upstream (a local branch) throws here, which is fine
+        let ahead: number | null = null;
+        let missing: GitCommit[] = [];
+        try {
+            ahead = Number((await git(dir, ["rev-list", "--count", "@{u}..HEAD"])).trim());
+            missing = await gitLog(dir, [`-n${limit}`, "HEAD..@{u}"]);
+        } catch { }
+
+        // Only owner/repo reaches the UI: no host aliases, no credentials
+        const remote = remoteUrl.trim().replace(/\.git$/, "").split(/[/:]/).slice(-2).join("/");
+
+        return { ok: true, head: head.trim(), describe: describe.trim(), branch: branch.trim(), dirty: status.trim().length > 0, remote, ahead, missing, commits };
+    } catch (e) {
+        logger.error("git failed:", e);
+        return { ok: false, error: e instanceof Error ? e.message : String(e) };
+    }
+}
+
+/** A longer history for the changelog preview. Empty when git is not available. */
+export async function getGitLog(_: IpcMainInvokeEvent, limit = 300): Promise<GitCommit[]> {
+    const dir = findPluginRepo();
+    if (!dir) return [];
+    try { return await gitLog(dir, [`-n${limit}`]); } catch (e) {
+        logger.error("git log failed:", e);
+        return [];
+    }
 }

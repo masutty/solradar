@@ -32,6 +32,8 @@ interface UIState {
     settingsBlocks: Record<string, boolean>;
     /** Layout of the Snipe Debug window. */
     debugView: "checklist" | "trace";
+    /** Tour id to the tour version the user has seen. */
+    toursSeen: Record<string, number>;
 }
 
 // --- Defaults ---
@@ -43,6 +45,7 @@ const DEFAULTS: UIState = {
     eabValues: {},
     settingsBlocks: {},
     debugView: "checklist",
+    toursSeen: {},
 };
 
 // --- Store ---
@@ -71,6 +74,12 @@ class UIStateStore {
                 ? { ...current as object, ...value as object }
                 : value
         ) as UIState[K];
+        this._save();
+    }
+
+    /** Replaces a key without merging, for clearing object values. */
+    replace<K extends keyof UIState>(key: K, value: UIState[K]): void {
+        this._state[key] = value;
         this._save();
     }
 
@@ -123,6 +132,7 @@ class UIStateStore {
                 eabValues: saved.eabValues ?? {},
                 settingsBlocks: saved.settingsBlocks ?? {},
                 debugView: saved.debugView ?? DEFAULTS.debugView,
+                toursSeen: saved.toursSeen ?? {},
             };
         } catch (e) {
             console.error("[UIStateStore] load failed, using defaults:", e);

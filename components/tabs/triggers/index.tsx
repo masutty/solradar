@@ -8,11 +8,14 @@ import "../../ui/OrderSlot.css";
 import "./triggers.css";
 
 import { Button } from "@components/Button";
+import { DeleteIcon } from "@components/Icons";
 import { Paragraph } from "@components/Paragraph";
 import { Alerts, ContextMenuApi, Menu, React, ReactDOM, ScrollerThin, showToast, TextInput, Tooltip, useEffect, useRef, useState } from "@webpack/common";
 
 import { settings } from "../../../settings";
+import { emitTourSignal, useTourAction } from "../../../stores/TourStore";
 import {
+    deleteAllTriggers,
     deleteTrigger,
     downloadTriggersJson,
     downloadTriggersJsonRedacted,
@@ -29,6 +32,9 @@ import { UIState } from "../../../stores/UIStateStore";
 import defaultTriggers from "../../../triggers.json";
 import { isDeveloper } from "../../../utils";
 import { JoinLockBanner } from "../../JoinLockBanner";
+import { fakeMouseEvent } from "../../tour/anchors";
+import { TourAnchor, tourAnchor } from "../../tour/TourAnchor";
+import { useAutoTour } from "../../tour/useAutoTour";
 import { DeleteButton } from "../../ui/buttons/DeleteButton";
 import { COLORS } from "../../ui/styles";
 import { useShiftHeld } from "../../ui/useShiftHeld";
@@ -147,6 +153,19 @@ function MoreIcon() {
 
 // --- Menus ---
 
+function confirmDeleteAll(count: number) {
+    Alerts.show({
+        title: "Delete all triggers?",
+        body: <Paragraph>This deletes all {count} of your triggers. Export them first if you want a backup. It can't be undone.</Paragraph>,
+        confirmText: "Delete all",
+        cancelText: "Cancel",
+        onConfirm: async () => {
+            await deleteAllTriggers();
+            showToast({ text: "All triggers deleted." });
+        },
+    });
+}
+
 type TypeFilter = TriggerType | "all";
 
 function openTypeFilterMenu(e: React.MouseEvent, triggers: Trigger[], current: TypeFilter, onChange: (f: TypeFilter) => void) {
@@ -254,6 +273,7 @@ function TriggerCard({
     return (
         <div
             ref={cardRef}
+            {...tourAnchor(position === 0 ? "triggers.firstCard" : undefined)}
             data-trigger-index={index}
             className={`vc-sora-trigger-card${enabled ? "" : " off"}${isDragging ? " dragging" : ""}`}
             style={{ animationDelay: `${Math.min(position * 30, MAX_STAGGER_MS)}ms` }}
@@ -292,6 +312,7 @@ function TriggerCard({
                 {props => (
                     <button
                         {...props}
+                        {...tourAnchor(position === 0 ? "triggers.firstIcon" : undefined)}
                         type="button"
                         aria-pressed={enabled}
                         aria-label={enabled ? "Disable trigger" : "Enable trigger"}
@@ -349,7 +370,7 @@ function TriggerCard({
                     />
                 </div>
                 <Tooltip text={joinlock ? `Priority ${priority}, with join lock. Lower is more important.` : `Priority ${priority}. Lower is more important.`}>
-                    {props => <span {...props} className="vc-sora-trigger-prio">{joinlock ? "🔒" : "★"} {priority}</span>}
+                    {props => <span {...props} {...tourAnchor(position === 0 ? "triggers.firstPriority" : undefined)} className="vc-sora-trigger-prio">{joinlock ? "🔒" : "★"} {priority}</span>}
                 </Tooltip>
             </div>
             {shiftHeld && <DeleteButton visible hint="Delete this trigger" onClick={() => deleteTrigger(trigger.id)} />}
@@ -406,6 +427,9 @@ export function TriggersTab() {
     const importRef = useRef<HTMLInputElement>(null);
     const wrapperRef = useRef<HTMLDivElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
+    const moreBtnRef = useRef<HTMLButtonElement>(null);
+    const importingRef = useRef(false);
+    useAutoTour("triggers");
     const saved = UIState.get("triggers");
     const shiftHeld = useShiftHeld();
     const [search, setSearch] = useState(saved.search);
@@ -447,15 +471,19 @@ export function TriggersTab() {
                         <Button variant="positive" style={{ flex: 1 }} onClick={() => {
                             Alerts.close();
                             importTriggersFromJson(json, "merge").then(result => {
-                                if (result.ok) showToast(`Imported ${result.imported} trigger(s)!`, "success");
-                                else showToast(`Import failed: ${result.error}`, "failure");
+                                if (result.ok) {
+                                    showToast({ text: `Imported ${result.imported} trigger(s)!`, variant: "success" });
+                                    emitTourSignal("triggers:imported");
+                                } else showToast({ text: `Import failed: ${result.error}`, variant: "critical" });
                             });
                         }}>Add as new</Button>
                         <Button variant="dangerPrimary" style={{ flex: 1 }} onClick={() => {
                             Alerts.close();
                             importTriggersFromJson(json, "replace").then(result => {
-                                if (result.ok) showToast(`Imported ${result.imported} trigger(s)!`, "success");
-                                else showToast(`Import failed: ${result.error}`, "failure");
+                                if (result.ok) {
+                                    showToast({ text: `Imported ${result.imported} trigger(s)!`, variant: "success" });
+                                    emitTourSignal("triggers:imported");
+                                } else showToast({ text: `Import failed: ${result.error}`, variant: "critical" });
                             });
                         }}>Replace</Button>
                     </div>
@@ -463,6 +491,21 @@ export function TriggersTab() {
             ),
             confirmText: "Cancel",
         });
+    };
+
+    // On an empty list "Add as new" and "Replace" are the same, so skip the question
+    const importDefaults = async () => {
+        if (importingRef.current) return;
+        importingRef.current = true;
+        try {
+            const result = await importTriggersFromJson(JSON.stringify(defaultTriggers), "merge");
+            if (result.ok) {
+                showToast({ text: `Imported ${result.imported} trigger(s)!`, variant: "success" });
+                emitTourSignal("triggers:imported");
+            } else showToast({ text: `Import failed: ${result.error}`, variant: "critical" });
+        } finally {
+            importingRef.current = false;
+        }
     };
 
     const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -478,9 +521,9 @@ export function TriggersTab() {
         confirmWebhookThenRun(triggers, () => {
             try {
                 downloadTriggersJson();
-                showToast("Successfully exported triggers!", "success");
+                showToast({ text: "Successfully exported triggers!", variant: "success" });
             } catch (error) {
-                showToast(`Failed to export triggers: ${error}`, "failure");
+                showToast({ text: `Failed to export triggers: ${error}`, variant: "critical" });
             }
         });
     };
@@ -496,9 +539,9 @@ export function TriggersTab() {
             onConfirm: () => {
                 try {
                     downloadTriggersJsonRedacted({ redact: [...currentFields] });
-                    showToast("Successfully exported triggers!", "success");
+                    showToast({ text: "Successfully exported triggers!", variant: "success" });
                 } catch (error) {
-                    showToast(`Failed to export triggers: ${error}`, "failure");
+                    showToast({ text: `Failed to export triggers: ${error}`, variant: "critical" });
                 }
             },
         });
@@ -629,13 +672,28 @@ export function TriggersTab() {
         ContextMenuApi.openContextMenu(e, () => (
             <Menu.Menu navId="vc-sora-triggers-more" onClose={ContextMenuApi.closeContextMenu} aria-label="Trigger options">
                 <Menu.MenuItem id="vc-sora-triggers-import-file" label="Import from file" action={() => importRef.current?.click()} />
-                <Menu.MenuItem id="vc-sora-triggers-import-defaults" label="Import default triggers" action={() => showImportModeAlert(JSON.stringify(defaultTriggers))} />
+                <Menu.MenuItem id="vc-sora-triggers-import-defaults" label="Import default triggers" action={() => triggers.length ? showImportModeAlert(JSON.stringify(defaultTriggers)) : importDefaults()} />
                 <Menu.MenuSeparator />
                 <Menu.MenuItem id="vc-sora-triggers-export" label="Export" disabled={!triggers.length} action={handleExport} />
                 {isDeveloper() && <Menu.MenuItem id="vc-sora-triggers-safe-export" label="Safe export" disabled={!triggers.length} action={handlePublicExport} />}
+                <Menu.MenuSeparator />
+                <Menu.MenuItem
+                    id="vc-sora-triggers-delete-all"
+                    label="Delete all triggers"
+                    color="danger"
+                    disabled={!triggers.length}
+                    leadingAccessory={{ type: "icon", icon: DeleteIcon }}
+                    action={() => confirmDeleteAll(triggers.length)}
+                />
             </Menu.Menu>
         ));
     };
+
+    useTourAction("triggers.openMoreMenu", () => {
+        if (moreBtnRef.current) openMoreMenu(fakeMouseEvent(moreBtnRef.current));
+    });
+    useTourAction("triggers.closeMoreMenu", () => ContextMenuApi.closeContextMenu());
+    useTourAction("triggers.importDefaults", importDefaults);
 
     const activeType = typeFilter === "all" ? null : TYPE_META[typeFilter];
 
@@ -643,7 +701,7 @@ export function TriggersTab() {
         <div ref={wrapperRef} style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0, gap: 8, position: "relative" }}>
             <div style={{ flexShrink: 0, display: "flex", flexDirection: "column", gap: 6 }}>
                 <div className="vc-sora-triggers-bar">
-                    <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ flex: 1, minWidth: 0 }} {...tourAnchor("triggers.search")}>
                         <TextInput value={search} onChange={handleSearchChange} placeholder="Search triggers" />
                     </div>
                     <button
@@ -657,14 +715,14 @@ export function TriggersTab() {
                     </button>
                     <Tooltip text="More options">
                         {props => (
-                            <button {...props} type="button" aria-label="More options" className="vc-sora-triggers-sbtn" style={{ padding: "0 11px" }} onClick={openMoreMenu}>
+                            <button {...props} ref={moreBtnRef} {...tourAnchor("triggers.more")} type="button" aria-label="More options" className="vc-sora-triggers-sbtn" style={{ padding: "0 11px" }} onClick={openMoreMenu}>
                                 <MoreIcon />
                             </button>
                         )}
                     </Tooltip>
-                    <Button size="medium" variant="positive" onClick={openAddTriggerModal}>+ New</Button>
+                    <TourAnchor id="triggers.new"><Button size="medium" variant="positive" onClick={openAddTriggerModal}>+ New</Button></TourAnchor>
                 </div>
-                <span className="vc-sora-triggers-hint">
+                <span className="vc-sora-triggers-hint" {...tourAnchor("triggers.hint")}>
                     Filter with <code>enabled:</code> <code>join:</code> <code>notify:</code> <code>lock:</code> <code>priority:&gt;5</code>
                     {filtered.length !== triggers.length && <> · showing {filtered.length} of {triggers.length}</>}
                 </span>
@@ -675,7 +733,7 @@ export function TriggersTab() {
             <ScrollerThin style={{ flex: 1, minHeight: 0 }}>
                 {filtered.length === 0
                     ? (
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", textAlign: "center", minHeight: 200, color: COLORS.muted }}>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", textAlign: "center", minHeight: 200, color: COLORS.muted }} {...tourAnchor(triggers.length === 0 ? "triggers.empty" : undefined)}>
                             <Paragraph size="sm">
                                 {triggers.length === 0
                                     ? "No triggers yet. Create one, or import some from the ⋯ menu."

@@ -284,6 +284,18 @@ export const settings = definePluginSettings({
         hidden: true,
     },
 
+    showTours: {
+        type: OptionType.BOOLEAN,
+        description: "Walk through a tab the first time you open it.",
+        default: true,
+        hidden: true,
+    },
+    // Tour id -> last version seen. Kept with the settings so a reinstall or reinject never replays a tour
+    toursSeen: {
+        type: OptionType.CUSTOM,
+        default: {} as Record<string, number>,
+    },
+
     // Monitoring
     monitoredGuilds: {
         type: OptionType.STRING,

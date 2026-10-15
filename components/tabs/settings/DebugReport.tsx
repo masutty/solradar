@@ -110,7 +110,7 @@ export function DebugReport() {
 
     const handleCopy = () => {
         copyToClipboard(text);
-        showToast("Debug report copied to the clipboard.", "success");
+        showToast({ text: "Debug report copied to the clipboard.", variant: "success" });
     };
 
     const handleSave = () => {

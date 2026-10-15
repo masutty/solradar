@@ -12,7 +12,7 @@ import type { ComponentType, CSSProperties, ReactNode } from "react";
 // but the new Modal is not available in every Discord build yet (it crashed on open).
 // The legacy components still work at runtime, so this file gives them back their types.
 
-export { closeAllModals, ModalSize, openModal } from "@utils/modal";
+export { closeAllModals, closeModal, ModalSize, openModal } from "@utils/modal";
 
 export type ModalProps = RenderModalProps;
 

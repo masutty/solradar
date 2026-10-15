@@ -1,0 +1,331 @@
+/* Above Discord modals and context menus */
+.vc-sora-tour {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    pointer-events: none;
+}
+
+.vc-sora-tour-blocker {
+    position: fixed;
+    pointer-events: auto;
+}
+
+.vc-sora-tour-dim {
+    background: rgb(0 0 0 / 62%);
+}
+
+.vc-sora-tour-hole {
+    position: fixed;
+    border-radius: 10px;
+    pointer-events: none;
+    box-shadow:
+        0 0 0 2px var(--brand-500),
+        0 0 22px 2px color-mix(in srgb, var(--brand-500) 50%, transparent),
+        0 0 0 9999px rgb(0 0 0 / 62%);
+    transition: left 0.18s ease, top 0.18s ease, width 0.18s ease, height 0.18s ease;
+}
+
+.vc-sora-tour-hole.pulse::after {
+    content: "";
+    position: absolute;
+    inset: -2px;
+    border-radius: 12px;
+    animation: vc-sora-tour-ring 1.6s ease-out infinite;
+}
+
+@keyframes vc-sora-tour-ring {
+    0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--brand-360, #949cf7) 75%, transparent); }
+    100% { box-shadow: 0 0 0 12px transparent; }
+}
+
+/* --- Card --- */
+
+.vc-sora-tour-card {
+    position: fixed;
+    box-sizing: border-box;
+    max-width: calc(100vw - 24px);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 15px 16px 12px;
+    border-radius: 10px;
+    border: 1px solid var(--border-subtle, rgb(255 255 255 / 8%));
+    background: var(--background-surface-highest, var(--background-floating, #111214));
+    box-shadow: 0 12px 32px rgb(0 0 0 / 55%);
+    overflow: hidden;
+    pointer-events: auto;
+    transition: left 0.18s ease, top 0.18s ease, opacity 0.12s ease;
+}
+
+.vc-sora-tour-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 24px;
+}
+
+.vc-sora-tour-eyebrow {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+.vc-sora-tour-count {
+    margin-right: auto;
+    white-space: nowrap;
+    font-size: 12px;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+}
+
+.vc-sora-tour-count b {
+    font-weight: 600;
+    color: var(--text-default);
+}
+
+.vc-sora-tour-x {
+    margin: -3px -6px -3px 0;
+    padding: 3px 8px;
+    border: none;
+    border-radius: 6px;
+    background: none;
+    color: var(--text-muted);
+    font: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.vc-sora-tour-x:hover {
+    background: var(--background-mod-subtle, rgb(255 255 255 / 6%));
+    color: var(--text-default);
+}
+
+.vc-sora-tour-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-default);
+}
+
+.vc-sora-tour-body {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    font-size: 13.5px;
+    line-height: 1.45;
+    color: var(--text-default);
+}
+
+.vc-sora-tour-body p {
+    margin: 0;
+}
+
+.vc-sora-tour-muted {
+    font-size: 12.5px;
+    color: var(--text-muted);
+}
+
+.vc-sora-tour-legend {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: center;
+    gap: 7px 10px;
+}
+
+.vc-sora-tour-legend-el {
+    display: flex;
+    justify-content: flex-start;
+    min-width: 26px;
+}
+
+.vc-sora-tour-badge {
+    display: inline-grid;
+    place-items: center;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    color: #fff;
+    vertical-align: -3px;
+}
+
+.vc-sora-tour-btnchip {
+    display: inline-block;
+    padding: 1px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 18px;
+    color: #fff;
+    white-space: nowrap;
+}
+
+.vc-sora-tour-btnchip.brand { background: var(--brand-500); }
+.vc-sora-tour-btnchip.positive { background: var(--button-positive-background, #248046); }
+
+.vc-sora-tour-btnchip.secondary {
+    background: var(--button-secondary-background, #4e5058);
+    color: var(--text-default);
+}
+
+.vc-sora-tour-wavy {
+    text-decoration: underline wavy var(--status-danger);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
+}
+
+.vc-sora-tour-rainbow {
+    background: linear-gradient(90deg, #ff6b6b, #ffb84d, #f9f871, #6bdc8b, #4dc3ff, #9d7bff, #ff6b6b) 0 / 200% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    font-weight: 700;
+    animation: vc-sora-tour-rainbow 3s linear infinite;
+}
+
+@keyframes vc-sora-tour-rainbow {
+    to { background-position: 200% 0; }
+}
+
+.vc-sora-tour-body b {
+    font-weight: 600;
+    opacity: 1;
+}
+
+.vc-sora-tour-body code {
+    padding: 1px 5px;
+    border-radius: 4px;
+    background: var(--background-mod-strong);
+    font-family: var(--font-code);
+    font-size: 12px;
+}
+
+.vc-sora-tour-foot {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 6px;
+    min-height: 32px;
+}
+
+.vc-sora-tour-btn {
+    padding: 6px 14px;
+    white-space: nowrap;
+    border: none;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.vc-sora-tour-btn.ghost {
+    padding: 6px 10px;
+    background: none;
+    color: var(--text-muted);
+}
+
+.vc-sora-tour-btn.ghost:hover {
+    color: var(--text-default);
+}
+
+.vc-sora-tour-btn.primary {
+    background: var(--brand-500);
+    color: #fff;
+}
+
+.vc-sora-tour-btn.primary:hover {
+    background: var(--brand-560, #4752c4);
+}
+
+.vc-sora-tour-btn:focus-visible,
+.vc-sora-tour-x:focus-visible {
+    outline: 2px solid var(--brand-360, #949cf7);
+    outline-offset: 2px;
+}
+
+.vc-sora-tour-hint {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12.5px;
+    color: var(--text-muted);
+}
+
+.vc-sora-tour-hint i {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--brand-500);
+    animation: vc-sora-tour-dot 1.5s ease-out infinite;
+}
+
+@keyframes vc-sora-tour-dot {
+    0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--brand-500) 80%, transparent); }
+    100% { box-shadow: 0 0 0 9px transparent; }
+}
+
+/* --- Replay button --- */
+
+.vc-sora-tour-replay {
+    position: relative;
+}
+
+/* Looks like the modal's close button next to it */
+.vc-sora-tour-replay-btn {
+    display: grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    border: none;
+    border-radius: 4px;
+    background: none;
+    color: var(--interactive-normal, var(--text-muted));
+    cursor: pointer;
+}
+
+.vc-sora-tour-replay-btn:hover {
+    color: var(--interactive-hover, var(--text-default));
+}
+
+.vc-sora-tour-replay.hint .vc-sora-tour-replay-btn {
+    color: var(--text-default);
+    animation: vc-sora-tour-replay-pulse 1.1s ease-out 3;
+}
+
+@keyframes vc-sora-tour-replay-pulse {
+    0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--brand-500) 80%, transparent); }
+    100% { box-shadow: 0 0 0 12px transparent; }
+}
+
+.vc-sora-tour-replay-hint {
+    position: fixed;
+    z-index: 10001;
+    padding: 5px 9px;
+    border: 1px solid var(--brand-500);
+    border-radius: 6px;
+    background: var(--background-surface-highest, var(--background-floating, #111214));
+    box-shadow: 0 6px 18px rgb(0 0 0 / 50%);
+    color: var(--text-default);
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+    pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .vc-sora-tour-hole,
+    .vc-sora-tour-card {
+        transition: none;
+    }
+
+    .vc-sora-tour-rainbow,
+    .vc-sora-tour-hole.pulse::after,
+    .vc-sora-tour-hint i,
+    .vc-sora-tour-replay.hint .vc-sora-tour-replay-btn {
+        animation: none;
+    }
+}

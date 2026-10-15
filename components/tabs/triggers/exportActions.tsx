@@ -40,9 +40,9 @@ export function copyTriggerToClipboard(trigger: Trigger): void {
     try {
         const { id, ...rest } = trigger;
         navigator.clipboard.writeText(JSON.stringify([rest], null, 2));
-        showToast("Trigger copied to clipboard!", "success");
+        showToast({ text: "Trigger copied to clipboard!", variant: "success" });
     } catch (e) {
-        showToast(`Failed to copy trigger: ${e}`, "failure");
+        showToast({ text: `Failed to copy trigger: ${e}`, variant: "critical" });
     }
 }
 
@@ -57,9 +57,9 @@ export function openSafeExportDialogForTrigger(trigger: Trigger): void {
         onConfirm: () => {
             try {
                 downloadTriggerJsonRedacted(trigger, { redact: [...currentFields] });
-                showToast("Trigger exported (safe)!", "success");
+                showToast({ text: "Trigger exported (safe)!", variant: "success" });
             } catch (error) {
-                showToast(`Failed to export trigger: ${error}`, "failure");
+                showToast({ text: `Failed to export trigger: ${error}`, variant: "critical" });
             }
         },
     });

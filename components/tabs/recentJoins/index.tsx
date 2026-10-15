@@ -12,11 +12,14 @@ import { Alerts, ContextMenuApi, Menu, React, ScrollerThin, TextInput, Tooltip, 
 
 import { settings } from "../../../settings";
 import { SnipeEntry, SnipeStore, useSnipeHistory } from "../../../stores/SnipeStore";
+import { useTourAction } from "../../../stores/TourStore";
 import { UIState } from "../../../stores/UIStateStore";
 import { SnipeTag } from "../../../types";
 import { formatElapsedTime } from "../../../utils";
 import { JoinLockBanner } from "../../JoinLockBanner";
 import { PendingActionBanner } from "../../PendingActionBanner";
+import { tourAnchor } from "../../tour/TourAnchor";
+import { useAutoTour } from "../../tour/useAutoTour";
 import { DeleteButton } from "../../ui/buttons/DeleteButton";
 import Spoiler from "../../ui/Spoiler";
 import { COLORS } from "../../ui/styles";
@@ -25,7 +28,7 @@ import { FallbackImage, getSnipeStatus } from "./components";
 import { openJoinModal } from "./JoinModal";
 import { openSnipeContextMenu } from "./SnipeContextMenu";
 import { OutcomeGlyph } from "./SnipeTimeline";
-import { outcomeIcon } from "./steps";
+import { outcomeIcon, phaseSpans } from "./steps";
 
 // --- Filters ---
 
@@ -156,6 +159,7 @@ function SnipeCard({ entry, index, shiftHeld }: { entry: SnipeEntry; index: numb
 
     return (
         <div
+            {...tourAnchor(index === 0 ? "history.firstCard" : undefined)}
             className={`vc-sora-history-card${status.quiet ? " quiet" : ""}`}
             style={{ "--sora-s": status.color, animationDelay: `${Math.min(index * 30, MAX_STAGGER_MS)}ms` } as React.CSSProperties}
             onClick={() => openJoinModal(entry)}
@@ -243,6 +247,15 @@ export function RecentJoinsTab() {
         );
     }, [entries, filter, search]);
 
+    useAutoTour("recentJoins");
+    // The tour opens the newest snipe that joined, so its timing views have something to show
+    const demoSnipe = () => filtered.find(e => phaseSpans(e).length) ?? filtered[0] ?? entries[0];
+    useTourAction("history.demoSnipe", demoSnipe);
+    useTourAction("history.openDemoSnipe", () => {
+        const entry = demoSnipe();
+        return entry ? openJoinModal(entry) : undefined;
+    });
+
     const activeFilter = FILTERS.find(f => f.tag === filter) ?? FILTERS[0];
 
     // Group consecutive entries (newest first) under a day heading
@@ -268,6 +281,7 @@ export function RecentJoinsTab() {
                         {props => (
                             <button
                                 {...props}
+                                {...tourAnchor("history.filter")}
                                 type="button"
                                 className={`vc-sora-history-sbtn${filter !== "all" ? " active" : ""}`}
                                 style={{ "--sora-c": activeFilter.color ?? COLORS.brand } as React.CSSProperties}
@@ -300,7 +314,7 @@ export function RecentJoinsTab() {
 
             <ScrollerThin style={{ flex: 1, paddingRight: 8 }}>
                 {filtered.length === 0 ? (
-                    <div style={{ textAlign: "center", marginTop: 40 }}>
+                    <div {...tourAnchor(entries.length === 0 ? "history.empty" : undefined)} style={{ textAlign: "center", marginTop: 40 }}>
                         <Paragraph size="sm">
                             {entries.length === 0
                                 ? "No snipes yet. Links you snipe will show up here."

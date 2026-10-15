@@ -25,19 +25,19 @@ function jumpToMessage(entry: SnipeEntry): void {
         NavigationRouter.transitionTo(new URL(entry.messageJumpUrl).pathname);
         closeAllModals();
     } catch {
-        showToast("Failed to navigate.", "failure");
+        showToast({ text: "Failed to navigate.", variant: "critical" });
     }
 }
 
 function copyServerLink(entry: SnipeEntry): void {
     if (!entry.link) return;
     copyToClipboard(entry.link);
-    showToast("Copied!", "success");
+    showToast({ text: "Copied!", variant: "success" });
 }
 
 function joinServer(entry: SnipeEntry): void {
-    if (!entry.joinUri) { showToast("No join link detected.", "failure"); return; }
-    joinUri(entry.joinUri).catch(() => showToast("Failed to join server.", "failure"));
+    if (!entry.joinUri) { showToast({ text: "No join link detected.", variant: "critical" }); return; }
+    joinUri(entry.joinUri).catch(() => showToast({ text: "Failed to join server.", variant: "critical" }));
 }
 
 export function openSnipeContextMenu(e: React.MouseEvent, entry: SnipeEntry): void {

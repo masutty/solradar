@@ -308,6 +308,13 @@ export async function deleteTrigger(id: string): Promise<void> {
     persist();
 }
 
+export async function deleteAllTriggers(): Promise<void> {
+    await triggerStoreReady;
+    _triggers = [];
+    notifyListeners();
+    persist();
+}
+
 export async function toggleTrigger(id: string): Promise<void> {
     await triggerStoreReady;
     _triggers = _triggers.map(t =>

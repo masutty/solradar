@@ -10,6 +10,7 @@ import { React, useEffect, useState } from "@webpack/common";
 
 import { settings } from "../../../../settings";
 import { DEFAULT_BIOME, Trigger, TriggerType } from "../../../../stores/TriggerStore";
+import { TourAnchor, tourAnchor } from "../../../tour/TourAnchor";
 import { IdChipInput } from "../../../ui/IdChipInput";
 import { KeywordsInput } from "../../../ui/KeywordsInput";
 import { Note } from "../../../ui/Note";
@@ -172,8 +173,8 @@ export function EssentialsSection({ draft, patch }: { draft: Draft; patch: Patch
     return (
         <>
             <p style={{ ...sectionHeading, marginTop: 0 }}>Identity</p>
-            <TypePicker draft={draft} patch={patch} />
-            <div style={rowStacked}>
+            <TourAnchor id="editor.type"><TypePicker draft={draft} patch={patch} /></TourAnchor>
+            <div style={rowStacked} {...tourAnchor("editor.name")}>
                 <span style={{ fontSize: 14, fontWeight: 500, color: COLORS.label }}>Name and icon</span>
                 <div style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 2 }}>
                     <TriggerIcon draft={draft} size={48} />
@@ -197,9 +198,10 @@ export function EssentialsSection({ draft, patch }: { draft: Draft; patch: Patch
             <TextField label="Description" hint="Only for you, to remember what this trigger is." value={draft.description} placeholder="Optional" onChange={v => patch({ description: v })} />
 
             <p style={sectionHeading}>What it does</p>
-            <CoreTiles draft={draft} patch={patch} />
+            <TourAnchor id="editor.actions"><CoreTiles draft={draft} patch={patch} /></TourAnchor>
 
             <p style={sectionHeading}>When it fires</p>
+            <TourAnchor id="editor.keywords">
             <KeywordsInput
                 label="Must contain"
                 hint="At least one of these words."
@@ -220,6 +222,8 @@ export function EssentialsSection({ draft, patch }: { draft: Draft; patch: Patch
                 onChangeStrict={v => patchKeywords("exclude", { strict: v })}
                 placeholder="e.g. hunt, help, looking for"
             />
+            </TourAnchor>
+            <TourAnchor id="editor.preview">
             <MatchPreview
                 triggerName={draft.name}
                 matchKeywords={keywords.match.value}
@@ -227,7 +231,10 @@ export function EssentialsSection({ draft, patch }: { draft: Draft; patch: Patch
                 excludeKeywords={keywords.exclude.value}
                 excludeStrict={keywords.exclude.strict}
             />
-            <RoleChipInput roles={draft.conditions.mentionRoles} onChange={roles => patch({ conditions: { ...draft.conditions, mentionRoles: roles } })} />
+            </TourAnchor>
+            <TourAnchor id="editor.roles">
+                <RoleChipInput roles={draft.conditions.mentionRoles} onChange={roles => patch({ conditions: { ...draft.conditions, mentionRoles: roles } })} />
+            </TourAnchor>
         </>
     );
 }
@@ -276,7 +283,7 @@ function BiomeSection({ draft, patch }: { draft: Draft; patch: Patch; }) {
     const patchBiome = (p: Partial<typeof biome>) => patch({ biome: { ...biome, ...p } });
 
     return (
-        <>
+        <TourAnchor id="editor.biome">
             {!detectorEnabled && <Note variant="warning">Biome detection is off in the plugin settings, so this check won't run until you turn it on there.</Note>}
             {detectorEnabled && !detectorAccounts && <Note variant="warning">No Roblox accounts are set up for biome detection. Add one in the plugin settings.</Note>}
             <SwitchRow label="Confirm the biome" hint="After joining, read the Roblox logs to check the biome is real." value={biome.detectionEnabled} onChange={v => patchBiome({ detectionEnabled: v })} />
@@ -291,7 +298,7 @@ function BiomeSection({ draft, patch }: { draft: Draft; patch: Patch; }) {
                 />
                 <SwitchRow label="Skip if already there" hint="If you're already in this biome, don't join again. Still notifies." value={biome.skipRedundantJoin} onChange={v => patchBiome({ skipRedundantJoin: v })} />
             </>}
-        </>
+        </TourAnchor>
     );
 }
 

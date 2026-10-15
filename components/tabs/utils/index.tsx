@@ -23,8 +23,8 @@ const Native = VencordNative.pluginHelpers.SolRadar as PluginNative<typeof impor
 type Result = { ok: boolean; error?: string; };
 
 function toastResult(result: Result, success: string, failure: string) {
-    if (result.ok) showToast(success, "success");
-    else showToast(`${failure}: ${result.error}`, "failure");
+    if (result.ok) showToast({ text: success, variant: "success" });
+    else showToast({ text: `${failure}: ${result.error}`, variant: "critical" });
 }
 
 function ActionRow({ label, description, button, variant = "secondary", disabled, onClick }: {

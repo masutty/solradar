@@ -7,6 +7,7 @@
 import { Heading } from "@components/Heading";
 import { React } from "@webpack/common";
 
+import { TourStore } from "../stores/TourStore";
 import { UIState } from "../stores/UIStateStore";
 import { hasNewVersionAvailable, isDeveloper } from "../utils";
 import { DeveloperTab } from "./tabs/developer";
@@ -16,6 +17,8 @@ import { StatsTab } from "./tabs/stats";
 import { TriggersTab } from "./tabs/triggers";
 import { UpdatesTab } from "./tabs/updates";
 import { UtilsTab } from "./tabs/utils";
+import { ReplayTourButton } from "./tour/ReplayTourButton";
+import { TourOverlay } from "./tour/TourOverlay";
 import { ModalCloseButton, ModalContent, ModalHeader, ModalProps, ModalRoot, ModalSize, openModal } from "./ui/LegacyModal";
 
 // --- Tabs ---
@@ -69,6 +72,9 @@ export function SolsRadarModal({ modalProps, initialTab }: SolsRadarModalProps) 
     const ActiveComponent = visibleTabs.find(t => t.id === activeTab)!.component;
 
     const handleTabChange = (tab: TabId) => {
+        if (tab === activeTab) return;
+        // A tour points at the old tab's elements
+        TourStore.end("tab", true);
         setActiveTab(tab);
         UIState.set("activeTab", tab);
     };
@@ -82,7 +88,10 @@ export function SolsRadarModal({ modalProps, initialTab }: SolsRadarModalProps) 
                     width: "100%",
                 }}>
                     <Heading tag="h2">Sol Radar</Heading>
-                    <ModalCloseButton onClick={modalProps.onClose} />
+                    <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                        <ReplayTourButton tourId={activeTab} />
+                        <ModalCloseButton onClick={modalProps.onClose} />
+                    </div>
                 </div>
             </ModalHeader>
 
@@ -164,6 +173,7 @@ export function SolsRadarModal({ modalProps, initialTab }: SolsRadarModalProps) 
             >
                 <ActiveComponent />
             </ModalContent>
+            <TourOverlay />
         </ModalRoot>
     );
 }

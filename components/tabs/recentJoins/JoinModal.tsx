@@ -16,8 +16,10 @@ import { NavigationRouter, React, showToast, Tooltip } from "@webpack/common";
 import { joinUri } from "../../../services/RobloxService";
 import { settings } from "../../../settings";
 import { SnipeEntry, SnipeLogEntry, SnipeStore, useSnipeEntry } from "../../../stores/SnipeStore";
+import { useTourAction } from "../../../stores/TourStore";
 import { SnipeTag } from "../../../types";
 import { formatElapsedTime } from "../../../utils";
+import { TourAnchor, tourAnchor } from "../../tour/TourAnchor";
 import { closeAllModals, ModalCloseButton, ModalContent, ModalFooter, ModalHeader, ModalProps, ModalRoot, openModal } from "../../ui/LegacyModal";
 import Spoiler from "../../ui/Spoiler";
 import { COLORS, sectionTitle } from "../../ui/styles";
@@ -230,6 +232,7 @@ function JoinModal({ entry: initialEntry, modalProps }: {
     const entry = useSnipeEntry(initialEntry.id) ?? initialEntry;
     const { anonymizeEverything } = settings.use(["anonymizeEverything"]);
     const [view, setView] = React.useState<View>("timeline");
+    useTourAction("details.setView", (v: View) => setView(v));
     const status = getSnipeStatus(entry);
     const isBiomeEntry = entry.tags.some(t => t.startsWith("biome-"));
 
@@ -239,29 +242,29 @@ function JoinModal({ entry: initialEntry, modalProps }: {
             NavigationRouter.transitionTo(new URL(entry.messageJumpUrl).pathname);
             closeAllModals();
         } catch {
-            showToast("Failed to navigate to message.", "failure");
+            showToast({ text: "Failed to navigate to message.", variant: "critical" });
         }
     };
 
     const joinServer = () => {
-        if (!entry.joinUri) return showToast("No join link detected.", "failure");
+        if (!entry.joinUri) return showToast({ text: "No join link detected.", variant: "critical" });
         try {
             joinUri(entry.joinUri);
             closeAllModals();
         } catch {
-            showToast("Failed to join server.", "failure");
+            showToast({ text: "Failed to join server.", variant: "critical" });
         }
     };
 
     const copyLog = () => {
         copyToClipboard(logToText(entry.log));
-        showToast("Log copied!", "success");
+        showToast({ text: "Log copied!", variant: "success" });
     };
 
     return (
         <ModalRoot {...modalProps}>
             <ModalHeader className="vc-sora-modal-header vc-sora-modal-header-tall">
-                <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1, minWidth: 0 }}>
+                <div {...tourAnchor("details.header")} style={{ display: "flex", alignItems: "center", gap: 12, flex: 1, minWidth: 0 }}>
                     <FallbackImage src={entry.iconUrl} style={{ width: 48, height: 48, borderRadius: 8, objectFit: "cover", flexShrink: 0 }} />
                     <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
@@ -284,11 +287,12 @@ function JoinModal({ entry: initialEntry, modalProps }: {
                     <Timing entry={entry} />
                     <PhaseBar entry={entry} />
 
-                    {isBiomeEntry && <BiomeVerdict entry={entry} />}
+                    {isBiomeEntry && <TourAnchor id="details.verdict"><BiomeVerdict entry={entry} /></TourAnchor>}
 
                     <p style={sectionTitle}>Details</p>
                     <Details entry={entry} anonymize={anonymizeEverything} />
 
+                    <TourAnchor id="details.timeline">
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginTop: 12 }}>
                         <span style={{ ...sectionTitle, margin: 0 }}>What happened</span>
                         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -313,11 +317,12 @@ function JoinModal({ entry: initialEntry, modalProps }: {
                             : view === "waterfall" ? <WaterfallView entry={entry} />
                                 : <RawView entry={entry} />}
                     </Hidden>
+                    </TourAnchor>
                 </div>
             </ModalContent>
 
             <ModalFooter className="vc-sora-modal-footer">
-                <div style={{ display: "flex", alignItems: "center", gap: 6, width: "100%" }}>
+                <div {...tourAnchor("details.footer")} style={{ display: "flex", alignItems: "center", gap: 6, width: "100%" }}>
                     <Tooltip text="Remove from history">
                         {props => (
                             <Button
@@ -334,7 +339,7 @@ function JoinModal({ entry: initialEntry, modalProps }: {
                     <span style={{ flex: 1 }} />
                     {entry.messageJumpUrl && <Button size="small" variant="secondary" onClick={jumpToMessage}>Go to message</Button>}
                     {entry.link && (
-                        <Button size="small" variant="secondary" onClick={() => { copyToClipboard(entry.link!); showToast("Copied!", "success"); }}>
+                        <Button size="small" variant="secondary" onClick={() => { copyToClipboard(entry.link!); showToast({ text: "Copied!", variant: "success" }); }}>
                             Copy link
                         </Button>
                     )}
@@ -347,6 +352,6 @@ function JoinModal({ entry: initialEntry, modalProps }: {
 
 // --- Entrypoint ---
 
-export function openJoinModal(entry: SnipeEntry): void {
-    openModal(p => <JoinModal entry={entry} modalProps={p} />);
+export function openJoinModal(entry: SnipeEntry): string {
+    return openModal(p => <JoinModal entry={entry} modalProps={p} />);
 }

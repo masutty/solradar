@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-import { ToastType } from "@vencord/discord-types";
+import { ToastVariant } from "@vencord/discord-types";
 import { findComponentByCodeLazy } from "@webpack";
 import { React, showToast, useState } from "@webpack/common";
 
@@ -47,21 +47,21 @@ export function SolsRadarTitleBarButton({ className = "" }: SolsRadarTitleBarBut
         e.preventDefault();
 
         let message = "No action taken.";
-        let toastType: ToastType = "message";
+        let toastType: ToastVariant = "default";
 
         switch (pluginIconShortcutAction) {
             case "toggle_join":
                 const newJoin = !autoJoinEnabled;
                 settings.store.autoJoinEnabled = newJoin;
                 message = `Auto-join ${newJoin ? "enabled" : "disabled"}!`;
-                toastType = newJoin ? "success" : "message";
+                toastType = newJoin ? "success" : "default";
                 break;
 
             case "toggle_notification":
                 const newNotif = !notificationEnabled;
                 settings.store.notificationEnabled = newNotif;
                 message = `Notifications ${newNotif ? "enabled" : "disabled"}!`;
-                toastType = newNotif ? "success" : "message";
+                toastType = newNotif ? "success" : "default";
                 break;
 
             case "toggle_both":
@@ -69,7 +69,7 @@ export function SolsRadarTitleBarButton({ className = "" }: SolsRadarTitleBarBut
                 settings.store.autoJoinEnabled = newState;
                 settings.store.notificationEnabled = newState;
                 message = `Auto-join and notifications ${newState ? "enabled" : "disabled"}!`;
-                toastType = newState ? "success" : "message";
+                toastType = newState ? "success" : "default";
                 break;
 
             default:
@@ -80,7 +80,7 @@ export function SolsRadarTitleBarButton({ className = "" }: SolsRadarTitleBarBut
         if (cancelled) message += message === "No action taken." ? "Pending action cancelled!" : " + pending action cancelled!";
 
         if (message !== "No action taken.") {
-            showToast(message, toastType);
+            showToast({ text: message, variant: toastType });
         }
     };
 

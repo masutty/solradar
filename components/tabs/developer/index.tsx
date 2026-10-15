@@ -14,12 +14,14 @@ import { getRobloxProcess, joinUri, prepareAdb, rejoinUntilBiome, RejoinUntilBio
 import { settings } from "../../../settings";
 import { JoinLockStore } from "../../../stores/JoinLockStore";
 import { SnipeStore } from "../../../stores/SnipeStore";
+import { resetToursSeen } from "../../../stores/TourStore";
 import { checkForUpdates, isDeveloper } from "../../../utils";
 import { EditableActionButton } from "../../ui/EditableActionButton";
 import { Note } from "../../ui/Note";
 import { Pill } from "../../ui/Pill";
 import { card, COLORS, descriptionText, labelText, rowCard, sectionTitle, tabColumn } from "../../ui/styles";
 import { Block } from "../settings/Block";
+import { GitChangelog, GitPanel } from "./GitPanel";
 
 const logger = new Logger("SolRadar.Developer");
 
@@ -142,11 +144,12 @@ export function DeveloperTab() {
             <DebugRow name="RunningGameStore.getRunningGames()" hint="Logs every game Discord sees running" onRun={() => logger.debug(RunningGameStore.getRunningGames())} />
             <DebugRow name={'JoinLockStore.activate(10, 30, "fakeLock")'} hint="Sets a fake 30s join lock at priority 10" onRun={() => JoinLockStore.activate(10, 30, "fakeLock")} />
             <DebugRow name="SnipeStore.addFakes(1)" hint="Adds one fake snipe to the history" onRun={() => SnipeStore.addFakes(1)} />
+            <DebugRow name="resetToursSeen()" hint="Shows every guided tour again on the next visit" onRun={resetToursSeen} />
             <DebugRow name="isDeveloper()" hint="Logs whether you count as a developer" onRun={() => logger.debug(isDeveloper())} />
             <DebugRow
                 name="checkForUpdates()"
                 hint="Runs the update check now"
-                onRun={async () => showToast(await checkForUpdates() ? "Update check done" : "Update check failed", "message")}
+                onRun={async () => showToast({ text: await checkForUpdates() ? "Update check done" : "Update check failed" })}
             />
 
             <p style={sectionTitle}>Showcase</p>
@@ -222,6 +225,12 @@ export function DeveloperTab() {
                     </div>
                 </div>
             </Block>
+
+            <p style={sectionTitle}>Changelog from git</p>
+            <GitChangelog />
+
+            <p style={sectionTitle}>Git</p>
+            <GitPanel />
         </div>
     );
 }
