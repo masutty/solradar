@@ -85,9 +85,11 @@ export function SolsRadarModal({ modalProps, initialTab }: SolsRadarModalProps) 
                 <div style={{
                     display: "flex",
                     justifyContent: "space-between",
+                    alignItems: "center",
                     width: "100%",
                 }}>
-                    <Heading tag="h2">Sol Radar</Heading>
+                    {/* A className drops Heading's default bottom margin, which pushed the title above the buttons */}
+                    <Heading tag="h2" className="vc-sora-modal-title" style={{ margin: 0 }}>Sol Radar</Heading>
                     <HeaderActions tourId={activeTab} onClose={modalProps.onClose} />
                 </div>
             </ModalHeader>
