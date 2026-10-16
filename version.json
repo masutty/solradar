@@ -1,6 +1,13 @@
 {
-    "currentVersion": "1.5.0",
+    "currentVersion": "1.5.1",
     "changelog": [
+        {
+            "version": "1.5.1",
+            "entries": [
+                { "type": "Fixed", "text": "Header buttons with custom themes", "description": "With some custom themes, the close button covered the ? button. They now always sit side by side." },
+                { "type": "Improved", "text": "Cleaner main header", "description": "The title and the buttons line up, and a divider now separates the header from the tabs, like in the trigger editor." }
+            ]
+        },
         {
             "version": "1.5.0",
             "entries": [
