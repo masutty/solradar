@@ -273,7 +273,14 @@
     position: relative;
 }
 
-/* Looks like the modal's close button next to it */
+.vc-sora-header-actions {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    gap: 8px;
+}
+
+/* The ? and our own close button share this look */
 .vc-sora-tour-replay-btn {
     display: grid;
     place-items: center;

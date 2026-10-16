@@ -17,9 +17,9 @@ import { StatsTab } from "./tabs/stats";
 import { TriggersTab } from "./tabs/triggers";
 import { UpdatesTab } from "./tabs/updates";
 import { UtilsTab } from "./tabs/utils";
-import { ReplayTourButton } from "./tour/ReplayTourButton";
+import { HeaderActions } from "./tour/ReplayTourButton";
 import { TourOverlay } from "./tour/TourOverlay";
-import { ModalCloseButton, ModalContent, ModalHeader, ModalProps, ModalRoot, ModalSize, openModal } from "./ui/LegacyModal";
+import { ModalContent, ModalHeader, ModalProps, ModalRoot, ModalSize, openModal } from "./ui/LegacyModal";
 
 // --- Tabs ---
 
@@ -88,10 +88,7 @@ export function SolsRadarModal({ modalProps, initialTab }: SolsRadarModalProps) 
                     width: "100%",
                 }}>
                     <Heading tag="h2">Sol Radar</Heading>
-                    <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                        <ReplayTourButton tourId={activeTab} />
-                        <ModalCloseButton onClick={modalProps.onClose} />
-                    </div>
+                    <HeaderActions tourId={activeTab} onClose={modalProps.onClose} />
                 </div>
             </ModalHeader>
 

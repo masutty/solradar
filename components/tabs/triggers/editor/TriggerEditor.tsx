@@ -16,10 +16,10 @@ import { React, ScrollerThin, Tooltip, useEffect, useState } from "@webpack/comm
 import { emitTourSignal, useTourAction } from "../../../../stores/TourStore";
 import { addTrigger, deleteTrigger, makeDefaultTrigger, safeExportDraft, Trigger, updateTrigger } from "../../../../stores/TriggerStore";
 import { showToast } from "../../../../utils";
-import { ReplayTourButton } from "../../../tour/ReplayTourButton";
+import { HeaderActions } from "../../../tour/ReplayTourButton";
 import { TourAnchor } from "../../../tour/TourAnchor";
 import { useAutoTour } from "../../../tour/useAutoTour";
-import { ModalCloseButton, ModalContent, ModalFooter, ModalHeader, ModalProps, ModalRoot, ModalSize, openModal } from "../../../ui/LegacyModal";
+import { ModalContent, ModalFooter, ModalHeader, ModalProps, ModalRoot, ModalSize, openModal } from "../../../ui/LegacyModal";
 import { COLORS } from "../../../ui/styles";
 import { TechBadge } from "../../settings/Setting";
 import { confirmWebhookThenRun } from "../exportActions";
@@ -152,10 +152,7 @@ function TriggerEditor({ modalProps, trigger }: { modalProps: ModalProps; trigge
                             <span className="vc-sora-trigger-type" style={{ "--sora-c": meta.color } as React.CSSProperties}>{meta.label}</span>
                         </div>
                     </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                        <ReplayTourButton tourId="editor" />
-                        <ModalCloseButton onClick={modalProps.onClose} />
-                    </div>
+                    <HeaderActions tourId="editor" onClose={modalProps.onClose} />
                 </div>
             </ModalHeader>
 
