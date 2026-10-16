@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+import "./ui/modal.css";
+
 import { Heading } from "@components/Heading";
 import { React } from "@webpack/common";
 
@@ -81,7 +83,7 @@ export function SolsRadarModal({ modalProps, initialTab }: SolsRadarModalProps) 
 
     return (
         <ModalRoot {...modalProps} size={ModalSize.MEDIUM}>
-            <ModalHeader>
+            <ModalHeader className="vc-sora-modal-header vc-sora-modal-header-tall">
                 <div style={{
                     display: "flex",
                     justifyContent: "space-between",
@@ -108,6 +110,7 @@ export function SolsRadarModal({ modalProps, initialTab }: SolsRadarModalProps) 
                     scrollbarWidth: "none",
                     borderBottom: "1px solid var(--background-modifier-accent)",
                     flexShrink: 0,
+                    paddingTop: 4,
                 }}
             >
                 {visibleTabs.map(tab => (
