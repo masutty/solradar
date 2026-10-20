@@ -5,7 +5,8 @@
  */
 
 import { FormSwitch } from "@components/FormSwitch";
-import { React, useState } from "@webpack/common";
+import { copyToClipboard } from "@utils/clipboard";
+import { React, showToast, useState } from "@webpack/common";
 
 import { Note } from "./Note";
 
@@ -13,9 +14,11 @@ const DISCORD_ID_RE = /\d{17,20}/;
 
 // --- KeywordChip ---
 
-function KeywordChip({ label, variant, onRemove }: {
+function KeywordChip({ label, variant, selected, onRemove }: {
     label: string;
     variant: "match" | "exclude";
+    /** Picked by Ctrl+A */
+    selected?: boolean;
     onRemove: () => void;
 }) {
     const isMatch = variant === "match";
@@ -31,6 +34,7 @@ function KeywordChip({ label, variant, onRemove }: {
             background: isMatch ? "hsl(var(--brand-500-hsl) / 0.15)" : "hsl(0deg 65% 50% / 0.15)",
             color: isMatch ? "var(--brand-400)" : "hsl(0deg 65% 65%)",
             border: `1px solid ${isMatch ? "hsl(var(--brand-500-hsl) / 0.35)" : "hsl(0deg 65% 50% / 0.35)"}`,
+            boxShadow: selected ? `0 0 0 2px ${isMatch ? "var(--brand-500)" : "hsl(0deg 65% 55%)"}` : undefined,
         }}>
             <span style={{
                 overflow: "hidden",
@@ -77,6 +81,8 @@ export function KeywordsInput({
     placeholder,
 }: KeywordsInputProps) {
     const [input, setInput] = useState("");
+    // Ctrl+A on an empty input picks every chip, for Ctrl+C, Ctrl+X or Backspace
+    const [allPicked, setAllPicked] = useState(false);
 
     const showIdWarning = DISCORD_ID_RE.test(input.trim());
 
@@ -97,6 +103,32 @@ export function KeywordsInput({
     };
 
     const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        const mod = e.ctrlKey || e.metaKey;
+        const key = e.key.toLowerCase();
+
+        if (mod && key === "a" && !input && value.length > 0) {
+            e.preventDefault();
+            setAllPicked(true);
+            return;
+        }
+        if (allPicked) {
+            if (mod && (key === "c" || key === "x")) {
+                e.preventDefault();
+                // Commas, so pasting it back into any keyword box splits it again
+                copyToClipboard(value.join(", "));
+                showToast({ text: `Copied ${value.length} ${value.length === 1 ? "keyword" : "keywords"}!`, variant: "success" });
+                if (key === "x") { onChangeValue([]); setAllPicked(false); }
+                return;
+            }
+            if (e.key === "Backspace" || e.key === "Delete") {
+                e.preventDefault();
+                onChangeValue([]);
+                setAllPicked(false);
+                return;
+            }
+            if (!mod) setAllPicked(false);
+        }
+
         if (e.key === "Enter") {
             e.preventDefault();
             if (input.trim()) { addFromRaw(input); setInput(""); }
@@ -137,6 +169,7 @@ export function KeywordsInput({
                         key={kw + i}
                         label={kw}
                         variant={variant}
+                        selected={allPicked}
                         onRemove={() => onChangeValue(value.filter((_, j) => j !== i))}
                     />
                 ))}
@@ -144,6 +177,7 @@ export function KeywordsInput({
                     value={input}
                     onChange={e => handleChange(e.target.value)}
                     onKeyDown={handleKeyDown}
+                    onBlur={() => setAllPicked(false)}
                     placeholder={value.length === 0 ? (placeholder ?? "Type and press Enter or comma…") : undefined}
                     style={{
                         border: "none", outline: "none", background: "transparent",
@@ -154,7 +188,7 @@ export function KeywordsInput({
             </div>
 
             <span style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 4 }}>
-                Press <strong>Enter</strong> or <strong>,</strong> to add · <strong>Backspace</strong> to remove last
+                Press <strong>Enter</strong> or <strong>,</strong> to add · <strong>Backspace</strong> to remove last · <strong>Ctrl+A</strong>, <strong>Ctrl+C</strong> to copy all
             </span>
 
             {/* Discord ID warning */}
