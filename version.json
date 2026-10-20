@@ -1,6 +1,15 @@
 {
-    "currentVersion": "1.5.1",
+    "currentVersion": "1.6.0",
     "changelog": [
+        {
+            "version": "1.6.0",
+            "entries": [
+                { "type": "Added", "text": "Pick which triggers to import", "description": "Import default triggers and Import from file now open a list. Tick the ones you want and click Import. Triggers you already have stay as they are. The Add as new or Replace question is gone: to start over, use Delete all triggers first." },
+                { "type": "Added", "text": "Know when the defaults change", "description": "When a default trigger is added or updated, a note on the ⋯ button in the Triggers tab tells you. Take a look opens the list with the changes already ticked. Turn the note off in Settings, under Interface." },
+                { "type": "Added", "text": "Update your default triggers", "description": "A default you already have can be updated from the list. It takes the new keywords, name and icon, and keeps your on/off, priority, sounds and every other setting." },
+                { "type": "Added", "text": "The Radiant Forest and Lost Forest default triggers", "description": "Get them from ⋯, Import default triggers." }
+            ]
+        },
         {
             "version": "1.5.1",
             "entries": [
