@@ -13,23 +13,25 @@ import { Paragraph } from "@components/Paragraph";
 import { Alerts, ContextMenuApi, Menu, React, ReactDOM, ScrollerThin, showToast, TextInput, Tooltip, useEffect, useRef, useState } from "@webpack/common";
 
 import { settings } from "../../../settings";
-import { emitTourSignal, useTourAction } from "../../../stores/TourStore";
+import { countChanges, DEFAULT_TRIGGERS, markDefaultsSeen, pendingChanges } from "../../../stores/defaultTriggers";
+import { emitTourSignal, useTourAction, useTourState } from "../../../stores/TourStore";
 import {
     deleteAllTriggers,
     deleteTrigger,
     downloadTriggersJson,
     downloadTriggersJsonRedacted,
-    importTriggersFromJson,
+    importTriggers,
+    parseTriggersFile,
     RedactField,
     reorderTriggers,
     toggleTrigger,
     Trigger,
+    triggerStoreReady,
     TriggerType,
     updateTrigger,
     useTriggers,
 } from "../../../stores/TriggerStore";
 import { UIState } from "../../../stores/UIStateStore";
-import defaultTriggers from "../../../triggers.json";
 import { isDeveloper } from "../../../utils";
 import { JoinLockBanner } from "../../JoinLockBanner";
 import { fakeMouseEvent } from "../../tour/anchors";
@@ -38,8 +40,10 @@ import { useAutoTour } from "../../tour/useAutoTour";
 import { DeleteButton } from "../../ui/buttons/DeleteButton";
 import { COLORS } from "../../ui/styles";
 import { useShiftHeld } from "../../ui/useShiftHeld";
+import { DefaultsNudge } from "./DefaultsNudge";
 import { TriggerIcon, TYPE_META } from "./editor/sections";
 import { confirmWebhookThenRun } from "./exportActions";
+import { importSummary, openDefaultsPicker, openFilePicker } from "./ImportPicker";
 import { PublicExportOptions } from "./PublicExportOptions";
 import { openTriggerContextMenu } from "./TriggerContextMenu";
 import { openAddTriggerModal, openEditTriggerModal } from "./TriggerModal";
@@ -434,10 +438,23 @@ export function TriggersTab() {
     const shiftHeld = useShiftHeld();
     const [search, setSearch] = useState(saved.search);
     const [typeFilter, setTypeFilter] = useState<TypeFilter>(saved.typeFilter);
-    const { useButtonsForOrderingTriggers: useButtonsForOrdering, useTriggerTabContextMenu: useContextMenu } = settings.use([
+    const { useButtonsForOrderingTriggers: useButtonsForOrdering, useTriggerTabContextMenu: useContextMenu, defaultsSeen, showDefaultsNudge } = settings.use([
         "useButtonsForOrderingTriggers",
         "useTriggerTabContextMenu",
+        "defaultsSeen",
+        "showDefaultsNudge",
     ]);
+
+    // Triggers load a moment after the tab opens. Until then every default would look new.
+    const [storeReady, setStoreReady] = useState(false);
+    useEffect(() => { triggerStoreReady.then(() => setStoreReady(true)); }, []);
+    const tourRunning = useTourState().tour !== null;
+    const defaultChanges = React.useMemo(
+        () => storeReady ? pendingChanges(triggers) : { added: [], updated: [] },
+        [storeReady, triggers, defaultsSeen]
+    );
+    const changeCount = countChanges(defaultChanges);
+    const showNudge = showDefaultsNudge && changeCount > 0 && !tourRunning;
 
     const handleSearchChange = (v: string) => {
         setSearch(v);
@@ -457,52 +474,15 @@ export function TriggersTab() {
     // Reordering is off while a filter or search narrows the list
     const orderingDisabled = filtered.length !== triggers.length;
 
-    const showImportModeAlert = (json: string) => {
-        Alerts.show({
-            title: "Import Triggers",
-            body: (
-                <div style={{ minWidth: "350px", display: "flex", flexDirection: "column", gap: 12 }}>
-                    <Paragraph>
-                        How would you like to import these triggers?<br /><br />
-                        <strong>Add as new</strong> - added alongside your existing ones.<br /><br />
-                        <strong>Replace</strong> - current triggers deleted and replaced.
-                    </Paragraph>
-                    <div style={{ display: "flex", flexDirection: "row", gap: 8, width: "100%" }}>
-                        <Button variant="positive" style={{ flex: 1 }} onClick={() => {
-                            Alerts.close();
-                            importTriggersFromJson(json, "merge").then(result => {
-                                if (result.ok) {
-                                    showToast({ text: `Imported ${result.imported} trigger(s)!`, variant: "success" });
-                                    emitTourSignal("triggers:imported");
-                                } else showToast({ text: `Import failed: ${result.error}`, variant: "critical" });
-                            });
-                        }}>Add as new</Button>
-                        <Button variant="dangerPrimary" style={{ flex: 1 }} onClick={() => {
-                            Alerts.close();
-                            importTriggersFromJson(json, "replace").then(result => {
-                                if (result.ok) {
-                                    showToast({ text: `Imported ${result.imported} trigger(s)!`, variant: "success" });
-                                    emitTourSignal("triggers:imported");
-                                } else showToast({ text: `Import failed: ${result.error}`, variant: "critical" });
-                            });
-                        }}>Replace</Button>
-                    </div>
-                </div>
-            ),
-            confirmText: "Cancel",
-        });
-    };
-
-    // On an empty list "Add as new" and "Replace" are the same, so skip the question
     const importDefaults = async () => {
         if (importingRef.current) return;
         importingRef.current = true;
         try {
-            const result = await importTriggersFromJson(JSON.stringify(defaultTriggers), "merge");
-            if (result.ok) {
-                showToast({ text: `Imported ${result.imported} trigger(s)!`, variant: "success" });
-                emitTourSignal("triggers:imported");
-            } else showToast({ text: `Import failed: ${result.error}`, variant: "critical" });
+            // Skip the ones the user already has, or they would come back as copies with new ids
+            const owned = new Set(triggers.map(t => t.id));
+            const added = await importTriggers(DEFAULT_TRIGGERS.filter(d => !owned.has(d.id)));
+            showToast({ text: importSummary(added, 0), variant: "success" });
+            emitTourSignal("triggers:imported");
         } finally {
             importingRef.current = false;
         }
@@ -513,7 +493,11 @@ export function TriggersTab() {
         if (!file) return;
         e.target.value = "";
         const reader = new FileReader();
-        reader.onload = ev => showImportModeAlert(ev.target?.result as string);
+        reader.onload = ev => {
+            const result = parseTriggersFile(ev.target?.result as string);
+            if (result.ok) openFilePicker(result.triggers, file.name);
+            else showToast({ text: `Import failed: ${result.error}`, variant: "critical" });
+        };
         reader.readAsText(file);
     };
 
@@ -672,7 +656,18 @@ export function TriggersTab() {
         ContextMenuApi.openContextMenu(e, () => (
             <Menu.Menu navId="vc-sora-triggers-more" onClose={ContextMenuApi.closeContextMenu} aria-label="Trigger options">
                 <Menu.MenuItem id="vc-sora-triggers-import-file" label="Import from file" action={() => importRef.current?.click()} />
-                <Menu.MenuItem id="vc-sora-triggers-import-defaults" label="Import default triggers" action={() => triggers.length ? showImportModeAlert(JSON.stringify(defaultTriggers)) : importDefaults()} />
+                <Menu.MenuItem
+                    id="vc-sora-triggers-import-defaults"
+                    label={showDefaultsNudge && changeCount > 0
+                        ? (
+                            <span className="vc-sora-menu-pill-label">
+                                <span style={{ flex: 1 }}>Import default triggers</span>
+                                <span className="vc-sora-menu-pill">{changeCount} new</span>
+                            </span>
+                        )
+                        : "Import default triggers"}
+                    action={openDefaultsPicker}
+                />
                 <Menu.MenuSeparator />
                 <Menu.MenuItem id="vc-sora-triggers-export" label="Export" disabled={!triggers.length} action={handleExport} />
                 {isDeveloper() && <Menu.MenuItem id="vc-sora-triggers-safe-export" label="Safe export" disabled={!triggers.length} action={handlePublicExport} />}
@@ -713,13 +708,19 @@ export function TriggersTab() {
                         <FilterIcon />
                         {activeType?.label ?? "All types"}
                     </button>
-                    <Tooltip text="More options">
-                        {props => (
-                            <button {...props} ref={moreBtnRef} {...tourAnchor("triggers.more")} type="button" aria-label="More options" className="vc-sora-triggers-sbtn" style={{ padding: "0 11px" }} onClick={openMoreMenu}>
-                                <MoreIcon />
-                            </button>
-                        )}
-                    </Tooltip>
+                    <div className="vc-sora-nudge-anchor">
+                        <Tooltip text="More options">
+                            {props => (
+                                <button {...props} ref={moreBtnRef} {...tourAnchor("triggers.more")} type="button" aria-label="More options" className={`vc-sora-triggers-sbtn${showNudge ? " vc-sora-nudged" : ""}`} style={{ padding: "0 11px" }} onClick={openMoreMenu}>
+                                    <MoreIcon />
+                                </button>
+                            )}
+                        </Tooltip>
+                        {showNudge && <>
+                            <span className="vc-sora-nudge-dot" />
+                            <DefaultsNudge changes={defaultChanges} onDismiss={markDefaultsSeen} onOpen={openDefaultsPicker} />
+                        </>}
+                    </div>
                     <TourAnchor id="triggers.new"><Button size="medium" variant="positive" onClick={openAddTriggerModal}>+ New</Button></TourAnchor>
                 </div>
                 <span className="vc-sora-triggers-hint" {...tourAnchor("triggers.hint")}>

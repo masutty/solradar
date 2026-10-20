@@ -10,6 +10,7 @@ import { DataStore } from "@api/index";
 import { React } from "@webpack/common";
 
 import { Logger } from "../logger";
+import { applyDefaultUpdate, DEFAULT_TRIGGERS, getDefault, isDefaultId, isUpdatable } from "./defaultTriggers";
 
 const logger = new Logger("SolRadar");
 
@@ -89,6 +90,8 @@ export interface Trigger {
     conditions: TriggerConditions;
     forwarding: TriggerForwarding;
     biome?: TriggerBiome;
+    /** Rev of the default this trigger was imported or last updated from. Absent on user-made triggers. */
+    defaultRev?: number;
 }
 
 // --- Defaults ---
@@ -170,7 +173,7 @@ export function makeDefaultTrigger(type: TriggerType = "BIOME"): Omit<Trigger, "
 // Runs on every stored trigger. Missing fields get defaults, existing data is kept.
 
 function migrateTrigger(raw: any): Trigger {
-    return {
+    const trigger: Trigger = {
         id: raw.id ?? crypto.randomUUID(),
         type: raw.type ?? "CUSTOM",
         name: raw.name ?? "",
@@ -225,6 +228,48 @@ function migrateTrigger(raw: any): Trigger {
             },
         },
     };
+
+    if (Number.isFinite(raw.defaultRev)) trigger.defaultRev = raw.defaultRev;
+    return trigger;
+}
+
+// --- Default ids ---
+// TODO: temporary migration, remove once users have updated (reminder in the Developer tab).
+// Old copies of defaults have random ids. Give them the default's id so we know which ones the user has.
+// Idempotent, runs on every load.
+
+function adoptDefaultIds(list: Trigger[]): number {
+    const counts = new Map<string, number>();
+    for (const d of DEFAULT_TRIGGERS) if (d.iconUrl) counts.set(d.iconUrl, (counts.get(d.iconUrl) ?? 0) + 1);
+    const byIcon = new Map(DEFAULT_TRIGGERS.filter(d => d.iconUrl && counts.get(d.iconUrl) === 1).map(d => [d.iconUrl, d]));
+
+    const taken = new Set(list.map(t => t.id));
+    let adopted = 0;
+
+    for (const t of list) {
+        if (isDefaultId(t.id)) continue;
+        const def = byIcon.get(t.iconUrl);
+        if (!def || taken.has(def.id)) continue;
+        t.id = def.id;
+        t.defaultRev = t.defaultRev ?? 1;
+        taken.add(def.id);
+        adopted++;
+    }
+
+    // Safety net: ids must stay unique
+    const seen = new Set<string>();
+    for (const t of list) {
+        if (seen.has(t.id)) t.id = crypto.randomUUID();
+        seen.add(t.id);
+    }
+
+    // TODO: temporary, remove with the migration above. Revs only go up, so a defaultRev above today's rev was saved by an old fake: bring it back down
+    for (const t of list) {
+        const def = getDefault(t.id);
+        if (def && (t.defaultRev ?? 0) > def.rev) t.defaultRev = def.rev;
+    }
+
+    return adopted;
 }
 
 // --- Internal store ---
@@ -463,13 +508,12 @@ function _downloadJson(content: string, filename: string): void {
     URL.revokeObjectURL(url);
 }
 
-export type ImportResult =
-    | { ok: true; imported: number; }
+export type ParseResult =
+    | { ok: true; triggers: Trigger[]; }
     | { ok: false; error: string; };
 
-export async function importTriggersFromJson(json: string, mode: "merge" | "replace" = "merge"): Promise<ImportResult> {
-    await triggerStoreReady;
-
+/** Validates an exported triggers file. Does not touch the store. */
+export function parseTriggersFile(json: string): ParseResult {
     let parsed: unknown;
     try {
         parsed = JSON.parse(json);
@@ -492,11 +536,56 @@ export async function importTriggersFromJson(json: string, mode: "merge" | "repl
         return { ok: false, error: "No valid triggers found in the file." };
     }
 
-    const incoming = valid.map(t => migrateTrigger({ ...t, id: crypto.randomUUID() }));
-    _triggers = mode === "replace" ? incoming : [..._triggers, ...incoming];
+    // The picker tells triggers apart by id, so a file can't repeat one
+    const ids = new Set<string>();
+    const triggers = valid.map(migrateTrigger).map(t => {
+        if (ids.has(t.id)) t.id = crypto.randomUUID();
+        ids.add(t.id);
+        return t;
+    });
+    return { ok: true, triggers };
+}
+
+/** Appends triggers. An id is kept when nothing else uses it, so defaults stay recognisable. Returns how many were added. */
+export async function importTriggers(incoming: (Trigger & { rev?: number; })[]): Promise<number> {
+    await triggerStoreReady;
+
+    const used = new Set(_triggers.map(t => t.id));
+    const added = incoming.map(raw => {
+        const t = migrateTrigger(raw);
+        const keep = typeof raw.id === "string" && raw.id !== "" && !used.has(raw.id);
+        t.id = keep ? raw.id : crypto.randomUUID();
+        used.add(t.id);
+        // Only defaults carry a rev, and a fresh copy starts on it
+        const def = keep && Number.isFinite(raw.rev) ? getDefault(t.id) : undefined;
+        if (def) t.defaultRev = def.rev;
+        return t;
+    });
+
+    if (added.length === 0) return 0;
+    _triggers = [..._triggers, ...added];
     notifyListeners();
     persist();
-    return { ok: true, imported: incoming.length };
+    return added.length;
+}
+
+/** Brings the user's copies of these defaults up to date. Returns how many changed. */
+export async function updateFromDefaults(ids: string[]): Promise<number> {
+    await triggerStoreReady;
+
+    let updated = 0;
+    _triggers = _triggers.map(t => {
+        const def = getDefault(t.id);
+        if (!def || !ids.includes(t.id) || !isUpdatable(t)) return t;
+        updated++;
+        return applyDefaultUpdate(t, def);
+    });
+
+    if (updated > 0) {
+        notifyListeners();
+        persist();
+    }
+    return updated;
 }
 
 // --- React hook ---
@@ -527,6 +616,8 @@ export function useTriggers(): Trigger[] {
         if (Array.isArray(stored) && stored.length > 0) {
             _triggers = stored.map(migrateTrigger);
             logger.info(`Loaded and migrated ${_triggers.length} triggers.`);
+            const adopted = adoptDefaultIds(_triggers);
+            if (adopted > 0) logger.info(`Matched ${adopted} triggers to their default.`);
             // Save right away so migrated fields are stored
             await DataStore.set(DATASTORE_KEY, _triggers);
         } else {

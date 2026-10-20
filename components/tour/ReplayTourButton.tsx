@@ -67,11 +67,12 @@ export function ReplayTourButton({ tourId }: { tourId: string; }) {
 /**
  * The ? and close buttons for a modal header. The close button is ours, not Discord's ModalCloseButton:
  * themes move Discord's one on their own, and then it lands on top of the ?.
+ * Without a tourId it is only the close button, for modals that have no tour.
  */
-export function HeaderActions({ tourId, onClose }: { tourId: string; onClose: () => void; }) {
+export function HeaderActions({ tourId, onClose }: { tourId?: string; onClose: () => void; }) {
     return (
         <div className="vc-sora-header-actions">
-            <ReplayTourButton tourId={tourId} />
+            {tourId && <ReplayTourButton tourId={tourId} />}
             <button type="button" aria-label="Close" className="vc-sora-tour-replay-btn" onClick={onClose}>
                 <svg viewBox="0 0 24 24" width={24} height={24} fill="currentColor" aria-hidden="true">
                     <path d="M17.3 18.7a1 1 0 0 0 1.4-1.4L13.42 12l5.3-5.3a1 1 0 0 0-1.42-1.4L12 10.58l-5.3-5.3a1 1 0 0 0-1.4 1.42L10.58 12l-5.3 5.3a1 1 0 1 0 1.42 1.4L12 13.42l5.3 5.3Z" />

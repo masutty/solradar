@@ -290,8 +290,19 @@ export const settings = definePluginSettings({
         default: true,
         hidden: true,
     },
+    showDefaultsNudge: {
+        type: OptionType.BOOLEAN,
+        description: "Let you know when default triggers are added or updated.",
+        default: true,
+        hidden: true,
+    },
     // Tour id -> last version seen. Kept with the settings so a reinstall or reinject never replays a tour
     toursSeen: {
+        type: OptionType.CUSTOM,
+        default: {} as Record<string, number>,
+    },
+    // Default trigger id -> rev the user has been told about (see stores/defaultTriggers.ts)
+    defaultsSeen: {
         type: OptionType.CUSTOM,
         default: {} as Record<string, number>,
     },

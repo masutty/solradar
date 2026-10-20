@@ -1,0 +1,436 @@
+/* --- Header --- */
+
+.vc-sora-ip-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    width: 100%;
+    min-width: 0;
+}
+
+.vc-sora-ip-title {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.vc-sora-ip-subtitle {
+    overflow: hidden;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-muted);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* --- Body --- */
+
+.vc-sora-ip-body {
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    height: min(600px, calc(100vh - 260px));
+    min-height: 280px;
+}
+
+.vc-sora-ip-tools {
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    gap: 10px;
+    /* With the list's 2px top padding, the banner sits 10px from the list, like the search row above it */
+    padding: 14px 22px 8px;
+}
+
+.vc-sora-ip-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.vc-sora-ip-search {
+    box-sizing: border-box;
+    flex: 1;
+    min-width: 0;
+    height: 40px;
+    padding: 0 12px;
+    border: 1px solid #34343a;
+    border-radius: 8px;
+    background: #141417;
+    color: #dbdee1;
+    font-size: 15px;
+}
+
+.vc-sora-ip-search:focus {
+    outline: none;
+    border-color: #5865f2;
+}
+
+.vc-sora-ip-segs {
+    box-sizing: border-box;
+    display: flex;
+    flex-shrink: 0;
+    gap: 2px;
+    height: 40px;
+    padding: 3px;
+    border: 1px solid #34343a;
+    border-radius: 8px;
+    background: #141417;
+}
+
+.vc-sora-ip-seg {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    height: 100%;
+    padding: 0 10px;
+    border: 0;
+    border-radius: 5px;
+    background: transparent;
+    color: #949ba4;
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.vc-sora-ip-seg span {
+    font-size: 11px;
+    color: #6d6f78;
+}
+
+.vc-sora-ip-seg:hover {
+    color: #f2f3f5;
+}
+
+.vc-sora-ip-seg.on {
+    background: #3a3a40;
+    color: #f2f3f5;
+}
+
+.vc-sora-ip-seg.on span {
+    color: #b5bac1;
+}
+
+/* --- Banner --- */
+
+.vc-sora-ip-banner {
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    /* Fixed height: "Select them" and "Selected" have different line boxes, and the list must not move */
+    height: 38px;
+    padding: 0 12px;
+    border: 1px solid rgba(88, 101, 242, 0.35);
+    border-radius: 8px;
+    background: rgba(88, 101, 242, 0.12);
+}
+
+.vc-sora-ip-banner svg {
+    flex-shrink: 0;
+}
+
+.vc-sora-ip-banner-text {
+    flex: 1;
+    font-size: 13px;
+    line-height: 18px;
+    color: #dbdee1;
+}
+
+.vc-sora-ip-banner-done {
+    font-size: 13px;
+    line-height: 18px;
+    color: #949ba4;
+}
+
+.vc-sora-ip-link {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: #00a8fc;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 18px;
+    cursor: pointer;
+}
+
+.vc-sora-ip-link:hover {
+    text-decoration: underline;
+}
+
+/* --- List --- */
+
+.vc-sora-ip-list {
+    box-sizing: border-box;
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 6px;
+    min-height: 0;
+    padding: 2px 16px 14px 22px;
+    overflow-y: auto;
+}
+
+.vc-sora-ip-list::-webkit-scrollbar {
+    width: 8px;
+}
+
+.vc-sora-ip-list::-webkit-scrollbar-thumb {
+    border-radius: 4px;
+    background: #3a3a40;
+}
+
+.vc-sora-ip-empty {
+    padding: 48px 16px;
+    text-align: center;
+    font-size: 14px;
+    color: #949ba4;
+}
+
+.vc-sora-ip-card {
+    box-sizing: border-box;
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #2f2f35;
+    border-radius: 8px;
+    background: #232328;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.vc-sora-ip-card:hover {
+    border-color: #4e5058;
+}
+
+.vc-sora-ip-card.on {
+    border-color: #5865f2;
+    background: rgba(88, 101, 242, 0.1);
+}
+
+.vc-sora-ip-card.on:hover {
+    border-color: #7983f5;
+}
+
+.vc-sora-ip-card.have,
+.vc-sora-ip-card.have:hover {
+    border-color: #2a2a2f;
+    background: #1c1c20;
+    cursor: default;
+    opacity: 0.6;
+}
+
+.vc-sora-ip-box {
+    box-sizing: border-box;
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border: 2px solid #5b5d66;
+    border-radius: 5px;
+    color: #fff;
+}
+
+.vc-sora-ip-card.on .vc-sora-ip-box {
+    border-color: #5865f2;
+    background: #5865f2;
+}
+
+.vc-sora-ip-card.have .vc-sora-ip-box {
+    border-color: #34353b;
+    background: #2a2b30;
+    color: #6d6f78;
+}
+
+.vc-sora-ip-icon {
+    display: flex;
+    flex-shrink: 0;
+}
+
+.vc-sora-ip-card.have .vc-sora-ip-icon {
+    filter: grayscale(1);
+}
+
+.vc-sora-ip-main {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.vc-sora-ip-top {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+}
+
+.vc-sora-ip-name {
+    overflow: hidden;
+    font-size: 15px;
+    font-weight: 700;
+    color: #f2f3f5;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.vc-sora-ip-card.have .vc-sora-ip-type {
+    --sora-c: #949ba4 !important;
+}
+
+.vc-sora-ip-desc {
+    overflow: hidden;
+    font-size: 13px;
+    color: #b5bac1;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.vc-sora-ip-msg {
+    display: none;
+    color: #dbdee1;
+}
+
+.vc-sora-ip-card.have:hover .vc-sora-ip-desc-text {
+    display: none;
+}
+
+.vc-sora-ip-card.have:hover .vc-sora-ip-msg {
+    display: inline;
+}
+
+.vc-sora-ip-status {
+    flex-shrink: 0;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--sora-c) 16%, transparent);
+    color: var(--sora-c);
+    font-size: 11px;
+    font-weight: 700;
+}
+
+/* --- Nudge on the more button --- */
+
+.vc-sora-nudge-anchor {
+    position: relative;
+    flex-shrink: 0;
+}
+
+.vc-sora-triggers-sbtn.vc-sora-nudged {
+    box-shadow: inset 0 0 0 1px #5865f2;
+}
+
+.vc-sora-nudge-dot {
+    position: absolute;
+    top: -3px;
+    right: -3px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #5865f2;
+    box-shadow: 0 0 0 3px var(--background-base-low, #1a1a1e);
+    pointer-events: none;
+}
+
+.vc-sora-nudge {
+    position: absolute;
+    top: 46px;
+    right: -8px;
+    z-index: 40;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 270px;
+    padding: 14px;
+    border: 1px solid #5865f2;
+    border-radius: 10px;
+    background: #232328;
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55);
+}
+
+.vc-sora-nudge-arrow {
+    position: absolute;
+    top: -7px;
+    right: 20px;
+    width: 12px;
+    height: 12px;
+    border-top: 1px solid #5865f2;
+    border-left: 1px solid #5865f2;
+    background: #232328;
+    transform: rotate(45deg);
+}
+
+.vc-sora-nudge-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: #f2f3f5;
+}
+
+.vc-sora-nudge-body {
+    margin-top: 4px;
+    font-size: 13px;
+    line-height: 1.4;
+    color: #b5bac1;
+}
+
+.vc-sora-nudge-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.vc-sora-nudge-btn {
+    height: 30px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: 6px;
+    background: #3b3c42;
+    color: #f2f3f5;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.vc-sora-nudge-btn.primary {
+    background: #5865f2;
+    color: #fff;
+    font-weight: 600;
+}
+
+/* --- Menu pill --- */
+
+.vc-sora-menu-pill-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    white-space: nowrap;
+}
+
+.vc-sora-menu-pill {
+    flex-shrink: 0;
+    padding: 1px 7px;
+    border-radius: 999px;
+    background: #5865f2;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 16px;
+}
+
+/* The focused menu item is brand coloured, so the pill flips to stay visible */
+[class*="focused"] > .vc-sora-menu-pill-label .vc-sora-menu-pill,
+[class*="focused"] .vc-sora-menu-pill {
+    background: #fff;
+    color: #5865f2;
+}

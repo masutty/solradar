@@ -12,9 +12,11 @@ import { React, RunningGameStore, showToast, TextInput, Tooltip } from "@webpack
 import { Logger } from "../../../logger";
 import { getRobloxProcess, joinUri, prepareAdb, rejoinUntilBiome, RejoinUntilBiomeHandle } from "../../../services/RobloxService";
 import { settings } from "../../../settings";
+import { clearFakeDefaultChanges, fakeDefaultChanges } from "../../../stores/defaultTriggers";
 import { JoinLockStore } from "../../../stores/JoinLockStore";
 import { SnipeStore } from "../../../stores/SnipeStore";
 import { resetToursSeen } from "../../../stores/TourStore";
+import { getTriggers } from "../../../stores/TriggerStore";
 import { checkForUpdates, isDeveloper } from "../../../utils";
 import { EditableActionButton } from "../../ui/EditableActionButton";
 import { Note } from "../../ui/Note";
@@ -107,6 +109,12 @@ export function DeveloperTab() {
                 <span style={{ fontSize: 18, marginTop: 4 }}>👉🔴🔵👈🤞🤌🫴🟣</span>
             </div>
 
+            <Note variant="warning">
+                TODO: remove the temporary migrations once users have updated: adoptDefaultIds in stores/TriggerStore.ts
+                (old default copies take the default's id by icon URL) and the "saved by an old fake" repairs in
+                stores/TriggerStore.ts and stores/defaultTriggers.ts.
+            </Note>
+
             <p style={sectionTitle}>Roblox</p>
             <div style={{ ...card, ...wrapRow }}>
                 <EditableActionButton
@@ -145,6 +153,12 @@ export function DeveloperTab() {
             <DebugRow name={'JoinLockStore.activate(10, 30, "fakeLock")'} hint="Sets a fake 30s join lock at priority 10" onRun={() => JoinLockStore.activate(10, 30, "fakeLock")} />
             <DebugRow name="SnipeStore.addFakes(1)" hint="Adds one fake snipe to the history" onRun={() => SnipeStore.addFakes(1)} />
             <DebugRow name="resetToursSeen()" hint="Shows every guided tour again on the next visit" onRun={resetToursSeen} />
+            <DebugRow
+                name="fakeDefaultChanges()"
+                hint="Pretends 2 defaults you have were updated and 2 you don't have are new, until a reload. Updating one for real rewrites its keywords."
+                onRun={() => showToast({ text: `Faked changes: ${fakeDefaultChanges(getTriggers()).join(", ") || "none"}` })}
+            />
+            <DebugRow name="clearFakeDefaultChanges()" hint="Drops the fake changes and marks the defaults as seen" onRun={clearFakeDefaultChanges} />
             <DebugRow name="isDeveloper()" hint="Logs whether you count as a developer" onRun={() => logger.debug(isDeveloper())} />
             <DebugRow
                 name="checkForUpdates()"

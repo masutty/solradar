@@ -66,7 +66,7 @@ The first time you open a tab, a short in-app tour walks you through it. Skip it
 ### Quick start
 
 1. Open the **Triggers** tab.
-2. Click **⋯** and choose **Import default triggers**. If you already have triggers, choose **Add as new**.
+2. Click **⋯** and choose **Import default triggers**. Tick the ones you want and click **Import**. Triggers you already have are left as they are, and when the defaults change, a note on the **⋯** button tells you.
 3. The default triggers come turned off, with auto-join and notifications ready. Click the icon of each trigger you want to turn it on.
 4. Turn on auto-join: right-click the SolRadar button in the chat bar. This turns auto-join and notifications on or off together.
 

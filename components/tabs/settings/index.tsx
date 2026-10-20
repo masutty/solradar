@@ -450,6 +450,7 @@ export function SettingsTab() {
                 { id: "useButtonsForOrderingTriggers", label: "Reorder triggers with buttons", description: "Use the ▲▼ buttons instead of drag and drop." },
                 { id: "useTriggerTabContextMenu", label: "Trigger context menu", description: "Right-click a trigger for enable, edit, duplicate, export and remove. When off, right-click only toggles it." },
                 { id: "showTours", label: "Show guided tours", description: "Walk through a tab the first time you open it.", tooltip: "You can always replay a tour from the ? button at the top of this window." },
+                { id: "showDefaultsNudge", label: "Show default trigger updates", description: "Let you know when default triggers are added or updated.", tooltip: "When off, check for new ones yourself in ⋯, Import default triggers." },
             ],
         },
         {
