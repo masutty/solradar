@@ -23,7 +23,7 @@ import { ModalContent, ModalFooter, ModalHeader, ModalProps, ModalRoot, ModalSiz
 import { COLORS } from "../../../ui/styles";
 import { TechBadge } from "../../settings/Setting";
 import { confirmWebhookThenRun } from "../exportActions";
-import { Draft, EditorSection, hasBiomeCheck, missingEssentials, SECTIONS, TriggerIcon, TYPE_META } from "./sections";
+import { Draft, EditorSection, hasBiomeCheck, missingEssentials, SECTIONS, TriggerIcon, TriggerIdLine, TYPE_META } from "./sections";
 
 function DownloadIcon() {
     return (
@@ -151,6 +151,7 @@ function TriggerEditor({ modalProps, trigger }: { modalProps: ModalProps; trigge
                             </span>
                             <span className="vc-sora-trigger-type" style={{ "--sora-c": meta.color } as React.CSSProperties}>{meta.label}</span>
                         </div>
+                        {trigger && <TriggerIdLine id={trigger.id} />}
                     </div>
                     <HeaderActions tourId="editor" onClose={modalProps.onClose} />
                 </div>

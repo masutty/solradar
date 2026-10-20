@@ -6,7 +6,8 @@
 
 import "../../../ui/choice.css";
 
-import { React, useEffect, useState } from "@webpack/common";
+import { copyToClipboard } from "@utils/clipboard";
+import { React, showToast, useEffect, useState } from "@webpack/common";
 
 import { settings } from "../../../../settings";
 import { DEFAULT_BIOME, Trigger, TriggerType } from "../../../../stores/TriggerStore";
@@ -160,6 +161,32 @@ function CoreTiles({ draft, patch }: { draft: Draft; patch: Patch; }) {
                     </button>
                 );
             })}
+        </div>
+    );
+}
+
+/** The trigger's ID, read-only and small: it's technical. Click to copy, or select the text. */
+export function TriggerIdLine({ id }: { id: string; }) {
+    const copy = () => {
+        copyToClipboard(id);
+        showToast({ text: "ID copied!", variant: "success" });
+    };
+    return (
+        <div style={{ display: "flex", alignItems: "center", gap: 4, minWidth: 0, fontSize: 11, color: COLORS.muted }}>
+            <span>ID</span>
+            <code style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", userSelect: "text", fontFamily: "var(--font-code)" }}>{id}</code>
+            <button
+                type="button"
+                aria-label="Copy ID"
+                title="Copy ID"
+                onClick={copy}
+                style={{ display: "flex", flexShrink: 0, padding: 2, border: 0, borderRadius: 4, background: "none", color: "inherit", cursor: "pointer" }}
+            >
+                <svg viewBox="0 0 24 24" width={12} height={12} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <rect x="9" y="9" width="11" height="11" rx="2" />
+                    <path d="M5 15V6a2 2 0 0 1 2-2h9" />
+                </svg>
+            </button>
         </div>
     );
 }
