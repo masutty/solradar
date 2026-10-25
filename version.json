@@ -1,6 +1,12 @@
 {
-    "currentVersion": "1.6.0",
+    "currentVersion": "1.6.1",
     "changelog": [
+        {
+            "version": "1.6.1",
+            "entries": [
+                { "type": "Improved", "text": "The Radiant Forest biome check", "description": "The default trigger now checks for THE RADIANT FOREST. If you have it, the note on the ⋯ button in the Triggers tab lets you update it." }
+            ]
+        },
         {
             "version": "1.6.0",
             "entries": [
