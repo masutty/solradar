@@ -89,14 +89,14 @@
     },
     {
         "id": "205653f0-b581-4fa4-8668-eb3011724ad3",
-        "rev": 1,
+        "rev": 2,
         "type": "RARE_BIOME",
         "name": "The Radiant Forest",
         "description": "On Condensed Memory usage",
         "iconUrl": "https://i.imgur.com/nZEvHQk.png",
         "biome": {
             "detectionEnabled": true,
-            "detectionKeyword": "RADIANT FOREST",
+            "detectionKeyword": "THE RADIANT FOREST",
             "skipRedundantJoin": true
         },
         "conditions": {
