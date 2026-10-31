@@ -5,9 +5,15 @@
  */
 
 import { definePluginSettings } from "@api/Settings";
-import { OptionType } from "@utils/types";
+import { OptionType, PluginNative } from "@utils/types";
 
 import { OpenPluginButton } from "./components/ui/buttons/OpenPluginButton";
+
+/** Applies the "keep Discord awake" setting. index.tsx calls it on start and on every change. */
+export async function applyKeepDiscordAwake(awake: boolean) {
+    const native = VencordNative.pluginHelpers.SolRadar as PluginNative<typeof import("./native")>;
+    return native.setKeepDiscordAwake(awake);
+}
 
 export const ACTION_OPTIONS = [
     { label: "Nothing", value: "nothing" },
@@ -109,6 +115,29 @@ export const settings = definePluginSettings({
             { label: "Safe (close game if open)", value: "safe", default: true },
             { label: "Unsafe (launch without closing)", value: "unsafe" },
         ],
+        hidden: true,
+    },
+    launchMethod: {
+        type: OptionType.SELECT,
+        description: "How the join link is handed to Roblox.",
+        options: [
+            { label: "Direct (start Roblox's exe)", value: "direct", default: true },
+            { label: "Shell (cmd start, the old way)", value: "shell" },
+        ],
+        hidden: true,
+    },
+    keepDiscordAwake: {
+        type: OptionType.BOOLEAN,
+        description: "Turn off Chromium's background throttling for Discord, so messages are handled at full priority while Discord is minimized or hidden.",
+        default: false,
+        hidden: true,
+    },
+    adbCloseDelayMs: {
+        type: OptionType.NUMBER,
+        description: "Wait this long after launching before sending the ADB close signal, so the emulator does not compete with the join for CPU. Default: 0",
+        default: 0,
+        min: 0,
+        max: 10000,
         hidden: true,
     },
     sendAdbSignal: {

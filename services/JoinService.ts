@@ -15,6 +15,7 @@ import { getEffectiveKillTargets, Native, parseCsv } from "../utils";
 import { executeAction } from "./ActionExecutor";
 import { BiomeDetector } from "./BiomeDetector";
 import { startBiomeDetection } from "./BiomeWatcher";
+import { scheduleTimelineCapture } from "./JoinTimeline";
 import { closeGame, getPlaceId } from "./RobloxService";
 
 const logger = new Logger("SolRadar:Join");
@@ -184,6 +185,57 @@ async function sendMacroKillSignal(snipe: Snipe): Promise<void> {
     }
 }
 
+// --- Emulator close signal ---
+
+async function sendAdbCloseSignal(snipe: Snipe): Promise<void> {
+    if (!settings.store.ldpAdbPath?.trim()) {
+        snipe.logWarn("LDPlayer adb path not configured!");
+        return;
+    }
+
+    const delay = settings.store.adbCloseDelayMs ?? 0;
+    if (delay > 0) await new Promise(r => setTimeout(r, delay));
+
+    // If the emulator is open but Roblox is not running, this does nothing
+    const t = performance.now();
+    const adbResult = await Native.closeRobloxOnEmulator(
+        settings.store.ldpAdbPath,
+        settings.store.ldpAdbDeviceSerial || "emulator-5554",
+        settings.store.ldpAdbPackageName || "com.roblox.client"
+    );
+    logger.debug(`ADB close took ${(performance.now() - t).toFixed(0)}ms (after a ${delay}ms delay)`);
+    if (!adbResult.ok) {
+        snipe.logWarn(`ADB close failed: ${adbResult.error}`);
+        if (!settings.store.omitAdbErrorNotifications) {
+            showNotification({
+                title: "⚠️ SoRa :: Plugin issues!",
+                body: `Emulator failed to process close signal.\n> ${adbResult.error}`,
+            });
+        }
+    }
+}
+
+// --- Timing helpers ---
+
+const DISCORD_EPOCH = 1420070400000n;
+
+/** When Discord's servers made this message (or its last edit), in epoch ms. */
+function discordSentAt(message: Snipe["message"]): number | null {
+    const edited = (message as any).edited_timestamp ?? (message as any).editedTimestamp;
+    if (edited) {
+        const t = Date.parse(String(edited));
+        if (!Number.isNaN(t)) return t;
+    }
+    try {
+        return Number((BigInt(message.id) >> 22n) + DISCORD_EPOCH);
+    } catch {
+        return null;
+    }
+}
+
+/** performance.now() value -> wall clock epoch ms. */
+const toWall = (t: number) => Math.round(performance.timeOrigin + t);
+
 // --- Join execution ---
 
 async function joinServer(uri: string, snipe: Snipe): Promise<JoinServerResult> {
@@ -201,8 +253,9 @@ async function joinServer(uri: string, snipe: Snipe): Promise<JoinServerResult> 
     }
 
     const tOpenStart = performance.now();
+    let launch: Awaited<ReturnType<typeof Native.openUri>>;
     try {
-        await Native.openUri(uri);
+        launch = await Native.openUri(uri, settings.store.launchMethod === "shell" ? "shell" : "direct");
     } catch (err) {
         return { ok: false, reason: "native-failed", detail: (err as Error).message };
     }
@@ -215,28 +268,20 @@ async function joinServer(uri: string, snipe: Snipe): Promise<JoinServerResult> 
         logger.error("Kill signal crashed unexpectedly:", err)
     );
 
+    // Not awaited either: adb only matters after Roblox has the link, and it used to hold up
+    // notifications and the join lock for as long as adb took
     if (settings.store.sendAdbSignal) {
-        if (!settings.store.ldpAdbPath?.trim()) {
-            snipe.logWarn("LDPlayer adb path not configured!");
-        } else {
-            // If the emulator is open but Roblox is not running, this does nothing
-
-            const adbResult = await Native.closeRobloxOnEmulator(
-                settings.store.ldpAdbPath,
-                settings.store.ldpAdbDeviceSerial || "emulator-5554",
-                settings.store.ldpAdbPackageName || "com.roblox.client"
-            );
-            if (!adbResult.ok) {
-                snipe.logWarn(`ADB close failed: ${adbResult.error}`);
-                if (!settings.store.omitAdbErrorNotifications) {
-                    showNotification({
-                        title: "⚠️ SoRa :: Plugin issues!",
-                        body: `Emulator failed to process close signal.\n> ${adbResult.error}`,
-                    });
-                }
-            }
-        }
+        sendAdbCloseSignal(snipe).catch(err =>
+            logger.error("ADB close signal crashed unexpectedly:", err)
+        );
     }
+
+    if (launch?.fallbackReason && settings.store.launchMethod !== "shell") {
+        snipe.logWarn(`Direct launch not used, fell back to the shell: ${launch.fallbackReason}`);
+    }
+
+    const receivedAt = toWall(snipe.tMessageReceived);
+    const sentAt = discordSentAt(snipe.message);
 
     return {
         ok: true,
@@ -246,6 +291,13 @@ async function joinServer(uri: string, snipe: Snipe): Promise<JoinServerResult> 
             overheadMs: (tJoinEnd - snipe.tMessageReceived) - (tJoinEnd - tJoinStart),
             killDurationMs,
             openUriDurationMs,
+            receivedAt,
+            launchedAt: toWall(tOpenStart),
+            discordDelayMs: sentAt === null ? null : receivedAt - sentAt,
+            launchMethod: launch?.method,
+            launchFallback: launch?.fallbackReason,
+            discordAwake: !!settings.store.keepDiscordAwake,
+            discordFocused: document.hasFocus(),
         },
     };
 }
@@ -276,7 +328,10 @@ export async function join(snipe: Snipe): Promise<void> {
     }
 
     snipe.setMetrics(result.metrics);
-    snipe.logInfo(`Joined in ${result.metrics.joinDurationMs.toFixed(1)}ms (overhead: ${result.metrics.overheadMs.toFixed(1)}ms)`);
+    scheduleTimelineCapture(snipe.id);
+    const m = result.metrics;
+    const discordPart = m.discordDelayMs != null ? `, Discord delivery: ${m.discordDelayMs}ms` : "";
+    snipe.logInfo(`Joined in ${m.joinDurationMs.toFixed(1)}ms (overhead: ${m.overheadMs.toFixed(1)}ms, launch: ${m.openUriDurationMs.toFixed(1)}ms ${m.launchMethod ?? "?"}${discordPart})`);
 
     if (settings.store.linkVerification === "after") {
         await verifySnipeSafety(snipe);

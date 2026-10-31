@@ -24,6 +24,7 @@ import { Pill } from "../../ui/Pill";
 import { card, COLORS, descriptionText, labelText, rowCard, sectionTitle, tabColumn } from "../../ui/styles";
 import { Block } from "../settings/Block";
 import { GitChangelog, GitPanel } from "./GitPanel";
+import { JoinSpeedStats } from "./JoinSpeedStats";
 
 const logger = new Logger("SolRadar.Developer");
 
@@ -114,6 +115,9 @@ export function DeveloperTab() {
                 (old default copies take the default's id by icon URL) and the "saved by an old fake" repairs in
                 stores/TriggerStore.ts and stores/defaultTriggers.ts.
             </Note>
+
+            <p style={sectionTitle}>Join speed</p>
+            <JoinSpeedStats />
 
             <p style={sectionTitle}>Roblox</p>
             <div style={{ ...card, ...wrapRow }}>

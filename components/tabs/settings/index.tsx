@@ -348,6 +348,18 @@ export function SettingsTab() {
                         </Note>
                     ),
                 }] : []),
+                {
+                    id: "launchMethod", label: "Launch method",
+                    description: "How the join link is handed to Roblox. Direct is faster.",
+                    tooltip: "Direct starts Roblox's exe (read from the registry) without cmd.exe in between. Shell is the old way: cmd start, then Windows looks up the handler. Direct falls back to Shell by itself if it fails.",
+                    tech: true,
+                },
+                {
+                    id: "keepDiscordAwake", label: "Keep Discord awake in the background",
+                    description: "Experimental. Stops Chromium from lowering Discord's priority while it is minimized or hidden.",
+                    tooltip: "Discord keeps rendering while hidden, so it uses a bit more CPU. Test it: compare Discord delivery in the Developer tab stats with it on and off.",
+                    tech: true,
+                },
                 { id: "privateServerLink", label: "Private server link", description: "Your own private server. Needed by any action set to join it." },
                 { id: "deduplicateLinks", label: "Skip repeated links", description: "Ignore a link already seen in the last 10 minutes for the same trigger." },
                 { id: "resolveAmbiguousLinks", label: "Use the first link when there are several", description: "A message with different link types, like a share link next to a private server link, is skipped by default. Turn this on to use the first one." },
@@ -470,12 +482,13 @@ export function SettingsTab() {
             master: master("adb", sendAdbSignal, v => { settings.store.sendAdbSignal = v; }),
             keepBodyVisible: adbUsedByAction,
             note: sendAdbSignal
-                ? <Note>When a snipe triggers, SolRadar launches the join link and sends a close signal through ADB at the same time.</Note>
+                ? <Note>When a snipe triggers, SolRadar launches the join link, then sends a close signal through ADB (after the delay below, if set).</Note>
                 : <Note variant="warning">The close signal is off, but an action uses Prepare ADB, so these settings still apply.</Note>,
             entries: [
                 { id: "ldpAdbPath", label: "ADB path", description: "Full path to adb.exe." },
                 { key: "adbSerial", search: "device serial adb devices", node: <AdbSerialEntry /> },
                 { id: "ldpAdbPackageName", label: "Package name", description: "App to force-stop on the device. Default: com.roblox.client" },
+                { id: "adbCloseDelayMs", label: "Close signal delay (ms)", description: "Wait before closing Roblox on the emulator, so the emulator does not compete with the join for CPU. 0 sends it right away.", tech: true },
                 { id: "omitAdbErrorNotifications", label: "Silence ADB error notifications", description: "The error is still logged to the console.", tech: true },
             ],
         },

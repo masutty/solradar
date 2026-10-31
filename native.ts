@@ -62,8 +62,91 @@ export async function sendWebhook(_: IpcMainInvokeEvent, url: string, body: stri
 
 // --- Roblox: open URI ---
 
-/** Opens a `roblox://` or `roblox-player://` deeplink with `start ""`. Windows only. */
-export async function openUri(_: IpcMainInvokeEvent, uri: string): Promise<void> {
+export type LaunchMethod = "direct" | "shell";
+export type OpenUriResult = { method: LaunchMethod; fallbackReason?: string; };
+
+// The protocol handler command from the registry, per scheme. The exe path changes on every
+// Roblox update, so it is dropped when the exe is gone or a spawn fails.
+const handlerCache = new Map<string, string[]>();
+const DIRECT_SCHEMES = new Set(["roblox", "roblox-player"]);
+
+/** Splits a Windows command line into arguments, keeping quoted parts together. */
+function splitCommandLine(cmd: string): string[] {
+    const out: string[] = [];
+    const re = /"([^"]*)"|(\S+)/g;
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(cmd))) out.push(m[1] ?? m[2]);
+    return out;
+}
+
+async function readHandler(scheme: string): Promise<string[] | null> {
+    const keys = [
+        `HKCU\\Software\\Classes\\${scheme}\\shell\\open\\command`,
+        `HKLM\\Software\\Classes\\${scheme}\\shell\\open\\command`,
+    ];
+    for (const key of keys) {
+        try {
+            const { stdout } = await execFile("reg", ["query", key, "/ve"], { windowsHide: true, timeout: 3000 });
+            // Line looks like: "    (Default)    REG_SZ    "C:\...\RobloxPlayerBeta.exe" %1" (label is localized)
+            const value = stdout.match(/REG_(?:EXPAND_)?SZ\s+(.+?)\s*$/m)?.[1];
+            if (!value) continue;
+            const expanded = value.replace(/%([^%\d][^%]*)%/g, (all, name) => process.env[name] ?? all);
+            const args = splitCommandLine(expanded);
+            if (args.length && fs.existsSync(args[0])) return args;
+        } catch { }
+    }
+    return null;
+}
+
+async function getHandler(scheme: string): Promise<string[] | null> {
+    const cached = handlerCache.get(scheme);
+    if (cached && fs.existsSync(cached[0])) return cached;
+    handlerCache.delete(scheme);
+    const fresh = await readHandler(scheme);
+    if (fresh) handlerCache.set(scheme, fresh);
+    return fresh;
+}
+
+/** Reads the Roblox protocol handler ahead of time, so the first snipe does not pay for it. */
+export async function warmLaunchHandler(_: IpcMainInvokeEvent): Promise<string | null> {
+    if (process.platform !== "win32") return null;
+    const handler = await getHandler("roblox");
+    await getHandler("roblox-player");
+    return handler?.[0] ?? null;
+}
+
+/**
+ * Starts the protocol handler exe directly, without cmd.exe and without ShellExecute.
+ * Resolves as soon as the process exists. The child is detached so it outlives Discord.
+ */
+async function spawnHandler(uri: string): Promise<void> {
+    const scheme = uri.slice(0, uri.indexOf(":")).toLowerCase();
+    const handler = await getHandler(scheme);
+    if (!handler) throw new Error(`No handler found for ${scheme}:`);
+
+    const [exe, ...rest] = handler;
+    let usedUri = false;
+    const args = rest.map(a => {
+        if (!a.includes("%1")) return a;
+        usedUri = true;
+        return a.replace("%1", uri);
+    });
+    if (!usedUri) args.push(uri);
+
+    await new Promise<void>((resolve, reject) => {
+        // No windowsHide: for a GUI app it would start the Roblox window hidden
+        const child = spawn(exe, args, { detached: true, stdio: "ignore", cwd: path.dirname(exe) });
+        child.once("spawn", () => { child.unref(); resolve(); });
+        child.once("error", err => { handlerCache.delete(scheme); reject(err); });
+    });
+}
+
+/**
+ * Opens a `roblox://` or `roblox-player:` deeplink. Windows only.
+ * "direct" starts the registered handler exe itself; "shell" uses `start ""` (cmd.exe + ShellExecute).
+ * Other schemes (Joinguard https links) always use the shell. "direct" falls back to the shell on failure.
+ */
+export async function openUri(_: IpcMainInvokeEvent, uri: string, method: LaunchMethod = "shell"): Promise<OpenUriResult> {
     if (process.platform !== "win32") {
         throw new Error("openUri only works on Windows.");
     }
@@ -71,12 +154,166 @@ export async function openUri(_: IpcMainInvokeEvent, uri: string): Promise<void>
         throw new Error("Invalid argument: uri must be a non-empty string.");
     }
 
+    let fallbackReason: string | undefined;
+    const scheme = uri.slice(0, Math.max(0, uri.indexOf(":"))).toLowerCase();
+    if (method === "direct") {
+        if (DIRECT_SCHEMES.has(scheme)) {
+            try {
+                await spawnHandler(uri);
+                return { method: "direct" };
+            } catch (err) {
+                fallbackReason = (err as Error).message;
+                logger.warn(`Direct launch failed, using the shell: ${fallbackReason}`);
+            }
+        } else {
+            fallbackReason = `scheme "${scheme}" is not a Roblox deeplink`;
+        }
+    }
+
     try {
         // The URI goes into a shell command, so only pass URIs built by the plugin.
         await exec(`start "" "${uri}"`);
+        return { method: "shell", fallbackReason };
     } catch (error) {
         throw new Error(`Failed to open URI "${uri}": ${(error as Error).message}`);
     }
+}
+
+// --- Discord: background throttling ---
+
+// Discord's own value, saved before the first change so turning the setting off restores it
+let discordThrottling: boolean | null = null;
+
+/**
+ * awake = true turns off Chromium's background throttling for Discord's window. The renderer
+ * (where the plugin reads messages) then stays treated as visible while minimized, so it is not
+ * moved to a lower priority. It also keeps Discord rendering, which costs some CPU.
+ * awake = false puts back Discord's own value.
+ */
+export function setKeepDiscordAwake(event: IpcMainInvokeEvent, awake: boolean): { ok: boolean; discordDefault: boolean | null; now: boolean | null; } {
+    try {
+        const wc = event.sender;
+        if (discordThrottling === null) discordThrottling = wc.getBackgroundThrottling();
+        wc.setBackgroundThrottling(awake ? false : discordThrottling);
+        return { ok: true, discordDefault: discordThrottling, now: wc.getBackgroundThrottling() };
+    } catch (err) {
+        logger.warn("setKeepDiscordAwake failed:", err);
+        return { ok: false, discordDefault: discordThrottling, now: null };
+    }
+}
+
+// --- Roblox: join timeline from the logs ---
+
+export type RobloxStageName =
+    | "processStart" | "deeplink" | "linkResolved" | "dmReady" | "serverAssigned" | "connected" | "snapshot";
+
+export type RobloxJoinTimeline = {
+    ok: true;
+    file: string;
+    /** warm: an open Roblox took the link (homepage). cold: a new Roblox started. */
+    mode: "warm" | "cold";
+    /** Time the helper Roblox process spent before handing the link over (warm only). */
+    forwarderMs: number | null;
+    stages: Partial<Record<RobloxStageName, number>>;
+    /** HTTP requests that took 1s or more between the link and the connection. */
+    slowHttp: { at: number; ms: number; url: string; }[];
+} | { ok: false; error: string; };
+
+const STAGE_PATTERNS: [RobloxStageName, RegExp][] = [
+    ["linkResolved", /\[FLog::SingleSurfaceApp\] launchUGCGame: /],
+    ["dmReady", /UgcExperienceController: join: initialized dm/],
+    ["serverAssigned", /\[FLog::Output\] ! Joining game/],
+    ["connected", /Connection accepted from/],
+    ["snapshot", /Join snapshot timer/],
+];
+const TS_RE = /^(\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z)/;
+const lineTime = (line: string) => {
+    const m = line.match(TS_RE);
+    return m ? Date.parse(m[1]) : NaN;
+};
+
+function parseTimeline(file: string, content: string, launchedAt: number, windowMs: number): RobloxJoinTimeline | null {
+    // The short-lived helper process that only hands the link to an open Roblox
+    if (content.includes("NoReload Detector: Deeplinking NoReload") || content.includes("NoReload Detector: App NoReload")) return null;
+
+    const lines = content.split(/\r?\n/);
+    const firstTs = lines.map(lineTime).find(t => !Number.isNaN(t));
+    if (firstTs === undefined) return null;
+
+    let start = -1;
+    let mode: "warm" | "cold" = "warm";
+    let forwarderMs: number | null = null;
+    const stages: Partial<Record<RobloxStageName, number>> = {};
+
+    // Cold: the log itself was started by this launch
+    if (firstTs >= launchedAt - 50 && firstTs <= launchedAt + windowMs) {
+        mode = "cold";
+        stages.processStart = firstTs;
+        start = 0;
+    } else {
+        for (let i = 0; i < lines.length; i++) {
+            const l = lines[i];
+            if (!l.includes("App NoReload receiving deeplink")) continue;
+            const t = lineTime(l);
+            if (t < launchedAt - 50 || t > launchedAt + windowMs) continue;
+            stages.deeplink = t;
+            const adj = lines[i - 1]?.match(/remote warm start adjustment: (\d+)/);
+            if (adj) forwarderMs = Number(adj[1]);
+            start = i + 1;
+            break;
+        }
+    }
+    if (start < 0) return null;
+
+    const slowHttp: { at: number; ms: number; url: string; }[] = [];
+    // Stop at the next deeplink: a later join belongs to another snipe
+    for (let i = start; i < lines.length; i++) {
+        const l = lines[i];
+        if (i > start && l.includes("App NoReload receiving deeplink")) break;
+        for (const [name, re] of STAGE_PATTERNS) {
+            if (stages[name] === undefined && re.test(l)) stages[name] = lineTime(l);
+        }
+        const http = l.match(/HttpResponse\(.*?time:([\d.]+)ms.*?url:\{ "([^"]+)"/);
+        if (http && Number(http[1]) >= 1000) slowHttp.push({ at: lineTime(l), ms: Number(http[1]), url: http[2] });
+        if (stages.snapshot !== undefined) break;
+    }
+
+    return { ok: true, file: path.basename(file), mode, forwarderMs, stages, slowHttp };
+}
+
+/**
+ * Finds what Roblox logged after a launch at `launchedAt` (epoch ms): when it got the link,
+ * resolved it, got a server and connected. Reads the logs written since then.
+ */
+export async function getRobloxJoinTimeline(_: IpcMainInvokeEvent, launchedAt: number, windowMs = 15_000): Promise<RobloxJoinTimeline> {
+    try {
+        const names = await fs.promises.readdir(ROBLOX_LOGS_DIR);
+        const files: { file: string; mtime: number; }[] = [];
+        for (const n of names) {
+            if (!/_Player_.*_last\.log$/.test(n) || n.includes("CrashHandler")) continue;
+            const full = path.join(ROBLOX_LOGS_DIR, n);
+            try {
+                const st = await fs.promises.stat(full);
+                if (st.mtimeMs >= launchedAt) files.push({ file: full, mtime: st.mtimeMs });
+            } catch { }
+        }
+        // Oldest first: the log that took the link was written before later ones
+        files.sort((a, b) => a.mtime - b.mtime);
+        for (const { file } of files) {
+            const content = await fs.promises.readFile(file, "utf8");
+            const result = parseTimeline(file, content, launchedAt, windowMs);
+            if (result) return result;
+        }
+        return { ok: false, error: "No Roblox log has this launch. Logs may have been deleted, or Roblox did not get the link." };
+    } catch (err) {
+        return { ok: false, error: (err as Error).message };
+    }
+}
+
+export async function getRobloxJoinTimelines(e: IpcMainInvokeEvent, launches: number[]): Promise<RobloxJoinTimeline[]> {
+    const out: RobloxJoinTimeline[] = [];
+    for (const t of launches) out.push(await getRobloxJoinTimeline(e, t));
+    return out;
 }
 
 // --- Roblox: resolve share link ---

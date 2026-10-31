@@ -25,6 +25,11 @@ const Native = VencordNative.pluginHelpers.SolRadar as PluginNative<typeof impor
 // Private link (/games/{id}?privateSer...)  -> roblox://experiences/start?placeId={id}&linkCode=...
 // See https://devforum.roblox.com/t/parsing-deeplink-information-from-a-private-server-link-with-the-newer-format/3464724
 
+/** Opens a deeplink with the launch method from settings. */
+async function launch(uri: string): Promise<void> {
+    await Native.openUri(uri, settings.store.launchMethod === "shell" ? "shell" : "direct");
+}
+
 export function buildJoinUri(link: SnipableLink | string): string {
     if (typeof link === "string") {
         const resolved = getSnipableLink(link);
@@ -115,7 +120,7 @@ export async function closeGame({ graceful = false } = {}): Promise<boolean> {
 
 export async function joinPublicServer(placeId: number): Promise<void> {
     await closeGameIfNeeded();
-    return await Native.openUri(`roblox://experiences/start?placeId=${placeId}`);
+    return await launch(`roblox://experiences/start?placeId=${placeId}`);
 }
 
 export async function joinSolsPublicServer(): Promise<void> {
@@ -125,7 +130,7 @@ export async function joinSolsPublicServer(): Promise<void> {
 export async function goToHome({ graceful = false } = {}): Promise<boolean> {
     try {
         await closeGame({ graceful: graceful });
-        await Native.openUri("roblox://");
+        await launch("roblox://");
         return true;
     } catch (error) {
         return false;
@@ -135,12 +140,12 @@ export async function goToHome({ graceful = false } = {}): Promise<boolean> {
 export async function joinUri(uri: string | undefined): Promise<void> {
     if (!uri) return;
     await closeGameIfNeeded();
-    return await Native.openUri(uri);
+    return await launch(uri);
 }
 
 export async function joinLink(link: SnipableLink | string): Promise<void> {
     await closeGameIfNeeded();
-    return await Native.openUri(buildJoinUri(link));
+    return await launch(buildJoinUri(link));
 }
 
 export type EmulatorJoinResult =

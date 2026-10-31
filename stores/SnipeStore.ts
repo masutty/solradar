@@ -59,6 +59,27 @@ export interface SnipeMetrics {
     overheadMs: number;
     killDurationMs: number | null;
     openUriDurationMs: number;
+    // Added with the join-speed tests. Missing on older snipes.
+    /** Wall clock (epoch ms) when the message reached the plugin. */
+    receivedAt?: number;
+    /** Wall clock (epoch ms) when the launch started. Lines up with Roblox's logs. */
+    launchedAt?: number;
+    /** Message created (or edited) on Discord's servers -> reached the plugin. Includes clock drift. */
+    discordDelayMs?: number | null;
+    launchMethod?: "direct" | "shell";
+    /** Why a direct launch fell back to the shell. */
+    launchFallback?: string;
+    /** Whether "keep Discord awake" was on, and whether Discord's window had focus. */
+    discordAwake?: boolean;
+    discordFocused?: boolean;
+}
+
+/** What Roblox's own log says about a join, read after the fact. Times are epoch ms. */
+export interface RobloxTimelineData {
+    mode: "warm" | "cold";
+    forwarderMs: number | null;
+    stages: Partial<Record<"processStart" | "deeplink" | "linkResolved" | "dmReady" | "serverAssigned" | "connected" | "snapshot", number>>;
+    slowHttp: { at: number; ms: number; url: string; }[];
 }
 
 export interface SnipeLogEntry {
@@ -90,6 +111,8 @@ export interface SnipeEntry {
     tags: SnipeTag[];
 
     metrics?: SnipeMetrics;
+    /** Saved once read, so stats survive Roblox deleting old logs. */
+    robloxTimeline?: RobloxTimelineData;
 
     joinUri?: string;
     link?: string;

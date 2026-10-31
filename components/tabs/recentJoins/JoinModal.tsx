@@ -24,6 +24,7 @@ import { closeAllModals, ModalCloseButton, ModalContent, ModalFooter, ModalHeade
 import Spoiler from "../../ui/Spoiler";
 import { COLORS, sectionTitle } from "../../ui/styles";
 import { FallbackImage, formatClock, getSnipeStatus } from "./components";
+import { JoinSpeed } from "./JoinSpeed";
 import { PhaseBar, RawView, StoryView, WaterfallView } from "./SnipeTimeline";
 
 // --- Helpers ---
@@ -78,7 +79,7 @@ function Timing({ entry }: { entry: SnipeEntry; }) {
     const cells: [string, string, string][] = [
         ["Reaction time", m ? ms(m.timeToJoinMs) : "-", "From the message arriving to Roblox being told to open the server. Loading into the server comes after and isn't counted."],
         ["Plugin", m ? ms(m.overheadMs) : "-", "Part of the reaction time spent by Sol Radar: reading the message, finding the trigger and checking for duplicates."],
-        ["Launch", m ? ms(m.openUriDurationMs) : "-", "Part of the reaction time spent by Windows handing the link to Roblox. This depends on your PC, not Sol Radar: a slow disk or CPU, a busy system (macros, emulators, games), antivirus scans and Roblox updates can all make it slower."],
+        ["Launch", m ? ms(m.openUriDurationMs) : "-", `Part of the reaction time spent by Windows handing the link to Roblox${m?.launchMethod ? ` (${m.launchMethod} launch)` : ""}. This depends on your PC, not Sol Radar: a busy CPU (macros, emulators, games), antivirus scans and Roblox updates can all make it slower.`],
         ...(m?.killDurationMs != null ? [["Macro kill", ms(m.killDurationMs), "Part of the reaction time spent closing your game before joining (Safe join mode)."] as [string, string, string]] : []),
         ["Biome lasted", isReal && entry.biomeDurationMs != null ? formatElapsedTime(entry.biomeDurationMs) : "-", "How long the real biome lasted"],
     ];
@@ -286,6 +287,7 @@ function JoinModal({ entry: initialEntry, modalProps }: {
                     <p style={{ ...sectionTitle, margin: 0 }}>Timing</p>
                     <Timing entry={entry} />
                     <PhaseBar entry={entry} />
+                    <JoinSpeed entry={entry} />
 
                     {isBiomeEntry && <TourAnchor id="details.verdict"><BiomeVerdict entry={entry} /></TourAnchor>}
 

@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+import { SettingsStore } from "@api/Settings";
 import ErrorBoundary from "@components/ErrorBoundary";
 import definePlugin from "@utils/types";
 import { Channel, Guild, Message } from "@vencord/discord-types";
@@ -26,10 +27,10 @@ import { recordSnipe, shouldProcessEdit, snipedTriggers } from "./services/Messa
 import { flattenEmbeds, getSnipableLink, isMessageAllowed, isValidMessage, resolveTrigger, sanitizeContent } from "./services/MessageProcessor";
 import { canNotify, notify } from "./services/NotificationService";
 import { isDuplicateLink, markAsSeen } from "./services/SnipeDeduplicator";
-import { settings } from "./settings";
+import { applyKeepDiscordAwake, settings } from "./settings";
 import { ActiveChannelStore } from "./stores/ActiveChannelStore";
 import { SnipeMetrics } from "./types";
-import { ensureDailyVersionCheck, getCurrentVersion } from "./utils";
+import { ensureDailyVersionCheck, getCurrentVersion, Native } from "./utils";
 
 const logger = new Logger("SolRadar");
 
@@ -37,6 +38,16 @@ export interface JoinResult {
     joined: boolean;
     metrics: SnipeMetrics | null;
     linkSafe: boolean | undefined;
+}
+
+// --- Keep Discord awake (join-speed test) ---
+
+const KEEP_AWAKE_PATH = "plugins.SolRadar.keepDiscordAwake";
+
+function onKeepAwakeChange(awake: boolean) {
+    applyKeepDiscordAwake(!!awake)
+        .then(r => logger.info(`Keep Discord awake: ${awake} (Discord's own background throttling: ${r.discordDefault}, now: ${r.now})`))
+        .catch(err => logger.error("Failed to change background throttling:", err));
 }
 
 // --- Orchestration ---
@@ -160,6 +171,13 @@ export default definePlugin({
         void ensureDailyVersionCheck();
         pruneKnownNames().catch(err => logger.error("Failed to prune known names:", err));
 
+        // Join speed: read the Roblox handler now so the first snipe does not pay for it
+        Native.warmLaunchHandler()
+            .then(exe => logger.info(`Roblox handler: ${exe ?? "not found, joins will use the shell"}`))
+            .catch(err => logger.error("Failed to read the Roblox handler:", err));
+        if (settings.store.keepDiscordAwake) onKeepAwakeChange(true);
+        SettingsStore.addChangeListener(KEEP_AWAKE_PATH, onKeepAwakeChange);
+
         if (settings.store.detectorEnabled) {
             const accounts = (settings.store.detectorAccounts as string ?? "")
                 .split(",").map(s => s.trim()).filter(Boolean);
@@ -175,6 +193,8 @@ export default definePlugin({
 
     stop() {
         logger.info("Stopping");
+        SettingsStore.removeChangeListener(KEEP_AWAKE_PATH, onKeepAwakeChange);
+        if (settings.store.keepDiscordAwake) onKeepAwakeChange(false);
         BiomeDetector.stop();
         cancelBiomeDetection();
     },
