@@ -172,9 +172,14 @@ export default definePlugin({
         pruneKnownNames().catch(err => logger.error("Failed to prune known names:", err));
 
         // Join speed: read the Roblox handler now so the first snipe does not pay for it
-        Native.warmLaunchHandler()
-            .then(exe => logger.info(`Roblox handler: ${exe ?? "not found, joins will use the shell"}`))
-            .catch(err => logger.error("Failed to read the Roblox handler:", err));
+        // Natives only reload with a full Discord restart, so this can be missing after Ctrl+R
+        if (typeof Native.warmLaunchHandler === "function") {
+            Native.warmLaunchHandler()
+                .then(exe => logger.info(`Roblox handler: ${exe ?? "not found, joins will use the shell"}`))
+                .catch(err => logger.error("Failed to read the Roblox handler:", err));
+        } else {
+            logger.warn("Native helpers are outdated. Fully restart Discord (quit from the tray) to load them.");
+        }
         if (settings.store.keepDiscordAwake) onKeepAwakeChange(true);
         SettingsStore.addChangeListener(KEEP_AWAKE_PATH, onKeepAwakeChange);
 

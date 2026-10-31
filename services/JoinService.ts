@@ -233,8 +233,11 @@ function discordSentAt(message: Snipe["message"]): number | null {
     }
 }
 
-/** performance.now() value -> wall clock epoch ms. */
-const toWall = (t: number) => Math.round(performance.timeOrigin + t);
+/**
+ * performance.now() value -> wall clock epoch ms, on the system clock that Roblox's logs and
+ * Discord use. timeOrigin + t drifts from it over long uptimes, so measure back from Date.now().
+ */
+const toWall = (t: number) => Math.round(Date.now() - (performance.now() - t));
 
 // --- Join execution ---
 

@@ -136,7 +136,14 @@ async function spawnHandler(uri: string): Promise<void> {
     await new Promise<void>((resolve, reject) => {
         // No windowsHide: for a GUI app it would start the Roblox window hidden
         const child = spawn(exe, args, { detached: true, stdio: "ignore", cwd: path.dirname(exe) });
-        child.once("spawn", () => { child.unref(); resolve(); });
+        child.once("spawn", () => {
+            child.unref();
+            resolve();
+            // Re-read the registry off the hot path: after an update the old exe can linger
+            setTimeout(() => {
+                readHandler(scheme).then(h => { if (h) handlerCache.set(scheme, h); }).catch(() => { });
+            }, 10_000);
+        });
         child.once("error", err => { handlerCache.delete(scheme); reject(err); });
     });
 }
@@ -232,13 +239,22 @@ const lineTime = (line: string) => {
     return m ? Date.parse(m[1]) : NaN;
 };
 
-function parseTimeline(file: string, content: string, launchedAt: number, windowMs: number): RobloxJoinTimeline | null {
+/**
+ * Roblox writes its log times as "process start, cut to the whole second, plus elapsed time",
+ * so a whole log can be off by up to a second. The file is created when the first line is
+ * written, so `birthtimeMs - first line time` gives that log's offset (checked: it matches
+ * `mtime - last line time` within ~10ms).
+ */
+function parseTimeline(file: string, content: string, launchedAt: number, windowMs: number, birthtimeMs: number): RobloxJoinTimeline | null {
     // The short-lived helper process that only hands the link to an open Roblox
     if (content.includes("NoReload Detector: Deeplinking NoReload") || content.includes("NoReload Detector: App NoReload")) return null;
 
     const lines = content.split(/\r?\n/);
-    const firstTs = lines.map(lineTime).find(t => !Number.isNaN(t));
-    if (firstTs === undefined) return null;
+    const rawFirst = lines.map(lineTime).find(t => !Number.isNaN(t));
+    if (rawFirst === undefined) return null;
+    const offset = birthtimeMs > 0 && Math.abs(birthtimeMs - rawFirst) < 2_000 ? Math.round(birthtimeMs - rawFirst) : 0;
+    const at = (line: string) => lineTime(line) + offset;
+    const firstTs = rawFirst + offset;
 
     let start = -1;
     let mode: "warm" | "cold" = "warm";
@@ -246,7 +262,7 @@ function parseTimeline(file: string, content: string, launchedAt: number, window
     const stages: Partial<Record<RobloxStageName, number>> = {};
 
     // Cold: the log itself was started by this launch
-    if (firstTs >= launchedAt - 50 && firstTs <= launchedAt + windowMs) {
+    if (firstTs >= launchedAt - 300 && firstTs <= launchedAt + windowMs) {
         mode = "cold";
         stages.processStart = firstTs;
         start = 0;
@@ -254,8 +270,8 @@ function parseTimeline(file: string, content: string, launchedAt: number, window
         for (let i = 0; i < lines.length; i++) {
             const l = lines[i];
             if (!l.includes("App NoReload receiving deeplink")) continue;
-            const t = lineTime(l);
-            if (t < launchedAt - 50 || t > launchedAt + windowMs) continue;
+            const t = at(l);
+            if (t < launchedAt - 300 || t > launchedAt + windowMs) continue;
             stages.deeplink = t;
             const adj = lines[i - 1]?.match(/remote warm start adjustment: (\d+)/);
             if (adj) forwarderMs = Number(adj[1]);
@@ -271,10 +287,10 @@ function parseTimeline(file: string, content: string, launchedAt: number, window
         const l = lines[i];
         if (i > start && l.includes("App NoReload receiving deeplink")) break;
         for (const [name, re] of STAGE_PATTERNS) {
-            if (stages[name] === undefined && re.test(l)) stages[name] = lineTime(l);
+            if (stages[name] === undefined && re.test(l)) stages[name] = at(l);
         }
         const http = l.match(/HttpResponse\(.*?time:([\d.]+)ms.*?url:\{ "([^"]+)"/);
-        if (http && Number(http[1]) >= 1000) slowHttp.push({ at: lineTime(l), ms: Number(http[1]), url: http[2] });
+        if (http && Number(http[1]) >= 1000) slowHttp.push({ at: at(l), ms: Number(http[1]), url: http[2] });
         if (stages.snapshot !== undefined) break;
     }
 
@@ -288,20 +304,20 @@ function parseTimeline(file: string, content: string, launchedAt: number, window
 export async function getRobloxJoinTimeline(_: IpcMainInvokeEvent, launchedAt: number, windowMs = 15_000): Promise<RobloxJoinTimeline> {
     try {
         const names = await fs.promises.readdir(ROBLOX_LOGS_DIR);
-        const files: { file: string; mtime: number; }[] = [];
+        const files: { file: string; mtime: number; birth: number; }[] = [];
         for (const n of names) {
             if (!/_Player_.*_last\.log$/.test(n) || n.includes("CrashHandler")) continue;
             const full = path.join(ROBLOX_LOGS_DIR, n);
             try {
                 const st = await fs.promises.stat(full);
-                if (st.mtimeMs >= launchedAt) files.push({ file: full, mtime: st.mtimeMs });
+                if (st.mtimeMs >= launchedAt) files.push({ file: full, mtime: st.mtimeMs, birth: st.birthtimeMs });
             } catch { }
         }
         // Oldest first: the log that took the link was written before later ones
         files.sort((a, b) => a.mtime - b.mtime);
-        for (const { file } of files) {
+        for (const { file, birth } of files) {
             const content = await fs.promises.readFile(file, "utf8");
-            const result = parseTimeline(file, content, launchedAt, windowMs);
+            const result = parseTimeline(file, content, launchedAt, windowMs, birth);
             if (result) return result;
         }
         return { ok: false, error: "No Roblox log has this launch. Logs may have been deleted, or Roblox did not get the link." };
