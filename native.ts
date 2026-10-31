@@ -212,7 +212,7 @@ export function setKeepDiscordAwake(event: IpcMainInvokeEvent, awake: boolean): 
 // --- Roblox: join timeline from the logs ---
 
 export type RobloxStageName =
-    | "processStart" | "deeplink" | "linkResolved" | "dmReady" | "serverAssigned" | "connected" | "snapshot";
+    | "processStart" | "helperStart" | "deeplink" | "linkResolved" | "dmReady" | "serverAssigned" | "connected" | "snapshot";
 
 export type RobloxJoinTimeline = {
     ok: true;
@@ -238,6 +238,23 @@ const lineTime = (line: string) => {
     const m = line.match(TS_RE);
     return m ? Date.parse(m[1]) : NaN;
 };
+
+/**
+ * The short-lived helper Roblox that only passes the link to an open Roblox.
+ * `start` is when its own clock started (its first log line minus the elapsed time on that line).
+ * Anything between the launch and `start` happens before Roblox's code logs anything.
+ */
+function parseHelper(content: string, birthtimeMs: number): { start: number; sent: number; } | null {
+    if (!content.includes("NoReload Detector: Deeplinking NoReload")) return null;
+    const lines = content.split(/\r?\n/);
+    const first = lines.find(l => TS_RE.test(l));
+    const sentLine = lines.find(l => l.includes("NoReload Detector: Deeplinking NoReload"));
+    if (!first || !sentLine || !(birthtimeMs > 0)) return null;
+    const offset = birthtimeMs - lineTime(first);
+    const elapsed = Number(first.split(",")[1]);
+    if (!Number.isFinite(elapsed)) return null;
+    return { start: Math.round(birthtimeMs - elapsed * 1000), sent: Math.round(lineTime(sentLine) + offset) };
+}
 
 /**
  * Roblox writes its log times as "process start, cut to the whole second, plus elapsed time",
@@ -315,15 +332,37 @@ export async function getRobloxJoinTimeline(_: IpcMainInvokeEvent, launchedAt: n
         }
         // Oldest first: the log that took the link was written before later ones
         files.sort((a, b) => a.mtime - b.mtime);
+        const helpers: { start: number; sent: number; }[] = [];
+        let result: RobloxJoinTimeline | null = null;
         for (const { file, birth } of files) {
             const content = await fs.promises.readFile(file, "utf8");
-            const result = parseTimeline(file, content, launchedAt, windowMs, birth);
-            if (result) return result;
+            const helper = parseHelper(content, birth);
+            if (helper) { helpers.push(helper); continue; }
+            result ??= parseTimeline(file, content, launchedAt, windowMs, birth);
         }
+        if (result?.ok && result.stages.deeplink !== undefined) {
+            // The helper that sent this link: its send time matches the receive time
+            const got = result.stages.deeplink;
+            const helper = helpers
+                .filter(h => Math.abs(h.sent - got) < 150)
+                .sort((a, b) => Math.abs(a.sent - got) - Math.abs(b.sent - got))[0];
+            if (helper) result.stages.helperStart = helper.start;
+        }
+        if (result) return result;
         return { ok: false, error: "No Roblox log has this launch. Logs may have been deleted, or Roblox did not get the link." };
     } catch (err) {
         return { ok: false, error: (err as Error).message };
     }
+}
+
+/** Writes the join speed CSV to %TEMP%\solradar\joinspeed.csv and returns the path. */
+export async function saveJoinSpeedCsv(_: IpcMainInvokeEvent, csv: string): Promise<string> {
+    if (typeof csv !== "string") throw new Error("csv must be a string");
+    const dir = path.join(os.tmpdir(), "solradar");
+    await fs.promises.mkdir(dir, { recursive: true });
+    const file = path.join(dir, "joinspeed.csv");
+    await fs.promises.writeFile(file, csv, "utf8");
+    return file;
 }
 
 export async function getRobloxJoinTimelines(e: IpcMainInvokeEvent, launches: number[]): Promise<RobloxJoinTimeline[]> {

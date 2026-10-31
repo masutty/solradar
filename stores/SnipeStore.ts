@@ -78,7 +78,7 @@ export interface SnipeMetrics {
 export interface RobloxTimelineData {
     mode: "warm" | "cold";
     forwarderMs: number | null;
-    stages: Partial<Record<"processStart" | "deeplink" | "linkResolved" | "dmReady" | "serverAssigned" | "connected" | "snapshot", number>>;
+    stages: Partial<Record<"processStart" | "helperStart" | "deeplink" | "linkResolved" | "dmReady" | "serverAssigned" | "connected" | "snapshot", number>>;
     slowHttp: { at: number; ms: number; url: string; }[];
 }
 

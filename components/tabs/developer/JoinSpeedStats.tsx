@@ -11,7 +11,7 @@ import { Button } from "@components/Button";
 import { copyToClipboard } from "@utils/clipboard";
 import { React, showToast, Tooltip } from "@webpack/common";
 
-import { captureRobloxTimeline, isTimelineComplete, joinedEntries, PHASES, phasesOf, summarize } from "../../../services/JoinTimeline";
+import { captureRobloxTimeline, isTimelineComplete, joinedEntries, joinSpeedCsv, PHASES, phasesOf, summarize } from "../../../services/JoinTimeline";
 import { SnipeEntry, useSnipeHistory } from "../../../stores/SnipeStore";
 import { card, COLORS, descriptionText } from "../../ui/styles";
 
@@ -94,28 +94,6 @@ function StatsTable({ entries }: { entries: SnipeEntry[]; }) {
     );
 }
 
-function toCsv(entries: SnipeEntry[]): string {
-    const cols = PHASES.map(p => p.key);
-    const head = ["id", "time_utc", "trigger", "launch_method", "discord_awake", "discord_focused", "roblox_mode", "helper_ms", "slow_http", ...cols];
-    const rows = entries.map(e => {
-        const ph = phasesOf(e);
-        const m = e.metrics!;
-        return [
-            e.id,
-            new Date(m.receivedAt ?? e.timestamp).toISOString(),
-            JSON.stringify(e.triggerName),
-            m.launchMethod ?? "",
-            m.discordAwake ?? "",
-            m.discordFocused ?? "",
-            e.robloxTimeline?.mode ?? "",
-            e.robloxTimeline?.forwarderMs ?? "",
-            e.robloxTimeline?.slowHttp.length ?? "",
-            ...cols.map(k => ph[k] !== undefined ? Math.round(ph[k]!) : ""),
-        ].join(",");
-    });
-    return [head.join(","), ...rows].join("\n");
-}
-
 export function JoinSpeedStats() {
     const history = useSnipeHistory();
     const [range, setRange] = React.useState<Range>("100");
@@ -147,7 +125,7 @@ export function JoinSpeedStats() {
     };
 
     const copyCsv = () => {
-        copyToClipboard(toCsv(scoped));
+        copyToClipboard(joinSpeedCsv(scoped));
         showToast({ text: `Copied ${scoped.length} rows as CSV.`, variant: "success" });
     };
 

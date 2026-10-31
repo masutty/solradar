@@ -36,6 +36,7 @@ export async function captureRobloxTimeline(id: number, force = false): Promise<
     }
     const data: RobloxTimelineData = { mode: res.mode, forwarderMs: res.forwarderMs, stages: res.stages, slowHttp: res.slowHttp };
     SnipeStore.update(id, { robloxTimeline: data });
+    saveJoinSpeedCsv();
     return data;
 }
 
@@ -49,7 +50,7 @@ export function scheduleTimelineCapture(id: number): void {
 
 export type PhaseKey =
     | "discord" | "plugin" | "launch"
-    | "handoff" | "resolve" | "prepare" | "gamejoin" | "connect"
+    | "handoff" | "preStart" | "helper" | "resolve" | "prepare" | "gamejoin" | "connect"
     | "toServer" | "total";
 
 export const PHASES: { key: PhaseKey; label: string; tip: string; }[] = [
@@ -57,6 +58,8 @@ export const PHASES: { key: PhaseKey; label: string; tip: string; }[] = [
     { key: "plugin", label: "Plugin", tip: "Reading the message, finding the trigger, checking for duplicates." },
     { key: "launch", label: "Launch call", tip: "Handing the link to Windows. Direct starts Roblox's exe; Shell goes through cmd.exe first." },
     { key: "handoff", label: "Hand-off", tip: "From the launch call until the open Roblox got the link. Mostly a second Roblox process starting up just to pass the link along (home page mode). For a cold start, until the new Roblox wrote its first log line." },
+    { key: "preStart", label: "↳ Before Roblox code", tip: "Part of Hand-off: from the launch until the helper Roblox's own clock started. Windows creating the process, loading the exe, anti-cheat start. Roblox logs nothing here." },
+    { key: "helper", label: "↳ Helper process", tip: "Part of Hand-off: the helper Roblox running its own code until the open Roblox got the link. Roblox reports this one itself (\"warm start adjustment\")." },
     { key: "resolve", label: "Link resolve", tip: "Roblox asking its API what the link points to. Network bound." },
     { key: "prepare", label: "Prepare", tip: "Roblox setting up the game on your PC. CPU bound." },
     { key: "gamejoin", label: "Server request", tip: "Roblox asking for a spot in the server. Ends when it has one: this is the moment that wins or loses a full server. Network bound." },
@@ -82,6 +85,8 @@ export function phasesOf(entry: SnipeEntry): Partial<Record<PhaseKey, number>> {
 
     const set = (k: PhaseKey, v: number | undefined) => { if (v !== undefined) out[k] = v; };
     set("handoff", diff(m.launchedAt, gotLink));
+    set("preStart", diff(m.launchedAt, s.helperStart));
+    set("helper", diff(s.helperStart, s.deeplink));
     set("resolve", diff(gotLink, s.linkResolved));
     set("prepare", diff(s.linkResolved, s.dmReady));
     set("gamejoin", diff(s.dmReady ?? s.linkResolved, s.serverAssigned));
@@ -114,3 +119,35 @@ export function summarize(values: number[]): Summary | null {
 /** Entries that actually launched Roblox (have reaction metrics). */
 export const joinedEntries = (entries: SnipeEntry[]) =>
     entries.filter(e => e.metrics && e.metrics.timeToJoinMs > 0 && e.triggerType !== "fake");
+
+// --- CSV ---
+
+export function joinSpeedCsv(entries: SnipeEntry[]): string {
+    const cols = PHASES.map(p => p.key);
+    const head = ["id", "time_utc", "trigger", "launch_method", "discord_awake", "discord_focused", "roblox_mode", "helper_ms", "slow_http", ...cols];
+    const rows = entries.map(e => {
+        const ph = phasesOf(e);
+        const m = e.metrics!;
+        return [
+            e.id,
+            new Date(m.receivedAt ?? e.timestamp).toISOString(),
+            JSON.stringify(e.triggerName),
+            m.launchMethod ?? "",
+            m.discordAwake ?? "",
+            m.discordFocused ?? "",
+            e.robloxTimeline?.mode ?? "",
+            e.robloxTimeline?.forwarderMs ?? "",
+            e.robloxTimeline?.slowHttp.length ?? "",
+            ...cols.map(k => ph[k] !== undefined ? Math.round(ph[k]!) : ""),
+        ].join(",");
+    });
+    return [head.join(","), ...rows].join("\n");
+}
+
+/** Writes every join's phases to a CSV in the temp folder, so they can be read outside Discord. */
+export function saveJoinSpeedCsv(): void {
+    const save = (Native as any).saveJoinSpeedCsv as ((csv: string) => Promise<string>) | undefined;
+    if (typeof save !== "function") return; // natives from before this build
+    const entries = joinedEntries(SnipeStore.all).sort((a, b) => a.timestamp - b.timestamp);
+    save(joinSpeedCsv(entries)).catch(err => logger.warn("Could not save the join speed CSV:", err));
+}
