@@ -10,6 +10,7 @@ import { React, showToast } from "@webpack/common";
 
 import { closeGame, emulatorJoinLink, goToHome, joinLink, prepareAdb } from "../../../services/RobloxService";
 import { settings } from "../../../settings";
+import { JoinLockStore } from "../../../stores/JoinLockStore";
 import { isDeveloper } from "../../../utils";
 import { openActiveChannelsModal } from "../../modals/ActiveChannelsModal";
 import { Note } from "../../ui/Note";
@@ -106,9 +107,15 @@ export function UtilsTab() {
             />
             <ActionRow
                 label="Prepare ADB"
-                description="Opens the home page on PC and your private server on the emulator, ready for ADB joins."
+                description="Opens the home page on PC and your private server on the emulator, ready for ADB joins. Also clears any join lock, since you are ready to snipe again."
                 button="Prepare"
-                onClick={async () => toastResult(await prepareAdb(hasLink ? privateServerLink : undefined), "ADB prepared", "Something went wrong")}
+                onClick={async () => {
+                    // Getting ready again means the last snipe is over, so its lock must not block the next one
+                    const hadLock = JoinLockStore.msRemaining() > 0;
+                    JoinLockStore.release();
+                    const result = await prepareAdb(hasLink ? privateServerLink : undefined);
+                    toastResult(result, hadLock ? "ADB prepared, join lock cleared" : "ADB prepared", "Something went wrong");
+                }}
             />
             <ActionRow
                 label="Close Roblox on the emulator"
