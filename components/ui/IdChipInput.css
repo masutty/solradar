@@ -39,7 +39,7 @@
 .vc-sora-idf-rows {
     display: flex;
     flex-direction: column;
-    gap: 0;
+    gap: 1px;
     margin-top: 8px;
     padding: 4px;
     border-radius: 8px;
@@ -60,13 +60,7 @@
     background: var(--background-mod-subtle);
 }
 
-.vc-sora-idf-row-bad {
-    background: color-mix(in srgb, var(--text-feedback-critical) 12%, transparent);
-}
-
-.vc-sora-idf-row-unk {
-    background: color-mix(in srgb, var(--text-feedback-warning) 10%, transparent);
-}
+/* Problem rows keep the normal background: the badge already says what is wrong */
 
 .vc-sora-idf-who {
     flex: 1;
@@ -276,10 +270,10 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    margin-top: 2px;
-    padding: 6px 8px;
-    border-radius: 6px;
-    border: 1px dashed var(--background-mod-strong);
+    min-height: 30px;
+    padding: 2px 8px;
+    border-radius: 5px;
+    border: none;
     background: transparent;
     color: var(--text-muted);
     font-size: 13px;
@@ -289,7 +283,7 @@
 
 .vc-sora-idf-more:hover {
     color: var(--text-default);
-    background: var(--background-mod-normal);
+    background: var(--background-mod-subtle);
 }
 
 .vc-sora-idf-stack { display: flex; }

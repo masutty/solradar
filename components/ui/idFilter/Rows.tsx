@@ -78,7 +78,7 @@ export function IdRow({ row, onRemove }: { row: RowView; onRemove: () => void; }
     };
 
     return (
-        <div className={`vc-sora-idf-row ${bad ? "vc-sora-idf-row-bad" : row.state === "notLoaded" ? "vc-sora-idf-row-unk" : ""}`}>
+        <div className="vc-sora-idf-row">
             <RowIcon row={row} />
             <span className="vc-sora-idf-who">
                 <Tooltip text={tip}>
