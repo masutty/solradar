@@ -30,3 +30,34 @@
     outline: 2px solid var(--focus-primary, var(--brand-500));
     outline-offset: 1px;
 }
+
+/* Clickable card or tile whose background is set inline: brighten on hover, press on click */
+.vc-sora-press {
+    transition: filter 0.15s ease-out, scale 0.12s ease-out, background 0.15s, box-shadow 0.15s;
+}
+
+.vc-sora-press:not(:disabled):hover {
+    filter: brightness(1.12);
+}
+
+.vc-sora-press:not(:disabled):active {
+    scale: 0.98;
+}
+
+/* Small icon or glyph button with no background of its own */
+.vc-sora-iconbtn {
+    background: none;
+    color: var(--text-muted);
+    transition: background 0.12s ease-out, color 0.12s ease-out, opacity 0.12s ease-out;
+}
+
+.vc-sora-iconbtn:not(:disabled):hover {
+    background: var(--background-mod-normal);
+    color: var(--text-default);
+}
+
+.vc-sora-press:focus-visible,
+.vc-sora-iconbtn:focus-visible {
+    outline: 2px solid var(--focus-primary, var(--brand-500));
+    outline-offset: 1px;
+}

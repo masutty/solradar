@@ -134,6 +134,7 @@ function CoreTiles({ draft, patch }: { draft: Draft; patch: Patch; }) {
                     <button
                         key={key}
                         type="button"
+                        className="vc-sora-press"
                         aria-pressed={on}
                         onClick={() => patch({ state: { ...draft.state, [key]: !on } })}
                         style={{
@@ -149,7 +150,6 @@ function CoreTiles({ draft, patch }: { draft: Draft; patch: Patch; }) {
                             color: COLORS.text,
                             background: on ? `color-mix(in srgb, ${color} 14%, var(--background-mod-subtle))` : "var(--background-mod-subtle)",
                             boxShadow: on ? `inset 0 0 0 1.5px color-mix(in srgb, ${color} 55%, transparent)` : "none",
-                            transition: "background 0.15s, box-shadow 0.15s",
                         }}
                     >
                         <span style={{ position: "absolute", top: 10, right: 10, fontSize: 11, fontWeight: 700, padding: "1px 7px", borderRadius: 999, color: on ? "#fff" : COLORS.muted, background: on ? color : "var(--background-mod-strong)" }}>

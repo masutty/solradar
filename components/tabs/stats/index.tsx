@@ -5,6 +5,7 @@
  */
 
 import "./stats.css";
+import "../../ui/choice.css";
 
 import { Button } from "@components/Button";
 import { Paragraph } from "@components/Paragraph";
@@ -159,6 +160,8 @@ function PeriodSelector({ period, onChange }: { period: Period; onChange: (p: Pe
                     <button
                         key={opt.value}
                         type="button"
+                        className="vc-sora-seg"
+                        aria-pressed={active}
                         onClick={() => onChange(opt.value)}
                         style={{
                             padding: "4px 10px",
@@ -167,8 +170,8 @@ function PeriodSelector({ period, onChange }: { period: Period; onChange: (p: Pe
                             cursor: "pointer",
                             fontSize: 13,
                             fontWeight: 500,
-                            color: active ? COLORS.text : COLORS.muted,
-                            background: active ? "var(--background-mod-normal)" : "none",
+                            // Inactive look and hover come from .vc-sora-seg
+                            ...(active && { color: COLORS.text, background: "var(--background-mod-normal)" }),
                         }}
                     >
                         {opt.label}

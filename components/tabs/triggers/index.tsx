@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+import "../../ui/choice.css";
 import "../../ui/OrderSlot.css";
 import "./triggers.css";
 
@@ -307,8 +308,8 @@ function TriggerCard({
         >
             {!orderingDisabled && useButtonsForOrdering && (
                 <div className="vc-sora-orderslot" style={s.orderButtons} onClick={stop} onContextMenu={stop}>
-                    <button style={s.orderBtn(isFirst)} disabled={isFirst} onClick={onMoveUp} title="Move this card up">▲</button>
-                    <button style={s.orderBtn(isLast)} disabled={isLast} onClick={onMoveDown} title="Move this card down">▼</button>
+                    <button className="vc-sora-iconbtn" style={s.orderBtn(isFirst)} disabled={isFirst} onClick={onMoveUp} title="Move this card up">▲</button>
+                    <button className="vc-sora-iconbtn" style={s.orderBtn(isLast)} disabled={isLast} onClick={onMoveDown} title="Move this card down">▼</button>
                 </div>
             )}
 
@@ -401,17 +402,16 @@ const s = {
         gap: 2,
         flexShrink: 0,
     },
+    // Background, color and hover come from .vc-sora-iconbtn
     orderBtn: (disabled: boolean): React.CSSProperties => ({
-        background: "none",
         border: "none",
         padding: "1px 4px",
         fontSize: 12,
         lineHeight: 1,
         cursor: disabled ? "default" : "pointer",
-        color: disabled ? "var(--control-secondary-text-default)" : "var(--text-muted)",
+        ...(disabled && { color: "var(--control-secondary-text-default)" }),
         opacity: disabled ? 0.3 : 1,
         borderRadius: 3,
-        transition: "color 0.1s, opacity 0.1s",
     }),
     dragGhost: {
         display: "flex",
