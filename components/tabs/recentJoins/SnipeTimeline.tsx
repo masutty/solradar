@@ -110,9 +110,9 @@ function robloxLines(entry: SnipeEntry): StoryLine[] {
     else if (handed?.end != null) out.push(line(handed.end, `Got the link after ${formatSecs(handed.end - b.steps[0].start)}.`));
     const ask = b.steps.find(s => s.key === "server");
     const queue = b.steps.find(s => s.key === "queue");
-    if (queue) out.push(line(queue.start, "The server was full, waited in its queue."));
-    if (b.spot !== null) out.push(line(b.spot, `Got a server (${formatSecs(b.spot)} after the message).`));
-    else if (ask) out.push(line(ask.start, "Asked to join and never got a server."));
+    if (queue) out.push(line(queue.start, "The server was full, so you waited in its queue."));
+    if (b.spot !== null) out.push(line(b.spot, `The server let you in (${formatSecs(b.spot)} after the message).`));
+    else if (ask) out.push(line(ask.start, "Asked to join, but the server never let you in."));
     if (b.connected !== null) out.push(line(b.connected, "Connected to the server."));
     return out;
 }

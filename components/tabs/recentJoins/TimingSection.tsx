@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-// Timing: how long the join took, from the Discord message until the server let Roblox in.
+// Timing: how long the join took, from the Discord message until the server let you in.
 // Summary (number, bar, totals, one note), Steps (one row per step, DevTools style) or Grid (every value as a box).
 
 import { Button } from "@components/Button";
@@ -36,7 +36,7 @@ function DocIcon() {
 function noteFor(entry: SnipeEntry, b: JoinBreakdown, reading: boolean): { text: string; warn?: boolean; action?: boolean; } {
     // Opening an older snipe starts a read; don't call the log missing until it's done
     if (reading && !entry.robloxTimeline) return { text: "Reading Roblox's log…" };
-    if (b.totals.queue > 0) return { text: `The server was full, so Roblox waited ${formatSecs(b.totals.queue)} in its queue.`, warn: true };
+    if (b.totals.queue > 0) return { text: `The server was full, so you waited ${formatSecs(b.totals.queue)} in its queue.`, warn: true };
     switch (b.situation) {
         case "cold":
             return entry.metrics?.joinMode === "safe"
@@ -51,7 +51,7 @@ function noteFor(entry: SnipeEntry, b: JoinBreakdown, reading: boolean): { text:
         case "noSpot": {
             const ask = b.steps.find(s => s.key === "server");
             return ask
-                ? { text: `Roblox asked to join at ${formatSecs(ask.start)} and never got a server. It was probably full.`, warn: true }
+                ? { text: `You asked to join at ${formatSecs(ask.start)}, but the server never let you in. It was probably full.`, warn: true }
                 : { text: "Roblox got the link but stopped before asking to join.", warn: true };
         }
         case "pending":
@@ -68,7 +68,7 @@ function Summary({ entry, b, reading, onRead, hover, setHover }: {
     hover: StepCat | null; setHover: (c: StepCat | null) => void;
 }) {
     const joined = b.spot !== null;
-    // With a queue, the time that's yours is until Roblox asked to join; the wait after it is the server's
+    // With a queue, the time that's yours is until you asked to join; the wait after it is the server's
     const queue = b.steps.find(s => s.key === "queue");
     const hasRoblox = b.totals.hw > 0 || b.totals.net > 0;
     const open = b.steps.find(s => s.end === null);
@@ -82,11 +82,11 @@ function Summary({ entry, b, reading, onRead, hover, setHover }: {
         <div className="vc-sora-tm-card">
             <div className="vc-sora-tm-headline">
                 {joined && queue
-                    ? <><span className="vc-sora-tm-big">{formatSecs(queue.start)}</span><span>until Roblox asked to join</span></>
+                    ? <><span className="vc-sora-tm-big">{formatSecs(queue.start)}</span><span>until you asked to join</span></>
                     : joined
-                        ? <><span className="vc-sora-tm-big">{formatSecs(b.spot!)}</span><span>until Roblox got a server</span></>
+                        ? <><span className="vc-sora-tm-big">{formatSecs(b.spot!)}</span><span>until the server let you in</span></>
                     : b.situation === "noSpot"
-                        ? <><span className="vc-sora-tm-big warn">No server</span><span>Roblox never got a server</span></>
+                        ? <><span className="vc-sora-tm-big warn">Not in</span><span>the server never let you in</span></>
                         : <><span className="vc-sora-tm-big">{formatSecs(b.totals.plugin)}</span><span>reaction, Sol Radar's part only</span></>}
             </div>
 
@@ -204,7 +204,7 @@ function Steps({ b }: { b: JoinBreakdown; }) {
             })}
             <div className="vc-sora-tm-key">
                 {catsOf(b).filter(k => b.totals[k] > 0).map(k => <span key={k}><i style={{ background: STEP_CATS[k].color }} />{STEP_CATS[k].name}</span>)}
-                {b.spot !== null && <span><i className="spot" />Got a server</span>}
+                {b.spot !== null && <span><i className="spot" />Let in</span>}
                 {axis.breaks.length > 0 && <span><i className="break" />Shortened</span>}
             </div>
         </div>
@@ -214,9 +214,9 @@ function Steps({ b }: { b: JoinBreakdown; }) {
 function Grid({ b }: { b: JoinBreakdown; }) {
     const queue = b.steps.find(s => s.key === "queue");
     const totals: [string, number | null, string][] = [
-        ...(queue ? [["Until Roblox asked to join", queue.start, "Your part: from the message until Roblox asked the server to let you in."] as [string, number, string]] : []),
-        ["Until Roblox got a server", b.spot, "From the message until the server let Roblox in."],
-        ["Until connected", b.connected, "From the message until Roblox was connected to the server."],
+        ...(queue ? [["Until you asked to join", queue.start, "Your part: from the message until you asked the server to let you in."] as [string, number, string]] : []),
+        ["Until you were let in", b.spot, "From the message until the server let you in."],
+        ["Until connected", b.connected, "From the message until you were connected to the server."],
     ];
     return (
         <div className="vc-sora-tm-card">
