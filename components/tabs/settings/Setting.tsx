@@ -169,7 +169,7 @@ export function HelpTip({ text }: { text: string; }) {
 
 export function TechBadge() {
     return (
-        <Tooltip text="Technical setting. The defaults work for most people.">
+        <Tooltip text="Advanced, best left alone unless you know what it does">
             {props => <span {...props} style={S.techBadge}>Technical</span>}
         </Tooltip>
     );
