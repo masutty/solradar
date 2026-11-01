@@ -246,7 +246,7 @@ function RobloxProgramCard() {
 
             {program && state && (
                 <>
-                    <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", borderRadius: 8, background: "color-mix(in srgb, var(--background-base-lowest) 35%, transparent)", boxShadow: "inset 0 0 0 1px var(--background-mod-subtle)" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", borderRadius: 8, background: "var(--input-background-default)", border: "1px solid var(--input-border-default)" }}>
                         {!program.found ? <FileIcon /> : program.otherLauncher ? <LauncherIcon /> : <RobloxIcon />}
                         <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 1 }}>
                             <span style={{ fontSize: 14, fontWeight: 600, color: "var(--text-default)" }}>{program.found || program.source === "custom" ? file : "No program"}</span>
