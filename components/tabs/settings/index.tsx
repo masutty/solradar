@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+import "../../ui/choice.css";
+
 import { Button } from "@components/Button";
 import { copyToClipboard } from "@utils/clipboard";
 import { PluginNative } from "@utils/types";
@@ -148,6 +150,15 @@ function FileIcon() {
     );
 }
 
+function RefreshIcon({ spinning }: { spinning: boolean; }) {
+    return (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"
+            style={{ transition: "rotate 0.4s ease-out", rotate: spinning ? "180deg" : "0deg" }}>
+            <path d="M20 11a8 8 0 1 0-2.3 5.7" /><path d="M20 4v7h-7" />
+        </svg>
+    );
+}
+
 /** What the card says for each state. Nothing for the normal case. */
 function programState(p: LaunchProgram): { level: Level; text?: string; muted?: boolean; } {
     if (p.source === "custom") {
@@ -166,10 +177,16 @@ function RobloxProgramCard() {
     const [program, setProgram] = React.useState<LaunchProgram | null>(null);
     const [outdated, setOutdated] = React.useState(false);
 
+    const [checking, setChecking] = React.useState(false);
     const load = async () => {
         // Natives only reload with a full Discord restart
         if (typeof Native.getLaunchProgram !== "function") { setOutdated(true); return; }
-        setProgram(await Native.getLaunchProgram(launchExePath || undefined));
+        setChecking(true);
+        try {
+            setProgram(await Native.getLaunchProgram(launchExePath || undefined));
+        } finally {
+            setChecking(false);
+        }
     };
     React.useEffect(() => { void load(); }, [launchExePath]);
     // Look again when Discord gets focus back, e.g. after reinstalling Roblox
@@ -252,6 +269,22 @@ function RobloxProgramCard() {
                                 <Button size="small" variant="secondary" onClick={choose}>Choose another file</Button>
                             </>
                             : <Button size="small" variant="secondary" onClick={choose}>Choose a file</Button>}
+                        <span style={{ flex: 1 }} />
+                        <Tooltip text={checking ? "Looking…" : "Look for the program again"}>
+                            {props => (
+                                <button
+                                    {...props}
+                                    type="button"
+                                    className="vc-sora-iconbtn vc-sora-press"
+                                    aria-label="Look for the program again"
+                                    disabled={checking}
+                                    onClick={() => void load()}
+                                    style={{ width: 32, height: 32, border: "none", borderRadius: 6, display: "grid", placeItems: "center", cursor: "pointer", boxShadow: "inset 0 0 0 1px var(--background-mod-normal)" }}
+                                >
+                                    <RefreshIcon spinning={checking} />
+                                </button>
+                            )}
+                        </Tooltip>
                     </div>
                 </>
             )}
