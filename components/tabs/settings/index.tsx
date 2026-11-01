@@ -120,18 +120,22 @@ function CheckProcessesButton() {
 
 // --- Roblox program (direct launch) ---
 
-const SYMBOL_PATHS = {
-    ok: <path d="M4.5 12.5l5 5 10-11" />,
-    warn: <><path d="M12 3.5 2.5 20h19L12 3.5Z" /><path d="M12 10v4.5M12 17.5v.01" /></>,
-    bad: <><circle cx="12" cy="12" r="9" /><path d="m9 9 6 6M15 9l-6 6" /></>,
-};
 const SYMBOL_COLOR = { ok: "var(--status-positive)", warn: "var(--status-warning)", bad: "var(--status-danger)" };
 type Level = keyof typeof SYMBOL_COLOR;
+
+// Built on render, never at module load: JSX evaluated at import time crashes the whole Vencord renderer
+function symbolPaths(level: Level) {
+    switch (level) {
+        case "ok": return <path d="M4.5 12.5l5 5 10-11" />;
+        case "warn": return <><path d="M12 3.5 2.5 20h19L12 3.5Z" /><path d="M12 10v4.5M12 17.5v.01" /></>;
+        case "bad": return <><circle cx="12" cy="12" r="9" /><path d="m9 9 6 6M15 9l-6 6" /></>;
+    }
+}
 
 function StateSymbol({ level }: { level: Level; }) {
     return (
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={SYMBOL_COLOR[level]} strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" aria-label={level === "ok" ? "OK" : level === "warn" ? "Warning" : "Error"} style={{ flexShrink: 0 }}>
-            {SYMBOL_PATHS[level]}
+            {symbolPaths(level)}
         </svg>
     );
 }
