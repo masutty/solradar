@@ -60,6 +60,7 @@ export interface TriggerConditions {
     bypassIgnoredChannels: boolean; // ignored channels
     bypassLinkVerification: boolean; // allowed place IDs
     bypassLinkDeduplication: boolean; // repeated links
+    bypassGlobalExclude: boolean; // global "Must not contain" words
 }
 
 export interface TriggerBiome {
@@ -128,6 +129,7 @@ export const DEFAULT_CONDITIONS: TriggerConditions = {
     bypassIgnoredChannels: false,
     bypassLinkVerification: false,
     bypassLinkDeduplication: false,
+    bypassGlobalExclude: false,
 };
 
 export const DEFAULT_BIOME: TriggerBiome = {
@@ -205,6 +207,7 @@ function migrateTrigger(raw: any): Trigger {
             bypassIgnoredChannels: raw.conditions?.bypassIgnoredChannels ?? false,
             bypassLinkVerification: raw.conditions?.bypassLinkVerification ?? false,
             bypassLinkDeduplication: raw.conditions?.bypassLinkDeduplication ?? false,
+            bypassGlobalExclude: raw.conditions?.bypassGlobalExclude ?? false,
         },
         state: {
             enabled: raw.state?.enabled ?? DEFAULT_TRIGGER_STATE.enabled,
@@ -450,6 +453,7 @@ function redactTrigger(trigger: Trigger, redact: Set<RedactField>): Trigger | nu
                 bypassIgnoredChannels: false,
                 bypassLinkVerification: false,
                 bypassLinkDeduplication: false,
+                bypassGlobalExclude: false,
             }),
         },
         state: {

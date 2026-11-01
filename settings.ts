@@ -362,6 +362,19 @@ export const settings = definePluginSettings({
         hidden: true,
     },
 
+    globalExcludeKeywords: {
+        type: OptionType.STRING,
+        description: "Comma-separated. A message that contains one of these words never matches any trigger, unless the trigger bypasses it.",
+        default: "",
+        hidden: true,
+    },
+    globalExcludeStrict: {
+        type: OptionType.BOOLEAN,
+        description: "Match the global excluded words as whole words only.",
+        default: false,
+        hidden: true,
+    },
+
     // Link verification
     linkVerification: {
         type: OptionType.SELECT,

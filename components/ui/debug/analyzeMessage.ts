@@ -196,10 +196,12 @@ export function analyzeMessage(original: Message, channel: Channel, guild: Guild
             });
             return ignored(`${match.ambiguous.map(t => t.name).join(" and ")} all matched, so none of them fires.`);
         }
+        const globalBlocked = match.rejected.filter(r => r.globalExclude).slice(0, 3);
+        const bypassFixes = globalBlocked.map(r => ({ label: `Let ${r.trigger.name} ignore the global list`, run: () => patchConditions(r.trigger, { bypassGlobalExclude: true }) }));
         add({
             group: "match", name: "Trigger", status: "fail",
-            detail: `None of your ${active.length} active triggers matched.${offMatches.length ? ` Would match if turned on: ${offNames}.` : ""}`,
-            fixes: turnOn,
+            detail: `None of your ${active.length} active triggers matched.${globalBlocked.length ? ` ${globalBlocked.map(r => r.reason).join("; ")}.` : ""}${offMatches.length ? ` Would match if turned on: ${offNames}.` : ""}`,
+            fixes: [...bypassFixes, ...turnOn],
         });
         return ignored(offMatches.length ? offVerdict : "No active trigger matched.");
     }

@@ -354,6 +354,7 @@ const BYPASSES: [keyof Draft["conditions"], string, string][] = [
     ["bypassMatchAmbiguity", "Bypass match ambiguity", "Always treat this trigger as unambiguous, even if multiple triggers match simultaneously."],
     ["bypassLinkVerification", "Bypass link verification", "Skip Place ID verification for this trigger."],
     ["bypassLinkDeduplication", "Bypass link deduplication", "Skip the duplication check for this trigger."],
+    ["bypassGlobalExclude", "Bypass global excluded words", "Ignore the global \"Must not contain\" list from Settings for this trigger."],
 ];
 
 function BypassesSection({ draft, patch }: { draft: Draft; patch: Patch; }) {

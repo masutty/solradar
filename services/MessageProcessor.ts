@@ -202,7 +202,7 @@ function firstKeyword(text: string, set: KeywordSet): string | undefined {
 }
 
 /** `via` says what made it match: a keyword, a role, or nothing (a trigger with no keywords). */
-function evaluateTrigger(message: Message, trigger: Trigger): { matched: boolean; reason?: string; via?: string; } {
+function evaluateTrigger(message: Message, trigger: Trigger): { matched: boolean; reason?: string; via?: string; globalExclude?: boolean; } {
     const { conditions } = trigger;
     const { content } = message;
     const authorId = message.author.id;
@@ -233,6 +233,12 @@ function evaluateTrigger(message: Message, trigger: Trigger): { matched: boolean
     if (excluded)
         return { matched: false, reason: `excluded keyword "${excluded}" is in the message` };
 
+    if (!conditions.bypassGlobalExclude) {
+        const globalExcluded = firstKeyword(content, { value: [...parseCsv(settings.store.globalExcludeKeywords)], strict: settings.store.globalExcludeStrict });
+        if (globalExcluded)
+            return { matched: false, reason: `global excluded keyword "${globalExcluded}" is in the message`, globalExclude: true };
+    }
+
     return { matched: true, via };
 }
 
@@ -245,13 +251,13 @@ export interface TriggerMatchResult {
     /** Every trigger whose conditions matched, before ambiguity and priority are applied */
     matched: Trigger[];
     /** Why each active trigger didn't match */
-    rejected: { trigger: Trigger; reason: string; }[];
+    rejected: { trigger: Trigger; reason: string; globalExclude?: boolean; }[];
 }
 
 export function explainTriggerMatch(message: Message, activeTriggers: Trigger[]): TriggerMatchResult {
     const results = activeTriggers.map(t => ({ trigger: t, ...evaluateTrigger(message, t) }));
     const matched = results.filter(r => r.matched).map(r => r.trigger);
-    const rejected = results.filter(r => !r.matched).map(r => ({ trigger: r.trigger, reason: r.reason ?? "did not match" }));
+    const rejected = results.filter(r => !r.matched).map(r => ({ trigger: r.trigger, reason: r.reason ?? "did not match", globalExclude: r.globalExclude }));
 
     const bypass = matched.filter(t => t.conditions.bypassMatchAmbiguity);
     const normals = matched.filter(t => !t.conditions.bypassMatchAmbiguity);

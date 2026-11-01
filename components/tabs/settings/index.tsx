@@ -616,6 +616,8 @@ export function SettingsTab() {
                 { id: "ignoredGuilds", label: "Always ignore these servers", chipKind: "guild", description: "Overrides every trigger. Good for servers with no-sniper rules." },
                 { id: "ignoredChannels", label: "Always ignore these channels", chipKind: "channel", description: "Overrides every trigger." },
                 { id: "ignoredUsers", label: "Always ignore these users", chipKind: "user", description: "Overrides every trigger." },
+                { id: "globalExcludeKeywords", label: "Global must not contain", keywords: true, description: "A message with any of these words matches no trigger. Leave empty to turn it off.", tooltip: "A trigger can skip this list with \"Bypass global excluded words\" in its Bypasses section." },
+                { id: "globalExcludeStrict", label: "Match whole words only", description: "Off: \"hunt\" also blocks \"hunting\". On: it only blocks the word \"hunt\"." },
             ],
         },
         {
