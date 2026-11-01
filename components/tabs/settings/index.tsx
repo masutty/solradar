@@ -20,10 +20,10 @@ import { Note } from "../../ui/Note";
 import { Block, BlockMaster } from "./Block";
 import { DebugReport } from "./DebugReport";
 import { BlockId, Overview } from "./Overview";
-import { HelpTip, Setting } from "./Setting";
+import { HelpTip, Setting, TechBadge } from "./Setting";
 
 const Native = VencordNative.pluginHelpers.SolRadar as PluginNative<typeof import("../../../native")>;
-type LaunchHandlerReport = import("../../../native").LaunchHandlerReport;
+type LaunchProgram = import("../../../native").LaunchProgram;
 
 // --- Shared styles ---
 
@@ -118,112 +118,131 @@ function CheckProcessesButton() {
     );
 }
 
-// --- Launch handler check ---
+// --- Roblox program (direct launch) ---
 
-function reportText(reports: LaunchHandlerReport[]): string {
-    return reports.map(r => [
-        `${r.scheme}: ${r.handler ? r.handler.exe : "not found, direct launch falls back to cmd start"}`,
-        ...(r.handler ? [`  command: ${r.handler.command}`] : []),
-        ...r.tried.map(t => `  ${t.key} -> ${t.result}`),
-    ].join("\n")).join("\n\n");
-}
+const SYMBOL_PATHS = {
+    ok: <path d="M4.5 12.5l5 5 10-11" />,
+    warn: <><path d="M12 3.5 2.5 20h19L12 3.5Z" /><path d="M12 10v4.5M12 17.5v.01" /></>,
+    bad: <><circle cx="12" cy="12" r="9" /><path d="m9 9 6 6M15 9l-6 6" /></>,
+};
+const SYMBOL_COLOR = { ok: "var(--status-positive)", warn: "var(--status-warning)", bad: "var(--status-danger)" };
+type Level = keyof typeof SYMBOL_COLOR;
 
-const handlerTail = (exe: string) => exe.split(/[\\/]/).slice(-2);
-
-// One line per scheme: the exe, its Roblox version folder, and a short status
-function HandlerLine({ report }: { report: LaunchHandlerReport; }) {
-    const h = report.handler;
-    const [folder, file] = h ? handlerTail(h.exe) : [];
-    const thirdParty = !!h && !/RobloxPlayerBeta\.exe$/i.test(h.exe);
-    const status = !h
-        ? { text: "Not found, uses cmd start", color: "var(--status-danger)" }
-        : thirdParty
-            ? { text: "Not Roblox's own exe", color: "var(--status-warning)" }
-            : h.userChoice
-                ? { text: "Your choice in Windows", color: "var(--text-muted)" }
-                : h.borrowedFrom
-                    ? { text: `Same as ${h.borrowedFrom}`, color: "var(--text-muted)" }
-                    : { text: "OK", color: "var(--status-positive)" };
-    const tip = h
-        ? [
-            h.exe,
-            `Read from ${h.key}`,
-            ...(h.userChoice ? [`You picked "${h.userChoice}" for these links in Windows.`] : []),
-            ...(h.borrowedFrom ? [`No command for ${report.scheme}://, so the ${h.borrowedFrom} handler is used.`] : []),
-            ...(thirdParty ? ["Not Roblox's own exe, maybe Bloxstrap or another launcher. Direct runs it the same way Windows would."] : []),
-        ]
-        : ["Windows has no program for these links that Direct can run, so joins use cmd start."];
-
+function StateSymbol({ level }: { level: Level; }) {
     return (
-        <Tooltip text={<>{tip.map(l => <div key={l} style={{ overflowWrap: "anywhere" }}>{l}</div>)}</>}>
-            {props => (
-                <div {...props} style={{ display: "grid", gridTemplateColumns: "108px minmax(0, 1fr) auto", gap: 10, alignItems: "baseline", padding: "6px 0", cursor: "default" }}>
-                    <span style={{ fontSize: 12.5, color: "var(--text-muted)" }}>{report.scheme}://</span>
-                    <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 13, color: "var(--text-default)" }}>
-                        {h ? <>{file} <span style={{ color: "var(--text-muted)" }}>· {folder}</span></> : <span style={{ color: "var(--text-muted)" }}>-</span>}
-                    </span>
-                    <span style={{ fontSize: 12, color: status.color, whiteSpace: "nowrap" }}>{status.text}</span>
-                </div>
-            )}
-        </Tooltip>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={SYMBOL_COLOR[level]} strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" aria-label={level === "ok" ? "OK" : level === "warn" ? "Warning" : "Error"} style={{ flexShrink: 0 }}>
+            {SYMBOL_PATHS[level]}
+        </svg>
     );
 }
 
-// What Direct launch runs, checked when the section opens, for when joins open the wrong thing
-function LaunchHandlerCheck() {
-    const [reports, setReports] = React.useState<LaunchHandlerReport[] | null>(null);
-    const [error, setError] = React.useState<string | null>(null);
-    const [checking, setChecking] = React.useState(false);
-    const [showKeys, setShowKeys] = React.useState(false);
+function FileIcon() {
+    return (
+        <div style={{ width: 34, height: 34, borderRadius: 8, flexShrink: 0, display: "grid", placeItems: "center", background: "var(--background-mod-normal)", color: "var(--text-muted)" }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" /><path d="M14 3v5h5" /></svg>
+        </div>
+    );
+}
 
-    const check = async () => {
+function RefreshIcon() {
+    return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7" /><path d="M20 4v7h-7" /></svg>;
+}
+
+/** What the card says for each state. Nothing for the normal case. */
+function programState(p: LaunchProgram): { level: Level; text?: string; muted?: boolean; } {
+    if (p.source === "custom") {
+        return p.found
+            ? { level: "ok", muted: true, text: "You're using a file you picked yourself, so if a Roblox update ever breaks it, switch back to the one Windows uses" }
+            : { level: "bad", text: "The file you picked isn't there anymore, so joins use cmd start until you choose another one" };
+    }
+    if (!p.found) return { level: "bad", text: "Roblox doesn't seem to be installed on this PC, so joins use cmd start until you install it again or choose the file yourself" };
+    if (p.otherLauncher) return { level: "warn", text: "Your Roblox links open through another program before Roblox, which can make joins a little slower" };
+    return { level: "ok" };
+}
+
+// The program a direct launch runs: the one Windows uses (recommended) or a file the user picked
+function RobloxProgramCard() {
+    const { launchExePath } = settings.use(["launchExePath"]);
+    const [program, setProgram] = React.useState<LaunchProgram | null>(null);
+    const [outdated, setOutdated] = React.useState(false);
+
+    const load = async () => {
         // Natives only reload with a full Discord restart
-        if (typeof Native.describeLaunchHandlers !== "function") {
-            setError("Fully restart Discord (quit from the tray) to see this.");
-            return;
-        }
-        setChecking(true);
-        setError(null);
-        try {
-            setReports(await Native.describeLaunchHandlers());
-        } catch (e) {
-            setError(String(e));
-        } finally {
-            setChecking(false);
-        }
+        if (typeof Native.getLaunchProgram !== "function") { setOutdated(true); return; }
+        setProgram(await Native.getLaunchProgram(launchExePath || undefined));
+    };
+    React.useEffect(() => { void load(); }, [launchExePath]);
+
+    const choose = async () => {
+        if (typeof Native.pickLaunchExe !== "function") { setOutdated(true); return; }
+        const picked = await Native.pickLaunchExe(program?.exe ? program.exe.replace(/[\\/][^\\/]*$/, "") : undefined);
+        if (picked) settings.store.launchExePath = picked;
+    };
+    const useWindows = () => { settings.store.launchExePath = ""; };
+
+    const copyPath = () => {
+        if (!program?.exe) return;
+        copyToClipboard(program.exe);
+        showToast({ text: "Copied the full path", variant: "success" });
     };
 
-    React.useEffect(() => { void check(); }, []);
-
-    const link: React.CSSProperties = { border: "none", background: "none", padding: 0, fontSize: 12, color: "var(--text-link)", cursor: "pointer" };
+    const state = program && programState(program);
+    const file = program?.exe?.split(/[\\/]/).pop();
+    const folder = program?.display?.replace(/[\\/][^\\/]*$/, "");
 
     return (
-        <div style={customRow}>
-            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
-                <div>
-                    <span style={customLabel}>Program that opens Roblox links</span>
-                    <div style={customDescription}>What Direct launch runs. Read from Windows, the same way Windows picks it.</div>
-                </div>
-                <div style={{ display: "flex", gap: 12, flexShrink: 0, paddingTop: 2 }}>
-                    <button type="button" style={link} disabled={checking} onClick={check}>{checking ? "Checking…" : "Check again"}</button>
-                    {reports && <button type="button" style={link} onClick={() => { copyToClipboard(reportText(reports)); showToast({ text: "Copied", variant: "success" }); }}>Copy</button>}
-                </div>
+        <div style={{ ...customRow, gap: 8 }}>
+            <div>
+                <span style={customLabel}>Roblox program <TechBadge /></span>
+                <div style={customDescription}>The file Direct launch runs, best left as the one Windows uses</div>
             </div>
 
-            {error && <span style={{ ...customDescription, marginTop: 8, color: "var(--status-danger)" }}>{error}</span>}
+            {outdated && <span style={{ ...customDescription, color: "var(--status-danger)" }}>Fully restart Discord (quit it from the tray) to see this</span>}
 
-            {reports && (
-                <div style={{ marginTop: 6, borderTop: "1px solid var(--background-mod-subtle)" }}>
-                    {reports.map(r => <HandlerLine key={r.scheme} report={r} />)}
-                    <button type="button" style={{ ...link, marginTop: 2 }} onClick={() => setShowKeys(v => !v)}>
-                        {showKeys ? "Hide details" : "Show details"}
-                    </button>
-                    {showKeys && (
-                        <div style={{ marginTop: 6, display: "flex", flexDirection: "column", gap: 2, fontFamily: "var(--font-code)", fontSize: 11.5, color: "var(--text-muted)", overflowWrap: "anywhere" }}>
-                            {reports.flatMap(r => r.tried.map(t => <span key={r.scheme + t.key}>{t.key} → {t.result}</span>))}
+            {program && state && (
+                <>
+                    <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", borderRadius: 8, background: "var(--background-base-lowest, rgba(0, 0, 0, 0.22))", boxShadow: "inset 0 0 0 1px var(--background-mod-subtle)" }}>
+                        {program.icon
+                            ? <img src={program.icon} alt="" width={32} height={32} style={{ flexShrink: 0 }} />
+                            : <FileIcon />}
+                        <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 1 }}>
+                            <span style={{ fontSize: 14, fontWeight: 600, color: "var(--text-default)" }}>{program.found || program.source === "custom" ? file : "No program"}</span>
+                            {program.exe
+                                ? (
+                                    <Tooltip text={`${program.display} · Click to copy the full path`}>
+                                        {props => (
+                                            <button {...props} type="button" onClick={copyPath} style={{ border: "none", background: "none", padding: 0, textAlign: "left", cursor: "copy", fontSize: 12, color: "var(--text-muted)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "100%" }}>
+                                                {folder}
+                                            </button>
+                                        )}
+                                    </Tooltip>
+                                )
+                                : <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Joins use cmd start</span>}
                         </div>
+                        <StateSymbol level={state.level} />
+                    </div>
+
+                    {state.text && (
+                        <span style={{ fontSize: 12.5, lineHeight: 1.4, color: state.muted ? "var(--text-muted)" : SYMBOL_COLOR[state.level] }}>{state.text}</span>
                     )}
-                </div>
+
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                        {program.source === "custom"
+                            ? <>
+                                <Button size="small" variant="primary" onClick={useWindows}>Use the one Windows uses</Button>
+                                <Button size="small" variant="secondary" onClick={choose}>Choose another file</Button>
+                            </>
+                            : <Button size="small" variant="secondary" onClick={choose}>Choose a file</Button>}
+                        <span style={{ flex: 1 }} />
+                        <Tooltip text="Look again">
+                            {props => (
+                                <button {...props} type="button" aria-label="Look again" onClick={load} style={{ width: 30, height: 30, border: "none", borderRadius: 6, display: "grid", placeItems: "center", cursor: "pointer", color: "var(--text-muted)", background: "var(--background-mod-normal)" }}>
+                                    <RefreshIcon />
+                                </button>
+                            )}
+                        </Tooltip>
+                    </div>
+                </>
             )}
         </div>
     );
@@ -387,6 +406,7 @@ export function SettingsTab() {
         forwardingEnabled,
         macroType,
         joinMode,
+        launchMethod,
     } = settings.use([
         "detectorEnabled",
         "robloxToken",
@@ -400,6 +420,7 @@ export function SettingsTab() {
         "forwardingEnabled",
         "macroType",
         "joinMode",
+        "launchMethod",
     ]);
 
     const [search, setSearch] = React.useState("");
@@ -463,11 +484,11 @@ export function SettingsTab() {
                 }] : []),
                 {
                     id: "launchMethod", label: "Launch method",
-                    description: "How the roblox:// link is handed to Roblox.",
-                    tooltip: "Direct runs the roblox:// handler registered in Windows (RobloxPlayerBeta.exe) with the link as its argument, without cmd.exe. cmd start runs \"cmd /c start\" with the link and lets Windows look up the handler, which adds about 100ms. Direct falls back to cmd start if the handler can't be run.",
+                    description: "How Sol Radar hands the join link to Roblox",
+                    tooltip: "Direct runs the Roblox program below with the join link, without cmd.exe. cmd start asks Windows to open the link, which adds about 100ms. If Direct fails, the join falls back to cmd start.",
                     tech: true,
                 },
-                { key: "launchCheck", search: "launch handler exe roblox protocol registry check program", node: <LaunchHandlerCheck /> },
+                ...(launchMethod !== "shell" ? [{ key: "robloxProgram", search: "roblox program exe file launcher path windows", node: <RobloxProgramCard /> }] : []),
             ],
         },
         {

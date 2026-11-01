@@ -16,6 +16,7 @@ import { executeAction } from "./ActionExecutor";
 import { BiomeDetector } from "./BiomeDetector";
 import { startBiomeDetection } from "./BiomeWatcher";
 import { scheduleTimelineCapture } from "./JoinTimeline";
+import { redactUserPath } from "./paths";
 import { closeGame, getPlaceId } from "./RobloxService";
 
 const logger = new Logger("SolRadar:Join");
@@ -258,7 +259,7 @@ async function joinServer(uri: string, snipe: Snipe): Promise<JoinServerResult> 
     const tOpenStart = performance.now();
     let launch: Awaited<ReturnType<typeof Native.openUri>>;
     try {
-        launch = await Native.openUri(uri, settings.store.launchMethod === "shell" ? "shell" : "direct");
+        launch = await Native.openUri(uri, settings.store.launchMethod === "shell" ? "shell" : "direct", settings.store.launchExePath || undefined);
     } catch (err) {
         return { ok: false, reason: "native-failed", detail: (err as Error).message };
     }
@@ -279,7 +280,7 @@ async function joinServer(uri: string, snipe: Snipe): Promise<JoinServerResult> 
         );
     }
 
-    if (launch?.exe) snipe.logDebug(`Direct launch ran ${launch.exe}`);
+    if (launch?.exe) snipe.logDebug(`Direct launch ran ${redactUserPath(launch.exe)}`);
     if (launch?.fallbackReason && settings.store.launchMethod !== "shell") {
         snipe.logWarn(`Direct launch not used, fell back to the shell: ${launch.fallbackReason}`);
     }

@@ -12,10 +12,11 @@ import { saveFile } from "@utils/web";
 import { React, ScrollerThin } from "@webpack/common";
 
 import { getRecentLogs } from "../../../logger";
+import { redactUserPath } from "../../../services/paths";
 import { settings } from "../../../settings";
 import { SnipeEntry, SnipeStore } from "../../../stores/SnipeStore";
 import { UIState } from "../../../stores/UIStateStore";
-import { parseCsv, PLUGIN_VERSION, showToast } from "../../../utils";
+import { Native, parseCsv, PLUGIN_VERSION, showToast } from "../../../utils";
 import { labelText, sectionTitle } from "../../ui/styles";
 import { Block } from "./Block";
 import { HelpTip } from "./Setting";
@@ -50,14 +51,31 @@ function formatSnipe(e: SnipeEntry, detailed: boolean) {
         time: new Date(e.timestamp).toISOString(),
         trigger: { name: e.triggerName, type: e.triggerType, priority: e.triggerPriority },
         tags: e.tags,
-        metrics: e.metrics,
+        metrics: e.metrics && { ...e.metrics, launchExe: e.metrics.launchExe && redactUserPath(e.metrics.launchExe) },
         biomeDurationMs: e.biomeDurationMs,
         ...(detailed && snipeOrigin(e)),
         log: e.log.map(l => `${new Date(l.timestamp).toISOString()} [${l.level}] ${l.message}`),
     };
 }
 
-export function buildDebugReport({ detailed, includeLogs, includeSnipes }: { detailed: boolean; includeLogs: boolean; includeSnipes: boolean; }) {
+// Any user folder inside a longer string, like a command line
+const hideUserFolders = (text: string) => text.replace(/[A-Z]:\\Users\\[^\\"]+(\\AppData\\Local)?/gi, m => redactUserPath(m));
+
+/** How Windows opens Roblox links, from every registry key read, with the user folder hidden. */
+async function readLaunchHandlers(): Promise<unknown> {
+    if (typeof Native.describeLaunchHandlers !== "function") return "natives outdated, restart Discord from the tray";
+    const reports = await Native.describeLaunchHandlers();
+    return reports.map(r => ({
+        scheme: r.scheme,
+        exe: r.handler && redactUserPath(r.handler.exe),
+        command: r.handler && hideUserFolders(r.handler.command),
+        userChoice: r.handler?.userChoice,
+        borrowedFrom: r.handler?.borrowedFrom,
+        tried: r.tried.map(t => `${t.key} -> ${hideUserFolders(t.result)}`),
+    }));
+}
+
+export function buildDebugReport({ detailed, includeLogs, includeSnipes, launchHandlers }: { detailed: boolean; includeLogs: boolean; includeSnipes: boolean; launchHandlers?: unknown; }) {
     const store = settings.store as Record<string, unknown>;
     const values: Record<string, unknown> = {};
 
@@ -69,6 +87,7 @@ export function buildDebugReport({ detailed, includeLogs, includeSnipes }: { det
         else values[key] = value;
     }
     values.robloxToken = store.robloxToken ? "[set]" : "[not set]";
+    if (typeof values.launchExePath === "string") values.launchExePath = redactUserPath(values.launchExePath);
 
     return {
         report: "SolRadar debug report",
@@ -80,6 +99,7 @@ export function buildDebugReport({ detailed, includeLogs, includeSnipes }: { det
             platform: navigator.platform,
         },
         settings: values,
+        ...(launchHandlers !== undefined && { launchHandlers }),
         ...(includeSnipes && {
             recentSnipes: SnipeStore.getRecent(SNIPE_COUNT).map(e => formatSnipe(e, detailed)),
         }),
@@ -103,9 +123,16 @@ export function DebugReport() {
     const [includeLogs, setIncludeLogs] = React.useState(true);
     const [includeSnipes, setIncludeSnipes] = React.useState(true);
 
+    const [launchHandlers, setLaunchHandlers] = React.useState<unknown>(undefined);
+
+    // Read once when the report opens; it runs a few registry queries
+    React.useEffect(() => {
+        if (open && launchHandlers === undefined) readLaunchHandlers().then(setLaunchHandlers, e => setLaunchHandlers(`failed: ${e}`));
+    }, [open]);
+
     const text = React.useMemo(
-        () => open ? JSON.stringify(buildDebugReport({ detailed, includeLogs, includeSnipes }), null, 2) : "",
-        [open, detailed, includeLogs, includeSnipes]
+        () => open ? JSON.stringify(buildDebugReport({ detailed, includeLogs, includeSnipes, launchHandlers }), null, 2) : "",
+        [open, detailed, includeLogs, includeSnipes, launchHandlers]
     );
 
     const handleCopy = () => {

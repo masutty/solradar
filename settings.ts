@@ -115,9 +115,15 @@ export const settings = definePluginSettings({
         type: OptionType.SELECT,
         description: "How the roblox:// link is handed to Roblox.",
         options: [
-            { label: "Run Roblox's executable directly", value: "direct", default: true },
-            { label: "Open the link through cmd start", value: "shell" },
+            { label: "Run the Roblox program directly", value: "direct", default: true },
+            { label: "Open the link with cmd start", value: "shell" },
         ],
+        hidden: true,
+    },
+    launchExePath: {
+        type: OptionType.STRING,
+        description: "A program the direct launch runs instead of the one Windows opens Roblox links with. Empty uses Windows' one.",
+        default: "",
         hidden: true,
     },
     adbCloseDelayMs: {

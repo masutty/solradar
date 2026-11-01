@@ -18,11 +18,13 @@
 
 import { Logger } from "@utils/Logger";
 import { exec as execCb, execFile as execFileCb, spawn } from "child_process";
-import { IpcMainInvokeEvent } from "electron";
+import { app, BrowserWindow, dialog, IpcMainInvokeEvent } from "electron";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 import { promisify } from "util";
+
+import { isRobloxPlayerExe, redactUserPath } from "./services/paths";
 
 const logger = new Logger("SolRadar.Native");
 
@@ -168,6 +170,64 @@ export async function describeLaunchHandlers(_: IpcMainInvokeEvent): Promise<Lau
     return out;
 }
 
+/** The program shown in Settings: the one Windows uses, or a file the user picked. */
+export interface LaunchProgram {
+    source: "windows" | "custom";
+    exe: string | null;
+    /** The path with the Windows user folder replaced, for showing on screen */
+    display: string | null;
+    found: boolean;
+    /** The exe is not Roblox's own player (another launcher) */
+    otherLauncher: boolean;
+    /** The exe's own icon as a data URL */
+    icon: string | null;
+}
+
+async function fileIcon(exe: string): Promise<string | null> {
+    try {
+        return (await app.getFileIcon(exe, { size: "large" })).toDataURL();
+    } catch {
+        return null;
+    }
+}
+
+/** What Direct launch runs: customExe when set, otherwise the program Windows opens Roblox links with. */
+export async function getLaunchProgram(_: IpcMainInvokeEvent, customExe?: string): Promise<LaunchProgram> {
+    const exe = customExe || (process.platform === "win32" ? (await resolveHandler("roblox"))?.exe : undefined) || null;
+    const found = !!exe && fs.existsSync(exe);
+    return {
+        source: customExe ? "custom" : "windows",
+        exe,
+        display: exe && redactUserPath(exe),
+        found,
+        otherLauncher: found && !isRobloxPlayerExe(exe!),
+        icon: found ? await fileIcon(exe!) : null,
+    };
+}
+
+/** Opens Windows' file picker for an exe. Resolves with the path, or null when cancelled. */
+export async function pickLaunchExe(event: IpcMainInvokeEvent, startIn?: string): Promise<string | null> {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    const options: Electron.OpenDialogOptions = {
+        title: "Choose the Roblox program",
+        defaultPath: startIn,
+        properties: ["openFile"],
+        filters: [{ name: "Programs", extensions: ["exe"] }],
+    };
+    const res = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options);
+    return res.canceled ? null : res.filePaths[0] ?? null;
+}
+
+/** Starts an exe detached, without cmd.exe. Resolves as soon as the process exists. */
+function spawnDetached(exe: string, args: string[]): Promise<void> {
+    return new Promise((resolve, reject) => {
+        // No windowsHide: for a GUI app it would start the Roblox window hidden
+        const child = spawn(exe, args, { detached: true, stdio: "ignore", cwd: path.dirname(exe) });
+        child.once("spawn", () => { child.unref(); resolve(); });
+        child.once("error", reject);
+    });
+}
+
 /**
  * Starts the protocol handler exe directly, without cmd.exe and without ShellExecute.
  * Resolves with the exe as soon as the process exists. The child is detached so it outlives Discord.
@@ -186,28 +246,25 @@ async function spawnHandler(uri: string): Promise<string> {
     });
     if (!usedUri) args.push(uri);
 
-    await new Promise<void>((resolve, reject) => {
-        // No windowsHide: for a GUI app it would start the Roblox window hidden
-        const child = spawn(exe, args, { detached: true, stdio: "ignore", cwd: path.dirname(exe) });
-        child.once("spawn", () => {
-            child.unref();
-            resolve();
-            // Re-read the registry off the hot path: after an update the old exe can linger
-            setTimeout(() => {
-                resolveHandler(scheme).then(h => { if (h) handlerCache.set(scheme, h); }).catch(() => { });
-            }, 10_000);
-        });
-        child.once("error", err => { handlerCache.delete(scheme); reject(err); });
-    });
+    try {
+        await spawnDetached(exe, args);
+    } catch (err) {
+        handlerCache.delete(scheme);
+        throw err;
+    }
+    // Re-read the registry off the hot path: after an update the old exe can linger
+    setTimeout(() => {
+        resolveHandler(scheme).then(h => { if (h) handlerCache.set(scheme, h); }).catch(() => { });
+    }, 10_000);
     return exe;
 }
 
 /**
  * Opens a `roblox://` or `roblox-player:` deeplink. Windows only.
- * "direct" starts the registered handler exe itself; "shell" uses `start ""` (cmd.exe + ShellExecute).
+ * "direct" starts customExe, or the registered handler exe, itself; "shell" uses `start ""` (cmd.exe + ShellExecute).
  * Other schemes (Joinguard https links) always use the shell. "direct" falls back to the shell on failure.
  */
-export async function openUri(_: IpcMainInvokeEvent, uri: string, method: LaunchMethod = "shell"): Promise<OpenUriResult> {
+export async function openUri(_: IpcMainInvokeEvent, uri: string, method: LaunchMethod = "shell", customExe?: string): Promise<OpenUriResult> {
     if (process.platform !== "win32") {
         throw new Error("openUri only works on Windows.");
     }
@@ -220,6 +277,11 @@ export async function openUri(_: IpcMainInvokeEvent, uri: string, method: Launch
     if (method === "direct") {
         if (DIRECT_SCHEMES.has(scheme)) {
             try {
+                if (customExe) {
+                    if (!fs.existsSync(customExe)) throw new Error("the file picked in Settings doesn't exist");
+                    await spawnDetached(customExe, [uri]);
+                    return { method: "direct", exe: customExe };
+                }
                 return { method: "direct", exe: await spawnHandler(uri) };
             } catch (err) {
                 fallbackReason = (err as Error).message;
