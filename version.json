@@ -1,6 +1,12 @@
 {
-    "currentVersion": "1.7.0",
+    "currentVersion": "1.7.1",
     "changelog": [
+        {
+            "version": "1.7.1",
+            "entries": [
+                { "type": "Fixed", "text": "Snipe History no longer keeps saying it is waiting for the biome to end after the game closes or a new snipe starts" }
+            ]
+        },
         {
             "version": "1.7.0",
             "entries": [
