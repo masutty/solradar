@@ -225,10 +225,6 @@
     font-variant-numeric: tabular-nums;
 }
 
-.vc-sora-tm-big.warn {
-    color: var(--status-warning);
-}
-
 /* One pill: only the outer ends are round */
 .vc-sora-tm-bar {
     display: flex;

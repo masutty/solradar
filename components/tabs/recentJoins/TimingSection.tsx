@@ -33,33 +33,34 @@ function DocIcon() {
     return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" /><path d="M14 3v5h5M9 13h6M9 17h6" /></svg>;
 }
 
+/** When you reached the server: the moment Roblox asked it for a spot, with or without a queue after. */
+const reachedAt = (b: JoinBreakdown) => b.steps.find(s => s.key === "server" || s.key === "queue")?.start ?? null;
+
 function noteFor(entry: SnipeEntry, b: JoinBreakdown, reading: boolean): { text: string; warn?: boolean; action?: boolean; } {
     // Opening an older snipe starts a read; don't call the log missing until it's done
     if (reading && !entry.robloxTimeline) return { text: "Reading Roblox's log…" };
-    if (b.totals.queue > 0) return { text: `The server was full, so you waited ${formatSecs(b.totals.queue)} in its queue.`, warn: true };
+    if (b.totals.queue > 0) return { text: `The server was full, so you waited ${formatSecs(b.totals.queue)} in its queue`, warn: true };
     switch (b.situation) {
         case "cold":
             return entry.metrics?.joinMode === "safe"
-                ? { text: "Roblox had to load from closed. Unsafe join mode with Roblox open on the home page skips about 3s.", warn: true }
-                : { text: "Roblox was closed, so it had to load first. Keep it open on the home page to skip about 3s.", warn: true };
+                ? { text: "Safe join mode closes Roblox first, so it had to load again, which adds about 3s", warn: true }
+                : { text: "Roblox had to load from closed. Keeping it open skips about 3s", warn: true };
         case "warm": {
             const top = CATS.reduce((a, k) => b.totals[k] > b.totals[a] ? k : a, "plugin" as StepCat);
-            if (top === "hw") return { text: "Most of this time is Roblox starting on your PC, not Sol Radar." };
-            if (top === "net") return { text: "Most of this time is Roblox's servers, not your PC or Sol Radar." };
-            return { text: "Most of this time is Sol Radar. Open Steps to see which part." };
+            if (top === "hw") return { text: "Most of this time is Roblox starting on your PC, not Sol Radar" };
+            if (top === "net") return { text: "Most of this time is Roblox's servers, not your PC or Sol Radar" };
+            return { text: "Most of this time is Sol Radar. Open Steps to see which part" };
         }
-        case "noSpot": {
-            const ask = b.steps.find(s => s.key === "server");
-            return ask
-                ? { text: `You asked to join at ${formatSecs(ask.start)}, but the server never let you in. It was probably full.`, warn: true }
-                : { text: "Roblox got the link but stopped before asking to join.", warn: true };
-        }
+        case "noSpot":
+            return reachedAt(b) !== null
+                ? { text: "The server never let you in. It was probably full", warn: true }
+                : { text: "Roblox got the link but stopped before reaching the server", warn: true };
         case "pending":
-            return { text: reading ? "Reading Roblox's log…" : "Roblox's log is read about 30s after the join." };
+            return { text: reading ? "Reading Roblox's log…" : "Roblox's log is read about 30s after the join. If it's been longer, try reading it again with the button at the top right" };
         case "noLog":
-            return { text: "Roblox's log for this join wasn't found, so only Sol Radar's part is shown.", action: true };
+            return { text: "Roblox's log for this join wasn't found. Try reading it again, it may have been busy the first time", action: true };
         case "old":
-            return { text: "Snipes from before this version only have Sol Radar's part." };
+            return { text: "Snipes from before this version only have Sol Radar's part" };
     }
 }
 
@@ -67,9 +68,8 @@ function Summary({ entry, b, reading, onRead, hover, setHover }: {
     entry: SnipeEntry; b: JoinBreakdown; reading: boolean; onRead: () => void;
     hover: StepCat | null; setHover: (c: StepCat | null) => void;
 }) {
-    const joined = b.spot !== null;
-    // With a queue, the time that's yours is until you asked to join; the wait after it is the server's
-    const queue = b.steps.find(s => s.key === "queue");
+    // Always the same measure: the time until you reached the server. What came after shows below.
+    const reached = reachedAt(b);
     const hasRoblox = b.totals.hw > 0 || b.totals.net > 0;
     const open = b.steps.find(s => s.end === null);
     const cats = catsOf(b);
@@ -81,13 +81,9 @@ function Summary({ entry, b, reading, onRead, hover, setHover }: {
     return (
         <div className="vc-sora-tm-card">
             <div className="vc-sora-tm-headline">
-                {joined && queue
-                    ? <><span className="vc-sora-tm-big">{formatSecs(queue.start)}</span><span>until you asked to join</span></>
-                    : joined
-                        ? <><span className="vc-sora-tm-big">{formatSecs(b.spot!)}</span><span>until the server let you in</span></>
-                    : b.situation === "noSpot"
-                        ? <><span className="vc-sora-tm-big warn">Not in</span><span>the server never let you in</span></>
-                        : <><span className="vc-sora-tm-big">{formatSecs(b.totals.plugin)}</span><span>reaction, Sol Radar's part only</span></>}
+                {reached !== null
+                    ? <><span className="vc-sora-tm-big">{formatSecs(reached)}</span><span>to reach the server</span></>
+                    : <span className="vc-sora-tm-big" style={{ color: COLORS.muted }}>No Roblox data</span>}
             </div>
 
             {hasRoblox && (
@@ -212,9 +208,9 @@ function Steps({ b }: { b: JoinBreakdown; }) {
 }
 
 function Grid({ b }: { b: JoinBreakdown; }) {
-    const queue = b.steps.find(s => s.key === "queue");
+    // Same measure as the Summary headline first, then what came after it
     const totals: [string, number | null, string][] = [
-        ...(queue ? [["Until you asked to join", queue.start, "Your part: from the message until you asked the server to let you in."] as [string, number, string]] : []),
+        ["To reach the server", reachedAt(b), "From the message until you reached the server, before any queue."],
         ["Until you were let in", b.spot, "From the message until the server let you in."],
         ["Until connected", b.connected, "From the message until you were connected to the server."],
     ];
