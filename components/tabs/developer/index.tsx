@@ -117,7 +117,9 @@ export function DeveloperTab() {
             </Note>
 
             <p style={sectionTitle}>Join speed</p>
-            <JoinSpeedStats />
+            <Block title="Join speed stats" subtitle="Every join phase, grouped by launch method, Discord focus or Roblox open/closed" open={!!open.joinSpeed} onToggle={() => toggle("joinSpeed")}>
+                <JoinSpeedStats />
+            </Block>
 
             <p style={sectionTitle}>Roblox</p>
             <div style={{ ...card, ...wrapRow }}>
