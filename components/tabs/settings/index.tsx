@@ -5,8 +5,9 @@
  */
 
 import { Button } from "@components/Button";
+import { copyToClipboard } from "@utils/clipboard";
 import { PluginNative } from "@utils/types";
-import { React, TextInput } from "@webpack/common";
+import { React, showToast, TextInput } from "@webpack/common";
 
 import { settings } from "../../../settings";
 import { useTourAction } from "../../../stores/TourStore";
@@ -22,6 +23,7 @@ import { BlockId, Overview } from "./Overview";
 import { HelpTip, Setting } from "./Setting";
 
 const Native = VencordNative.pluginHelpers.SolRadar as PluginNative<typeof import("../../../native")>;
+type LaunchHandlerReport = import("../../../native").LaunchHandlerReport;
 
 // --- Shared styles ---
 
@@ -112,6 +114,83 @@ function CheckProcessesButton() {
                 </span>
             </div>
             {results && <ProcessCheckResults results={results} />}
+        </div>
+    );
+}
+
+// --- Launch handler check ---
+
+function reportText(reports: LaunchHandlerReport[]): string {
+    return reports.map(r => [
+        `${r.scheme}: ${r.handler ? r.handler.exe : "not found, direct launch falls back to cmd start"}`,
+        ...(r.handler ? [`  command: ${r.handler.command}`] : []),
+        ...r.tried.map(t => `  ${t.key} -> ${t.result}`),
+    ].join("\n")).join("\n\n");
+}
+
+function HandlerResult({ report }: { report: LaunchHandlerReport; }) {
+    const h = report.handler;
+    const small: React.CSSProperties = { fontSize: 12, color: "var(--text-muted)" };
+    const isRobloxExe = h && /RobloxPlayerBeta\.exe$/i.test(h.exe);
+    return (
+        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-default)" }}>{report.scheme}:// links</span>
+            {h ? (
+                <>
+                    <span style={{ fontSize: 12, color: "var(--status-positive)", fontFamily: "var(--font-code)", overflowWrap: "anywhere" }}>✅ {h.exe}</span>
+                    <span style={{ ...small, overflowWrap: "anywhere" }}>From {h.key}</span>
+                    {h.userChoice && <span style={small}>You picked "{h.userChoice}" in Windows for these links, so Direct uses it too.</span>}
+                    {h.borrowedFrom && <span style={small}>No command for {report.scheme}://, so the {h.borrowedFrom} handler is used. It's the same exe.</span>}
+                    {!isRobloxExe && <span style={{ fontSize: 12, color: "var(--status-warning)" }}>This isn't Roblox's own exe (maybe Bloxstrap or another launcher). Direct runs it the same way Windows would.</span>}
+                </>
+            ) : (
+                <span style={{ fontSize: 12, color: "var(--status-danger)" }}>❌ Not found. Direct launch falls back to cmd start for these links.</span>
+            )}
+        </div>
+    );
+}
+
+// Shows which exe a direct launch runs and where Windows says so, for when joins open the wrong thing.
+function LaunchHandlerCheck() {
+    const [reports, setReports] = React.useState<LaunchHandlerReport[] | null>(null);
+    const [error, setError] = React.useState<string | null>(null);
+    const [checking, setChecking] = React.useState(false);
+
+    const check = async () => {
+        // Natives only reload with a full Discord restart
+        if (typeof Native.describeLaunchHandlers !== "function") {
+            setError("Fully restart Discord (quit from the tray) to use this check.");
+            return;
+        }
+        setChecking(true);
+        setError(null);
+        try {
+            setReports(await Native.describeLaunchHandlers());
+        } catch (e) {
+            setError(String(e));
+        } finally {
+            setChecking(false);
+        }
+    };
+
+    return (
+        <div style={customRow}>
+            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                <Button size="medium" variant="secondary" onClick={check} disabled={checking}>
+                    {checking ? "Checking…" : "Check which program opens Roblox links"}
+                </Button>
+                {reports && (
+                    <Button size="medium" variant="secondary" onClick={() => { copyToClipboard(reportText(reports)); showToast({ text: "Copied", variant: "success" }); }}>
+                        Copy details
+                    </Button>
+                )}
+            </div>
+            {error && <span style={{ marginTop: 8, fontSize: 12, color: "var(--status-danger)" }}>{error}</span>}
+            {reports && (
+                <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 10 }}>
+                    {reports.map(r => <HandlerResult key={r.scheme} report={r} />)}
+                </div>
+            )}
         </div>
     );
 }
@@ -354,6 +433,7 @@ export function SettingsTab() {
                     tooltip: "Direct runs the roblox:// handler registered in Windows (RobloxPlayerBeta.exe) with the link as its argument, without cmd.exe. cmd start runs \"cmd /c start\" with the link and lets Windows look up the handler, which adds about 100ms. Direct falls back to cmd start if the handler can't be run.",
                     tech: true,
                 },
+                { key: "launchCheck", search: "launch handler exe roblox protocol registry check program", node: <LaunchHandlerCheck /> },
             ],
         },
         {

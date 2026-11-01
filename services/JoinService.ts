@@ -279,6 +279,7 @@ async function joinServer(uri: string, snipe: Snipe): Promise<JoinServerResult> 
         );
     }
 
+    if (launch?.exe) snipe.logDebug(`Direct launch ran ${launch.exe}`);
     if (launch?.fallbackReason && settings.store.launchMethod !== "shell") {
         snipe.logWarn(`Direct launch not used, fell back to the shell: ${launch.fallbackReason}`);
     }
@@ -299,6 +300,7 @@ async function joinServer(uri: string, snipe: Snipe): Promise<JoinServerResult> 
             discordDelayMs: sentAt === null ? null : receivedAt - sentAt,
             launchMethod: launch?.method,
             launchFallback: launch?.fallbackReason,
+            launchExe: launch?.exe,
             joinMode: settings.store.joinMode === "safe" ? "safe" : "unsafe",
             discordFocused: document.hasFocus(),
         },

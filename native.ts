@@ -63,11 +63,33 @@ export async function sendWebhook(_: IpcMainInvokeEvent, url: string, body: stri
 // --- Roblox: open URI ---
 
 export type LaunchMethod = "direct" | "shell";
-export type OpenUriResult = { method: LaunchMethod; fallbackReason?: string; };
+export type OpenUriResult = { method: LaunchMethod; fallbackReason?: string; exe?: string; };
 
-// The protocol handler command from the registry, per scheme. The exe path changes on every
-// Roblox update, so it is dropped when the exe is gone or a spawn fails.
-const handlerCache = new Map<string, string[]>();
+/** The program Windows runs for a scheme, and where that came from. */
+export interface LaunchHandler {
+    scheme: string;
+    exe: string;
+    args: string[];
+    /** The command line as stored in the registry */
+    command: string;
+    /** Registry key the command was read from */
+    key: string;
+    /** Set when the user picked an app for this scheme in Windows ("Open with" / Default apps) */
+    userChoice?: string;
+    /** Set when this scheme had no command and another Roblox scheme's handler is used */
+    borrowedFrom?: string;
+}
+
+export interface LaunchHandlerReport {
+    scheme: string;
+    handler: LaunchHandler | null;
+    /** Every registry key looked at, in order, with what was found */
+    tried: { key: string; result: string; }[];
+}
+
+// The protocol handler per scheme. The exe path changes on every Roblox update,
+// so it is dropped when the exe is gone or a spawn fails.
+const handlerCache = new Map<string, LaunchHandler>();
 const DIRECT_SCHEMES = new Set(["roblox", "roblox-player"]);
 
 /** Splits a Windows command line into arguments, keeping quoted parts together. */
@@ -79,30 +101,50 @@ function splitCommandLine(cmd: string): string[] {
     return out;
 }
 
-async function readHandler(scheme: string): Promise<string[] | null> {
-    const keys = [
-        `HKCU\\Software\\Classes\\${scheme}\\shell\\open\\command`,
-        `HKLM\\Software\\Classes\\${scheme}\\shell\\open\\command`,
-    ];
-    for (const key of keys) {
-        try {
-            const { stdout } = await execFile("reg", ["query", key, "/ve"], { windowsHide: true, timeout: 3000 });
-            // Line looks like: "    (Default)    REG_SZ    "C:\...\RobloxPlayerBeta.exe" %1" (label is localized)
-            const value = stdout.match(/REG_(?:EXPAND_)?SZ\s+(.+?)\s*$/m)?.[1];
-            if (!value) continue;
-            const expanded = value.replace(/%([^%\d][^%]*)%/g, (all, name) => process.env[name] ?? all);
-            const args = splitCommandLine(expanded);
-            if (args.length && fs.existsSync(args[0])) return args;
-        } catch { }
+async function regValue(key: string, name?: string): Promise<string | null> {
+    try {
+        const { stdout } = await execFile("reg", ["query", key, ...(name ? ["/v", name] : ["/ve"])], { windowsHide: true, timeout: 3000 });
+        // Line looks like: "    (Default)    REG_SZ    "C:\...\RobloxPlayerBeta.exe" %1" (label is localized)
+        return stdout.match(/REG_(?:EXPAND_)?SZ\s+(.+?)\s*$/m)?.[1] ?? null;
+    } catch {
+        return null;
+    }
+}
+
+/**
+ * Finds the program Windows opens a scheme with, the way the shell does:
+ * the user's choice (UserChoice ProgId) first, then the per-user and machine-wide classes.
+ * "roblox" falls back to "roblox-player": some installs register only that one, with the same exe.
+ */
+async function resolveHandler(scheme: string, tried: LaunchHandlerReport["tried"] = []): Promise<LaunchHandler | null> {
+    const choiceKey = `HKCU\\Software\\Microsoft\\Windows\\Shell\\Associations\\UrlAssociations\\${scheme}\\UserChoice`;
+    const userChoice = await regValue(choiceKey, "ProgId") ?? undefined;
+    tried.push({ key: choiceKey, result: userChoice ? `ProgId ${userChoice}` : "none" });
+
+    const progId = userChoice ?? scheme;
+    for (const root of ["HKCU", "HKLM"]) {
+        const key = `${root}\\Software\\Classes\\${progId}\\shell\\open\\command`;
+        const command = await regValue(key);
+        if (!command) { tried.push({ key, result: "missing" }); continue; }
+        const expanded = command.replace(/%([^%\d][^%]*)%/g, (all, name) => process.env[name] ?? all);
+        const [exe, ...args] = splitCommandLine(expanded);
+        if (!exe || !fs.existsSync(exe)) { tried.push({ key, result: `exe not found: ${exe ?? "(empty)"}` }); continue; }
+        tried.push({ key, result: `ok: ${exe}` });
+        return { scheme, exe, args, command, key, userChoice };
+    }
+
+    if (scheme === "roblox") {
+        const other = await resolveHandler("roblox-player", tried);
+        if (other) return { ...other, scheme, borrowedFrom: "roblox-player" };
     }
     return null;
 }
 
-async function getHandler(scheme: string): Promise<string[] | null> {
+async function getHandler(scheme: string): Promise<LaunchHandler | null> {
     const cached = handlerCache.get(scheme);
-    if (cached && fs.existsSync(cached[0])) return cached;
+    if (cached && fs.existsSync(cached.exe)) return cached;
     handlerCache.delete(scheme);
-    const fresh = await readHandler(scheme);
+    const fresh = await resolveHandler(scheme);
     if (fresh) handlerCache.set(scheme, fresh);
     return fresh;
 }
@@ -112,19 +154,30 @@ export async function warmLaunchHandler(_: IpcMainInvokeEvent): Promise<string |
     if (process.platform !== "win32") return null;
     const handler = await getHandler("roblox");
     await getHandler("roblox-player");
-    return handler?.[0] ?? null;
+    return handler?.exe ?? null;
+}
+
+/** Reads the handlers again, without the cache, and says where each one came from. For debugging. */
+export async function describeLaunchHandlers(_: IpcMainInvokeEvent): Promise<LaunchHandlerReport[]> {
+    if (process.platform !== "win32") return [];
+    const out: LaunchHandlerReport[] = [];
+    for (const scheme of DIRECT_SCHEMES) {
+        const tried: LaunchHandlerReport["tried"] = [];
+        out.push({ scheme, handler: await resolveHandler(scheme, tried), tried });
+    }
+    return out;
 }
 
 /**
  * Starts the protocol handler exe directly, without cmd.exe and without ShellExecute.
- * Resolves as soon as the process exists. The child is detached so it outlives Discord.
+ * Resolves with the exe as soon as the process exists. The child is detached so it outlives Discord.
  */
-async function spawnHandler(uri: string): Promise<void> {
+async function spawnHandler(uri: string): Promise<string> {
     const scheme = uri.slice(0, uri.indexOf(":")).toLowerCase();
     const handler = await getHandler(scheme);
     if (!handler) throw new Error(`No handler found for ${scheme}:`);
 
-    const [exe, ...rest] = handler;
+    const { exe, args: rest } = handler;
     let usedUri = false;
     const args = rest.map(a => {
         if (!a.includes("%1")) return a;
@@ -141,11 +194,12 @@ async function spawnHandler(uri: string): Promise<void> {
             resolve();
             // Re-read the registry off the hot path: after an update the old exe can linger
             setTimeout(() => {
-                readHandler(scheme).then(h => { if (h) handlerCache.set(scheme, h); }).catch(() => { });
+                resolveHandler(scheme).then(h => { if (h) handlerCache.set(scheme, h); }).catch(() => { });
             }, 10_000);
         });
         child.once("error", err => { handlerCache.delete(scheme); reject(err); });
     });
+    return exe;
 }
 
 /**
@@ -166,8 +220,7 @@ export async function openUri(_: IpcMainInvokeEvent, uri: string, method: Launch
     if (method === "direct") {
         if (DIRECT_SCHEMES.has(scheme)) {
             try {
-                await spawnHandler(uri);
-                return { method: "direct" };
+                return { method: "direct", exe: await spawnHandler(uri) };
             } catch (err) {
                 fallbackReason = (err as Error).message;
                 logger.warn(`Direct launch failed, using the shell: ${fallbackReason}`);
@@ -185,8 +238,6 @@ export async function openUri(_: IpcMainInvokeEvent, uri: string, method: Launch
         throw new Error(`Failed to open URI "${uri}": ${(error as Error).message}`);
     }
 }
-
-// --- Discord: background throttling ---
 
 // --- Roblox: join timeline from the logs ---
 

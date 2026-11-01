@@ -78,7 +78,9 @@ function joinContextRows(entry: SnipeEntry): [string, string][] {
     const mode = m.joinMode ? capitalize(m.joinMode) : "Unknown mode";
     const roblox = entry.robloxTimeline ? (entry.robloxTimeline.mode === "warm" ? "Already open" : "Started from closed") : "Unknown";
     const discord = m.discordFocused == null ? "Unknown" : m.discordFocused ? "Focused" : "In the background";
-    return [["Join", `${mode} · ${launch}`], ["Roblox", roblox], ["Discord", discord]];
+    // Keep the version folder: after a Roblox update it shows whether the new exe was used
+    const exe = m.launchExe?.split(/[\\/]/).slice(-2).join("\\");
+    return [["Join", `${mode} · ${launch}`], ...(exe ? [["Ran", exe] as [string, string]] : []), ["Roblox", roblox], ["Discord", discord]];
 }
 
 // --- Sections ---

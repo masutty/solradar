@@ -71,6 +71,8 @@ export interface SnipeMetrics {
     joinMode?: "safe" | "unsafe";
     /** Why a direct launch fell back to the shell. */
     launchFallback?: string;
+    /** The exe a direct launch ran. */
+    launchExe?: string;
     /** Whether Discord's window had focus. */
     discordFocused?: boolean;
 }
