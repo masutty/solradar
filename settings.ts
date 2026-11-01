@@ -371,8 +371,14 @@ export const settings = definePluginSettings({
     globalExcludeStrict: {
         type: OptionType.BOOLEAN,
         description: "Match the global excluded words as whole words only.",
-        default: false,
+        default: true,
         hidden: true,
+    },
+
+    // Developer
+    historyBoltSteps: {
+        type: OptionType.CUSTOM,
+        default: ["read", "close", "open"] as string[], // JoinStepKeys, see services/JoinTimeline.ts
     },
 
     // Link verification

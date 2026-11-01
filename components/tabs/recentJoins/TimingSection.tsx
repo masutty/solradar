@@ -10,7 +10,7 @@
 import { Button } from "@components/Button";
 import { React, Tooltip } from "@webpack/common";
 
-import { captureRobloxTimeline, isTimelineComplete, JOIN_STEPS, JoinBreakdown, joinBreakdown, STEP_CATS, StepCat } from "../../../services/JoinTimeline";
+import { captureRobloxTimeline, isTimelineComplete, JOIN_STEPS, JoinBreakdown, joinBreakdown, reachedAt, STEP_CATS, StepCat } from "../../../services/JoinTimeline";
 import { SnipeEntry } from "../../../stores/SnipeStore";
 import { formatElapsedTime } from "../../../utils";
 import { COLORS, sectionTitle } from "../../ui/styles";
@@ -32,9 +32,6 @@ function InfoIcon({ warn }: { warn?: boolean; }) {
 function DocIcon() {
     return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" /><path d="M14 3v5h5M9 13h6M9 17h6" /></svg>;
 }
-
-/** When you reached the server: the moment Roblox asked it for a spot, with or without a queue after. */
-const reachedAt = (b: JoinBreakdown) => b.steps.find(s => s.key === "server" || s.key === "queue")?.start ?? null;
 
 function noteFor(entry: SnipeEntry, b: JoinBreakdown, reading: boolean): { text: string; warn?: boolean; action?: boolean; } {
     // Opening an older snipe starts a read; don't call the log missing until it's done
@@ -82,7 +79,7 @@ function Summary({ entry, b, reading, onRead, hover, setHover }: {
         <div className="vc-sora-tm-card">
             <div className="vc-sora-tm-headline">
                 {reached !== null
-                    ? <><span className="vc-sora-tm-big">{formatSecs(reached)}</span><span>to reach the server</span></>
+                    ? <><span className="vc-sora-tm-big">{formatSecs(reached)}</span><span>until server slot request</span></>
                     : <span className="vc-sora-tm-big" style={{ color: COLORS.muted }}>No Roblox data</span>}
             </div>
 
@@ -117,7 +114,7 @@ function Summary({ entry, b, reading, onRead, hover, setHover }: {
                                     onMouseLeave={() => { props.onMouseLeave?.(); setHover(null); }}
                                     style={dim(k)}
                                 >
-                                    <span className="vc-sora-tm-tile-k"><i style={{ background: STEP_CATS[k].color }} />{STEP_CATS[k].name}{k === "plugin" ? " ⚡" : ""}</span>
+                                    <span className="vc-sora-tm-tile-k"><i style={{ background: STEP_CATS[k].color }} />{STEP_CATS[k].name}</span>
                                     <span className={`vc-sora-tm-tile-v${has ? "" : " none"}`}>{has ? formatSecs(b.totals[k]) : "–"}</span>
                                 </div>
                             )}
@@ -210,7 +207,7 @@ function Steps({ b }: { b: JoinBreakdown; }) {
 function Grid({ b }: { b: JoinBreakdown; }) {
     // Same measure as the Summary headline first, then what came after it
     const totals: [string, number | null, string][] = [
-        ["To reach the server", reachedAt(b), "From the message until you reached the server, before any queue."],
+        ["Until server slot request", reachedAt(b), "From the message until the server answered the request for a slot, not counting any wait in its queue."],
         ["Until you were let in", b.spot, "From the message until the server let you in."],
         ["Until connected", b.connected, "From the message until you were connected to the server."],
     ];

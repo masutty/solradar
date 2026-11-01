@@ -27,7 +27,7 @@ export type SettingProps = {
     disabled?: boolean;
     style?: React.CSSProperties;
     chipKind?: ChipKind;
-    keywords?: boolean; // comma-separated words, edited as chips
+    keywords?: boolean | "exclude"; // comma-separated words, edited as chips. "exclude" makes them red
     tech?: boolean; // shows a "Technical" badge next to the label
 };
 
@@ -205,10 +205,10 @@ function IdChipControl({ id, kind, label, hint, tooltip }: {
     );
 }
 
-function KeywordsControl({ id, label, hint }: { id: SettingsKey; label: React.ReactNode; hint?: string; }) {
+function KeywordsControl({ id, label, hint, variant }: { id: SettingsKey; label: React.ReactNode; hint?: string; variant?: "match" | "exclude"; }) {
     const raw = settings.use([id])[id] as string ?? "";
     const words = raw.split(",").map(v => v.trim()).filter(Boolean);
-    return <KeywordsInput label={label} hint={hint} value={words} onChangeValue={v => { s()[id] = v.join(", "); }} />;
+    return <KeywordsInput label={label} hint={hint} variant={variant} value={words} onChangeValue={v => { s()[id] = v.join(", "); }} />;
 }
 
 function BooleanControl({ id, disabled }: { id: SettingsKey; disabled?: boolean; }) {
@@ -372,7 +372,7 @@ export function Setting({ id, label, description, tooltip, disabled, style, chip
             );
             if (keywords) return (
                 <div data-sora-setting={id}>
-                    <KeywordsControl id={id} label={labelNode} hint={description} />
+                    <KeywordsControl id={id} label={labelNode} hint={description} variant={keywords === "exclude" ? "exclude" : "match"} />
                 </div>
             );
             control = <StringControl id={id} disabled={disabled} />;

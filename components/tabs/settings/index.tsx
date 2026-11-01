@@ -20,6 +20,7 @@ import { useAutoTour } from "../../tour/useAutoTour";
 import { ChipKind } from "../../ui/IdChipInput";
 import { Note } from "../../ui/Note";
 import { Block, BlockMaster } from "./Block";
+import { BoltSetting } from "./BoltPicker";
 import { DebugReport } from "./DebugReport";
 import { BlockId, Overview } from "./Overview";
 import { HelpTip, Setting, TechBadge } from "./Setting";
@@ -411,7 +412,7 @@ type SettingEntry = {
     description?: string;
     tooltip?: string;
     chipKind?: ChipKind;
-    keywords?: boolean;
+    keywords?: boolean | "exclude";
     tech?: boolean;
 };
 
@@ -616,8 +617,8 @@ export function SettingsTab() {
                 { id: "ignoredGuilds", label: "Always ignore these servers", chipKind: "guild", description: "Overrides every trigger. Good for servers with no-sniper rules." },
                 { id: "ignoredChannels", label: "Always ignore these channels", chipKind: "channel", description: "Overrides every trigger." },
                 { id: "ignoredUsers", label: "Always ignore these users", chipKind: "user", description: "Overrides every trigger." },
-                { id: "globalExcludeKeywords", label: "Global must not contain", keywords: true, description: "A message with any of these words matches no trigger. Leave empty to turn it off.", tooltip: "A trigger can skip this list with \"Bypass global excluded words\" in its Bypasses section." },
-                { id: "globalExcludeStrict", label: "Match whole words only", description: "Off: \"hunt\" also blocks \"hunting\". On: it only blocks the word \"hunt\"." },
+                { id: "globalExcludeKeywords", label: "Ignore messages with these words", keywords: "exclude", description: "A message with any of these words matches no trigger. Not recommended unless you know exactly what you are doing: leave it empty. A trigger can skip this list with \"Bypass global excluded words\"." },
+                { id: "globalExcludeStrict", label: "Match whole words only", description: "On: \"hunt\" only blocks the word \"hunt\". Off: it also blocks \"hunting\"." },
             ],
         },
         {
@@ -666,6 +667,7 @@ export function SettingsTab() {
             entries: [
                 { id: "hideInactiveIndicator", label: "Hide the inactive dot", description: "Hide the red dot on the menu button while auto-join is off." },
                 { id: "customNotificationSoundDelay", label: "Notification sound delay (ms)", description: "Delay before a trigger's custom sound plays.", tech: true },
+                { key: "historyBolt", search: "history timing number lightning bolt snipe sum reaction", node: <BoltSetting /> },
             ],
         },
         {

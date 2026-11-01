@@ -10,6 +10,7 @@ import { DeleteIcon } from "@components/Icons";
 import { Paragraph } from "@components/Paragraph";
 import { Alerts, ContextMenuApi, Menu, React, ScrollerThin, TextInput, Tooltip, useState } from "@webpack/common";
 
+import { BOLT_PRESETS, boltSum, JOIN_STEPS, sameSteps } from "../../../services/JoinTimeline";
 import { settings } from "../../../settings";
 import { SnipeEntry, SnipeStore, useSnipeHistory } from "../../../stores/SnipeStore";
 import { useTourAction } from "../../../stores/TourStore";
@@ -27,7 +28,7 @@ import { useShiftHeld } from "../../ui/useShiftHeld";
 import { FallbackImage, getSnipeStatus } from "./components";
 import { openJoinModal } from "./JoinModal";
 import { openSnipeContextMenu } from "./SnipeContextMenu";
-import { OutcomeGlyph } from "./SnipeTimeline";
+import { formatSecs, OutcomeGlyph } from "./SnipeTimeline";
 import { outcomeIcon, phaseSpans } from "./steps";
 
 // --- Filters ---
@@ -141,7 +142,13 @@ function Hidden({ anonymize, children }: { anonymize: boolean; children: React.R
 }
 
 function SnipeCard({ entry, index, shiftHeld }: { entry: SnipeEntry; index: number; shiftHeld: boolean; }) {
-    const { anonymizeEverything } = settings.use(["anonymizeEverything"]);
+    const { anonymizeEverything, historyBoltSteps } = settings.use(["anonymizeEverything", "historyBoltSteps"]);
+    const showBolt = !!entry.metrics && historyBoltSteps.length > 0;
+    const boltMs = showBolt ? boltSum(entry, historyBoltSteps) : null;
+    const boltPreset = BOLT_PRESETS.find(p => sameSteps(p.steps, historyBoltSteps));
+    const boltTip = boltPreset
+        ? `${boltPreset.label}: ${boltPreset.tip}`
+        : `Sum of ${historyBoltSteps.map(k => JOIN_STEPS[k as keyof typeof JOIN_STEPS]?.name ?? k).join(", ")}. Change it in the Developer tab.`;
     const status = getSnipeStatus(entry);
     const isReal = entry.tags.includes("biome-verified-real");
 
@@ -201,11 +208,11 @@ function SnipeCard({ entry, index, shiftHeld }: { entry: SnipeEntry; index: numb
                 <Tooltip text={fullDateTime(entry.timestamp)}>
                     {props => <span {...props} className="vc-sora-history-clock">{timeAgo(entry.timestamp)}</span>}
                 </Tooltip>
-                {(entry.metrics || (isReal && entry.biomeDurationMs != null)) && (
+                {(showBolt || (isReal && entry.biomeDurationMs != null)) && (
                     <span className="vc-sora-history-stats">
-                        {entry.metrics && (
-                            <Tooltip text="Reaction time: from the message to Roblox opening the server">
-                                {props => <span {...props}>⚡ {Math.round(entry.metrics!.timeToJoinMs)}ms</span>}
+                        {showBolt && (
+                            <Tooltip text={boltTip}>
+                                {props => <span {...props}>⚡ {boltMs === null ? "-" : formatSecs(boltMs)}</span>}
                             </Tooltip>
                         )}
                         {isReal && entry.biomeDurationMs != null && (

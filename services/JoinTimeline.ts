@@ -59,7 +59,7 @@ export type JoinStepKey = "read" | "close" | "open" | "startup" | "helper" | "lo
 const QUEUE_MS = 2500;
 
 export const STEP_CATS: Record<StepCat, { name: string; color: string; tip: string; }> = {
-    plugin: { name: "Plugin", color: "var(--brand-500)", tip: "Sol Radar's part: reading the message and opening Roblox. This is the ⚡." },
+    plugin: { name: "Plugin", color: "var(--brand-500)", tip: "Sol Radar's own code: reading the message and finding the trigger." },
     hw: { name: "Hardware", color: "var(--vc-sora-hw)", tip: "Roblox starting and loading on your PC." },
     net: { name: "Network", color: "var(--vc-sora-net)", tip: "Roblox talking to its servers." },
     queue: { name: "Queue", color: "var(--text-muted)", tip: "You waiting in line because the server was full." },
@@ -67,8 +67,8 @@ export const STEP_CATS: Record<StepCat, { name: string; color: string; tip: stri
 
 export const JOIN_STEPS: Record<JoinStepKey, { name: string; cat: StepCat; tip: string; }> = {
     read: { name: "Read message", cat: "plugin", tip: "Finding the trigger and checking for duplicates." },
-    close: { name: "Close Roblox", cat: "plugin", tip: "Safe join mode closes the game before joining." },
-    open: { name: "Open Roblox", cat: "plugin", tip: "Windows starting Roblox with the link." },
+    close: { name: "Close Roblox", cat: "hw", tip: "Safe join mode closes the game before joining. Windows ending the Roblox process." },
+    open: { name: "Open Roblox", cat: "hw", tip: "Windows creating the Roblox process for the link. Not Sol Radar's code." },
     startup: { name: "Roblox startup", cat: "hw", tip: "A new Roblox process starting before it runs its own code." },
     helper: { name: "Helper", cat: "hw", tip: "The new Roblox passes the link to the Roblox that was already open, then closes." },
     loading: { name: "Roblox loading", cat: "hw", tip: "Roblox loading from closed, then resolving the link. Roblox doesn't log the two apart." },
@@ -78,6 +78,17 @@ export const JOIN_STEPS: Record<JoinStepKey, { name: string; cat: StepCat; tip: 
     queue: { name: "Queue", cat: "queue", tip: "The server was full, so you waited in line to get in." },
     connect: { name: "Connect", cat: "net", tip: "Connecting to the server after it let you in." },
 };
+
+/**
+ * When the server answered the request to let you in, not counting a queue.
+ * Roblox logs nothing while it waits, so a long wait is all queue and this is where it began.
+ */
+export function reachedAt(b: JoinBreakdown): number | null {
+    const queue = b.steps.find(s => s.key === "queue");
+    if (queue) return queue.start;
+    const server = b.steps.find(s => s.key === "server");
+    return server ? server.end ?? server.start : null;
+}
 
 export interface JoinStep {
     key: JoinStepKey;
@@ -162,6 +173,41 @@ export function joinBreakdown(entry: SnipeEntry, now = Date.now()): JoinBreakdow
     const spotAt = cursor;
     const connected = step("connect", rel(st.connected)) ? cursor : null;
     return result(tl.mode, spotAt, connected);
+}
+
+// --- History bolt ---
+// The number next to the ⚡ on every snipe in the history: the sum of the steps picked in the Developer tab.
+
+export const BOLT_STEP_KEYS = Object.keys(JOIN_STEPS) as JoinStepKey[];
+const stepsOfCat = (cat: StepCat) => BOLT_STEP_KEYS.filter(k => JOIN_STEPS[k].cat === cat);
+const upTo = (last: JoinStepKey) => BOLT_STEP_KEYS.slice(0, BOLT_STEP_KEYS.indexOf(last) + 1);
+
+export const DEFAULT_BOLT_STEPS: JoinStepKey[] = ["read", "close", "open"];
+
+export const BOLT_PRESETS: { label: string; tip: string; steps: JoinStepKey[]; }[] = [
+    { label: "Reaction time", tip: "From the message until Sol Radar handed the link to Windows.", steps: DEFAULT_BOLT_STEPS },
+    { label: "Until server slot request", tip: "From the message until the server answered the request for a slot, not counting any wait in its queue.", steps: upTo("server") },
+    { label: "Until you were let in", tip: "From the message until the server let you in.", steps: upTo("queue") },
+    { label: "Until connected", tip: "From the message until you were connected to the server.", steps: BOLT_STEP_KEYS },
+    { label: "Plugin total", tip: STEP_CATS.plugin.tip, steps: stepsOfCat("plugin") },
+    { label: "Hardware total", tip: STEP_CATS.hw.tip, steps: stepsOfCat("hw") },
+    { label: "Network total", tip: STEP_CATS.net.tip, steps: stepsOfCat("net") },
+];
+
+export const sameSteps = (a: readonly string[], b: readonly string[]) => a.length === b.length && a.every(k => b.includes(k));
+
+/** The picked steps added up, or null when this snipe has none of them. A step this join didn't have counts as 0. */
+export function boltSum(entry: SnipeEntry, steps: readonly string[]): number | null {
+    const b = joinBreakdown(entry);
+    if (!b) return null;
+    let total = 0;
+    let found = false;
+    for (const s of b.steps) {
+        if (!steps.includes(s.key) || s.end === null) continue;
+        total += s.end - s.start;
+        found = true;
+    }
+    return found ? total : null;
 }
 
 // --- Phases (Developer stats and CSV) ---
