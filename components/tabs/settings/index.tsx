@@ -551,7 +551,7 @@ export function SettingsTab() {
                     tooltip: "Direct runs the Roblox program below with the join link, without cmd.exe. cmd start asks Windows to open the link, which adds about 100ms. If Direct fails, the join falls back to cmd start.",
                     tech: true,
                 },
-                ...(launchMethod !== "shell" ? [{ key: "robloxProgram", search: "roblox program exe file launcher path windows", node: <RobloxProgramCard /> }] : []),
+                ...(launchMethod === "direct" ? [{ key: "robloxProgram", search: "roblox program exe file launcher path windows", node: <RobloxProgramCard /> }] : []),
             ],
         },
         {

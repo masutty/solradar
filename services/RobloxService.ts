@@ -27,7 +27,7 @@ const Native = VencordNative.pluginHelpers.SolRadar as PluginNative<typeof impor
 
 /** Opens a deeplink with the launch method from settings. */
 async function launch(uri: string): Promise<void> {
-    await Native.openUri(uri, settings.store.launchMethod === "shell" ? "shell" : "direct", settings.store.launchExePath || undefined);
+    await Native.openUri(uri, settings.store.launchMethod === "direct" ? "direct" : "shell", settings.store.launchExePath || undefined);
 }
 
 export function buildJoinUri(link: SnipableLink | string): string {

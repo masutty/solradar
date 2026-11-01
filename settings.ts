@@ -115,8 +115,8 @@ export const settings = definePluginSettings({
         type: OptionType.SELECT,
         description: "How the roblox:// link is handed to Roblox.",
         options: [
-            { label: "Run the Roblox program directly", value: "direct", default: true },
-            { label: "Open the link with cmd start", value: "shell" },
+            { label: "Run the Roblox program directly", value: "direct" },
+            { label: "Open the link with cmd start", value: "shell", default: true },
         ],
         hidden: true,
     },
