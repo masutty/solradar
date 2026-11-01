@@ -188,27 +188,6 @@ export async function openUri(_: IpcMainInvokeEvent, uri: string, method: Launch
 
 // --- Discord: background throttling ---
 
-// Discord's own value, saved before the first change so turning the setting off restores it
-let discordThrottling: boolean | null = null;
-
-/**
- * awake = true turns off Chromium's background throttling for Discord's window. The renderer
- * (where the plugin reads messages) then stays treated as visible while minimized, so it is not
- * moved to a lower priority. It also keeps Discord rendering, which costs some CPU.
- * awake = false puts back Discord's own value.
- */
-export function setKeepDiscordAwake(event: IpcMainInvokeEvent, awake: boolean): { ok: boolean; discordDefault: boolean | null; now: boolean | null; } {
-    try {
-        const wc = event.sender;
-        if (discordThrottling === null) discordThrottling = wc.getBackgroundThrottling();
-        wc.setBackgroundThrottling(awake ? false : discordThrottling);
-        return { ok: true, discordDefault: discordThrottling, now: wc.getBackgroundThrottling() };
-    } catch (err) {
-        logger.warn("setKeepDiscordAwake failed:", err);
-        return { ok: false, discordDefault: discordThrottling, now: null };
-    }
-}
-
 // --- Roblox: join timeline from the logs ---
 
 export type RobloxStageName =

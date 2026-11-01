@@ -5,15 +5,9 @@
  */
 
 import { definePluginSettings } from "@api/Settings";
-import { OptionType, PluginNative } from "@utils/types";
+import { OptionType } from "@utils/types";
 
 import { OpenPluginButton } from "./components/ui/buttons/OpenPluginButton";
-
-/** Applies the "keep Discord awake" setting. index.tsx calls it on start and on every change. */
-export async function applyKeepDiscordAwake(awake: boolean) {
-    const native = VencordNative.pluginHelpers.SolRadar as PluginNative<typeof import("./native")>;
-    return native.setKeepDiscordAwake(awake);
-}
 
 export const ACTION_OPTIONS = [
     { label: "Nothing", value: "nothing" },
@@ -119,17 +113,11 @@ export const settings = definePluginSettings({
     },
     launchMethod: {
         type: OptionType.SELECT,
-        description: "How the join link is handed to Roblox.",
+        description: "How the roblox:// link is handed to Roblox.",
         options: [
-            { label: "Direct (start Roblox's exe)", value: "direct", default: true },
-            { label: "Shell (cmd start, the old way)", value: "shell" },
+            { label: "Run Roblox's executable directly", value: "direct", default: true },
+            { label: "Open the link through cmd start", value: "shell" },
         ],
-        hidden: true,
-    },
-    keepDiscordAwake: {
-        type: OptionType.BOOLEAN,
-        description: "Turn off Chromium's background throttling for Discord, so messages are handled at full priority while Discord is minimized or hidden.",
-        default: false,
         hidden: true,
     },
     adbCloseDelayMs: {

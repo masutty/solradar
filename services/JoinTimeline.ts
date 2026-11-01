@@ -241,7 +241,7 @@ export const joinedEntries = (entries: SnipeEntry[]) =>
 
 export function joinSpeedCsv(entries: SnipeEntry[]): string {
     const cols = PHASES.map(p => p.key);
-    const head = ["id", "time_utc", "trigger", "launch_method", "discord_awake", "discord_focused", "roblox_mode", "helper_ms", "slow_http", ...cols];
+    const head = ["id", "time_utc", "trigger", "launch_method", "discord_focused", "roblox_mode", "helper_ms", "slow_http", ...cols];
     const rows = entries.map(e => {
         const ph = phasesOf(e);
         const m = e.metrics!;
@@ -250,7 +250,6 @@ export function joinSpeedCsv(entries: SnipeEntry[]): string {
             new Date(m.receivedAt ?? e.timestamp).toISOString(),
             JSON.stringify(e.triggerName),
             m.launchMethod ?? "",
-            m.discordAwake ?? "",
             m.discordFocused ?? "",
             e.robloxTimeline?.mode ?? "",
             e.robloxTimeline?.forwarderMs ?? "",

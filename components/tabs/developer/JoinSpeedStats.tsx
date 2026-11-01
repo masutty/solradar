@@ -5,7 +5,7 @@
  */
 
 // Join speed stats (test build): averages and percentiles of every join phase,
-// split by the things being tested (launch method, Discord awake/focused, warm/cold Roblox).
+// split by the things being tested (launch method, Discord focused, warm/cold Roblox).
 
 import { Button } from "@components/Button";
 import { copyToClipboard } from "@utils/clipboard";
@@ -16,12 +16,11 @@ import { SnipeEntry, useSnipeHistory } from "../../../stores/SnipeStore";
 import { card, COLORS, descriptionText } from "../../ui/styles";
 
 type Range = "20" | "100" | "all";
-type GroupBy = "none" | "method" | "awake" | "focused" | "mode";
+type GroupBy = "none" | "method" | "focused" | "mode";
 
 const GROUPS: { id: GroupBy; label: string; of: (e: SnipeEntry) => string; }[] = [
     { id: "none", label: "All together", of: () => "all" },
     { id: "method", label: "Launch method", of: e => e.metrics?.launchMethod ?? "unknown" },
-    { id: "awake", label: "Discord awake", of: e => e.metrics?.discordAwake == null ? "unknown" : e.metrics.discordAwake ? "awake on" : "awake off" },
     { id: "focused", label: "Discord focused", of: e => e.metrics?.discordFocused == null ? "unknown" : e.metrics.discordFocused ? "focused" : "not focused" },
     { id: "mode", label: "Roblox warm/cold", of: e => e.robloxTimeline?.mode ?? "no log" },
 ];

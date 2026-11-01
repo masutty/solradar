@@ -350,19 +350,10 @@ export function SettingsTab() {
                 }] : []),
                 {
                     id: "launchMethod", label: "Launch method",
-                    description: "How the join link is handed to Roblox. Direct is faster.",
-                    tooltip: "Direct starts Roblox's exe (read from the registry) without cmd.exe in between. Shell is the old way: cmd start, then Windows looks up the handler. Direct falls back to Shell by itself if it fails.",
+                    description: "How the roblox:// link is handed to Roblox.",
+                    tooltip: "Direct runs the roblox:// handler registered in Windows (RobloxPlayerBeta.exe) with the link as its argument, without cmd.exe. cmd start runs \"cmd /c start\" with the link and lets Windows look up the handler, which adds about 100ms. Direct falls back to cmd start if the handler can't be run.",
                     tech: true,
                 },
-                {
-                    id: "keepDiscordAwake", label: "Keep Discord awake in the background",
-                    description: "Experimental. Stops Chromium from lowering Discord's priority while it is minimized or hidden.",
-                    tooltip: "Discord keeps rendering while hidden, so it uses a bit more CPU. Test it: compare Discord delivery in the Developer tab stats with it on and off.",
-                    tech: true,
-                },
-                { id: "privateServerLink", label: "Private server link", description: "Your own private server. Needed by any action set to join it." },
-                { id: "deduplicateLinks", label: "Skip repeated links", description: "Ignore a link already seen in the last 10 minutes for the same trigger." },
-                { id: "resolveAmbiguousLinks", label: "Use the first link when there are several", description: "A message with different link types, like a share link next to a private server link, is skipped by default. Turn this on to use the first one." },
             ],
         },
         {
@@ -379,6 +370,7 @@ export function SettingsTab() {
                 ...(onBiomeEnd !== "nothing" ? [{ id: "biomeEndActionTimeout" as const, label: "Wait before acting (ms)", description: DELAY_DESCRIPTION }] : []),
                 { id: "onBiomeTimeout", label: "When detection times out", description: "No biome was detected in time." },
                 ...(onBiomeTimeout !== "nothing" ? [{ id: "biomeTimeoutActionTimeout" as const, label: "Wait before acting (ms)", description: DELAY_DESCRIPTION }] : []),
+                { id: "privateServerLink", label: "Private server link", description: "Your own private server. Needed by any action set to join it." },
                 ...(anyBiomeAction ? [{ id: "skipActionConfirmation" as const, label: "Act without asking", description: "Run these actions immediately, with no cancel prompt." }] : []),
             ],
         },
@@ -435,6 +427,8 @@ export function SettingsTab() {
             entries: [
                 { id: "flattenEmbeds", label: "Read embeds", description: "Also match triggers against embed titles and descriptions. Needed for macro servers that post biomes inside embeds." },
                 { id: "advancedEmbedFlattening", label: "Deep embed reading", description: "Also read embed fields and message component URLs when reading embeds.", tech: true },
+                { id: "deduplicateLinks", label: "Skip repeated links", description: "Ignore a link already seen in the last 10 minutes for the same trigger." },
+                { id: "resolveAmbiguousLinks", label: "Use the first link when there are several", description: "A message with different link types, like a share link next to a private server link, is skipped by default. Turn this on to use the first one." },
                 { id: "interpretJoinguardLinks", label: "Accept Joinguard links", description: "Handle Sol's Stat Tracker Joinguard links. They open your browser for Cloudflare verification, so the place cannot be checked." },
                 { id: "ignoreWebhookForwards", label: "Ignore SolRadar's own forwards", description: "Skip any message whose embed footer contains \"solradar\", so the plugin never reacts to its own webhooks.", tech: true },
                 { id: "watchMessageEdits", label: "Check edited messages", description: "Experimental. Also check a message when it is edited, for people who post the link first and add the biome later.", tooltip: "Only edits made in the first minute count. An edit that keeps the same biome never makes a second snipe.", tech: true },

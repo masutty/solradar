@@ -77,7 +77,7 @@ function joinContextRows(entry: SnipeEntry): [string, string][] {
     const launch = m.launchMethod ? `${capitalize(m.launchMethod)} launch${m.launchFallback ? " (direct failed)" : ""}` : "Unknown launch";
     const mode = m.joinMode ? capitalize(m.joinMode) : "Unknown mode";
     const roblox = entry.robloxTimeline ? (entry.robloxTimeline.mode === "warm" ? "Already open" : "Started from closed") : "Unknown";
-    const discord = m.discordFocused == null ? "Unknown" : `${m.discordFocused ? "Focused" : "In the background"}${m.discordAwake ? ", kept awake" : ""}`;
+    const discord = m.discordFocused == null ? "Unknown" : m.discordFocused ? "Focused" : "In the background";
     return [["Join", `${mode} · ${launch}`], ["Roblox", roblox], ["Discord", discord]];
 }
 

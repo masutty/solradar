@@ -300,7 +300,6 @@ async function joinServer(uri: string, snipe: Snipe): Promise<JoinServerResult> 
             launchMethod: launch?.method,
             launchFallback: launch?.fallbackReason,
             joinMode: settings.store.joinMode === "safe" ? "safe" : "unsafe",
-            discordAwake: !!settings.store.keepDiscordAwake,
             discordFocused: document.hasFocus(),
         },
     };
