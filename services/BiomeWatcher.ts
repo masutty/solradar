@@ -10,13 +10,11 @@ import { Snipe } from "../models/Snipe";
 import { settings } from "../settings";
 import { JoinLockStore } from "../stores/JoinLockStore";
 import { SnipeStore } from "../stores/SnipeStore";
-import { TriggerType } from "../stores/TriggerStore";
+import { hasBiomeCheck } from "../stores/TriggerStore";
 import { formatElapsedTime } from "../utils";
 import { scheduleCancelableAction } from "./ActionExecutor";
 import { BiomeDetector } from "./BiomeDetector";
 import { forwardSnipe } from "./ForwardingService";
-
-const BIOME_DETECTABLE_TYPES = new Set<TriggerType>(["RARE_BIOME", "EVENT_BIOME", "BIOME", "WEATHER"]);
 
 let _unsubscribeBiomeDetection: (() => void) | null = null;
 
@@ -63,7 +61,7 @@ function _watchForBiomeEnd(snipe: Snipe): void {
 export function startBiomeDetection(snipe: Snipe): void {
     _unsubscribeBiomeDetection?.();
 
-    if (!BIOME_DETECTABLE_TYPES.has(snipe.trigger.type)) {
+    if (!hasBiomeCheck(snipe.trigger.type)) {
         return;
     }
     if (!snipe.trigger.biome?.detectionEnabled) {

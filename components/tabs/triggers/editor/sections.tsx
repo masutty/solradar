@@ -10,7 +10,7 @@ import { copyToClipboard } from "@utils/clipboard";
 import { React, showToast, TextInput, Tooltip, useEffect, useState } from "@webpack/common";
 
 import { settings } from "../../../../settings";
-import { DEFAULT_BIOME, Trigger, TriggerType } from "../../../../stores/TriggerStore";
+import { DEFAULT_BIOME, hasBiomeCheck, Trigger, TriggerType } from "../../../../stores/TriggerStore";
 import { TourAnchor, tourAnchor } from "../../../tour/TourAnchor";
 import { IdChipInput } from "../../../ui/IdChipInput";
 import { KeywordsInput } from "../../../ui/KeywordsInput";
@@ -33,7 +33,7 @@ export const TYPE_META: Record<TriggerType, { label: string; color: string; }> =
     CUSTOM: { label: "Custom", color: "#949ba4" },
 };
 
-export const hasBiomeCheck = (type: TriggerType) => type !== "MERCHANT";
+export { hasBiomeCheck };
 
 // --- Essentials ---
 
@@ -286,12 +286,15 @@ function BiomeSection({ draft, patch }: { draft: Draft; patch: Patch; }) {
             {biome.detectionEnabled && <>
                 <TextField
                     label="Biome name in the logs"
-                    hint="Case-insensitive."
+                    hint={`Case-insensitive. Empty uses the trigger name, "${draft.name.trim().toUpperCase() || "…"}"`}
                     tooltip='Matches the BloxstrapRPC "hoverText" field in the Roblox log.'
                     value={biome.detectionKeyword}
                     placeholder="e.g. GLITCHED"
                     onChange={v => patchBiome({ detectionKeyword: v })}
                 />
+                {draft.type === "CUSTOM" && !biome.detectionKeyword.trim() && (
+                    <Note variant="warning">Custom triggers are often named after something that isn't a biome, like a boss. Type the biome it shows up in, or every join will look fake.</Note>
+                )}
                 <SwitchRow label="Skip if already there" hint="If you're already in this biome, don't join again. Still notifies." value={biome.skipRedundantJoin} onChange={v => patchBiome({ skipRedundantJoin: v })} />
             </>}
         </TourAnchor>

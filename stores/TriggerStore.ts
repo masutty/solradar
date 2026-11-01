@@ -18,6 +18,9 @@ const logger = new Logger("SolRadar");
 
 export type TriggerType = "RARE_BIOME" | "EVENT_BIOME" | "BIOME" | "WEATHER" | "MERCHANT" | "CUSTOM";
 
+/** Types whose biome can be checked after joining. The editor and the biome watcher both use this. */
+export const hasBiomeCheck = (type: TriggerType) => type !== "MERCHANT";
+
 export interface TriggerState {
     enabled: boolean;
     autojoin: boolean;
