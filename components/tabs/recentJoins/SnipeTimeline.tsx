@@ -94,7 +94,7 @@ export function OutcomeGlyph({ icon, size = 12 }: { icon: OutcomeIcon; size?: nu
 
 type StoryLine = SnipeLogEntry & { roblox?: boolean; };
 
-const ROBLOX_STEPS = new Set<JoinStepKey>(["startup", "helper", "loading", "resolve", "prepare", "server", "connect"]);
+const ROBLOX_STEPS = new Set<JoinStepKey>(["startup", "helper", "loading", "resolve", "prepare", "server", "queue", "connect"]);
 
 /** Roblox's own milestones as log-like lines, on the same clock as the snipe's log. */
 function robloxLines(entry: SnipeEntry): StoryLine[] {
@@ -108,6 +108,8 @@ function robloxLines(entry: SnipeEntry): StoryLine[] {
     if (loaded?.end != null) out.push(line(loaded.end, "Roblox finished loading and resolved the link."));
     else if (handed?.end != null) out.push(line(handed.end, `Roblox got the link after ${formatSecs(handed.end - b.steps[0].start)}.`));
     const ask = b.steps.find(s => s.key === "server");
+    const queue = b.steps.find(s => s.key === "queue");
+    if (queue) out.push(line(queue.start, "The server was full. Roblox waited in its queue."));
     if (b.spot !== null) out.push(line(b.spot, `Roblox got a spot in the server (${formatSecs(b.spot)} after the message).`));
     else if (ask) out.push(line(ask.start, "Roblox asked for a spot and got no reply."));
     if (b.connected !== null) out.push(line(b.connected, "Roblox connected to the server."));
@@ -284,7 +286,7 @@ export function WaterfallView({ entry }: { entry: SnipeEntry; }) {
                 </React.Fragment>
             ))}
             <div className="vc-sora-wf-key">
-                {rbx && (["plugin", "hw", "net"] as const).map(k => (
+                {rbx && (["plugin", "hw", "net", "queue"] as const).filter(k => k !== "queue" || rbx.some(s => s.key === "queue")).map(k => (
                     <span key={k}><i style={{ width: 8, height: 8, borderRadius: 2, background: STEP_CATS[k].color }} />{STEP_CATS[k].name}</span>
                 ))}
                 <span><i className="vc-sora-wf-key-diamond" />Instant step</span>

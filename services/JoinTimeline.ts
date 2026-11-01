@@ -50,13 +50,20 @@ export function scheduleTimelineCapture(id: number): void {
 // One ordered list of steps from the message to the game server, used by the snipe menu,
 // the log waterfall, the Developer stats and the CSV, so they always agree.
 
-export type StepCat = "plugin" | "hw" | "net";
-export type JoinStepKey = "read" | "close" | "open" | "startup" | "helper" | "loading" | "resolve" | "prepare" | "server" | "connect";
+export type StepCat = "plugin" | "hw" | "net" | "queue";
+export type JoinStepKey = "read" | "close" | "open" | "startup" | "helper" | "loading" | "resolve" | "prepare" | "server" | "queue" | "connect";
+
+/**
+ * A server request longer than this was a wait in the server's queue, not the network.
+ * Roblox logs nothing while it waits; a normal request takes 0.3 to 0.7s.
+ */
+const QUEUE_MS = 2500;
 
 export const STEP_CATS: Record<StepCat, { name: string; color: string; tip: string; }> = {
     plugin: { name: "Plugin", color: "var(--brand-500)", tip: "Sol Radar's part: reading the message and opening Roblox. This is the ⚡." },
     hw: { name: "Hardware", color: "var(--vc-sora-hw)", tip: "Roblox starting and loading on your PC." },
     net: { name: "Network", color: "var(--vc-sora-net)", tip: "Roblox talking to its servers." },
+    queue: { name: "Queue", color: "var(--text-muted)", tip: "Waiting in line for a spot because the server was full." },
 };
 
 export const JOIN_STEPS: Record<JoinStepKey, { name: string; cat: StepCat; tip: string; }> = {
@@ -69,6 +76,7 @@ export const JOIN_STEPS: Record<JoinStepKey, { name: string; cat: StepCat; tip: 
     resolve: { name: "Link resolve", cat: "net", tip: "Roblox asking where the link points." },
     prepare: { name: "Prepare", cat: "hw", tip: "Roblox setting up the game on your PC." },
     server: { name: "Server request", cat: "net", tip: "Roblox asking for a spot in the server. Ends when it has one." },
+    queue: { name: "Queue", cat: "queue", tip: "The server was full, so Roblox waited in line for a spot." },
     connect: { name: "Connect", cat: "net", tip: "Connecting to the server after getting the spot." },
 };
 
@@ -114,7 +122,7 @@ export function joinBreakdown(entry: SnipeEntry, now = Date.now()): JoinBreakdow
     const openEnd = t;
 
     const result = (situation: JoinSituation, spot: number | null = null, connected: number | null = null): JoinBreakdown => {
-        const totals: Record<StepCat, number> = { plugin: 0, hw: 0, net: 0 };
+        const totals: Record<StepCat, number> = { plugin: 0, hw: 0, net: 0, queue: 0 };
         for (const s of steps) if (s.end !== null && s.key !== "connect") totals[JOIN_STEPS[s.key].cat] += s.end - s.start;
         return { situation, steps, spot, connected, totals };
     };
@@ -151,7 +159,7 @@ export function joinBreakdown(entry: SnipeEntry, now = Date.now()): JoinBreakdow
         steps.push({ key: "server", start: cursor, end: null });
         return result("noSpot");
     }
-    step("server", spot);
+    step(spot - cursor > QUEUE_MS ? "queue" : "server", spot);
     const spotAt = cursor;
     const connected = step("connect", rel(st.connected)) ? cursor : null;
     return result(tl.mode, spotAt, connected);
@@ -161,7 +169,7 @@ export function joinBreakdown(entry: SnipeEntry, now = Date.now()): JoinBreakdow
 
 export type PhaseKey =
     | "discord" | "plugin" | "launch"
-    | "handoff" | "preStart" | "helper" | "loading" | "resolve" | "prepare" | "gamejoin" | "connect"
+    | "handoff" | "preStart" | "helper" | "loading" | "resolve" | "prepare" | "gamejoin" | "queue" | "connect"
     | "toServer" | "total";
 
 export const PHASES: { key: PhaseKey; label: string; tip: string; }[] = [
@@ -175,13 +183,14 @@ export const PHASES: { key: PhaseKey; label: string; tip: string; }[] = [
     { key: "resolve", label: "Link resolve", tip: JOIN_STEPS.resolve.tip },
     { key: "prepare", label: "Prepare", tip: JOIN_STEPS.prepare.tip },
     { key: "gamejoin", label: "Server request", tip: JOIN_STEPS.server.tip },
+    { key: "queue", label: "Queue", tip: JOIN_STEPS.queue.tip },
     { key: "connect", label: "Connect", tip: JOIN_STEPS.connect.tip },
     { key: "toServer", label: "Message → server", tip: "From the message reaching the plugin until Roblox got a spot in the server." },
     { key: "total", label: "Message → connected", tip: "From the message reaching the plugin until connected to the game server." },
 ];
 
 const STEP_PHASE: Partial<Record<JoinStepKey, PhaseKey>> = {
-    startup: "preStart", helper: "helper", loading: "loading", resolve: "resolve", prepare: "prepare", server: "gamejoin", connect: "connect",
+    startup: "preStart", helper: "helper", loading: "loading", resolve: "resolve", prepare: "prepare", server: "gamejoin", queue: "queue", connect: "connect",
 };
 
 /** Every phase this entry has data for, in ms. */

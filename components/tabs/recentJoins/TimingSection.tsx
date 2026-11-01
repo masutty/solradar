@@ -19,6 +19,8 @@ import { phaseSpans } from "./steps";
 
 type View = "summary" | "steps";
 const CATS: StepCat[] = ["plugin", "hw", "net"];
+// Queue only shows up when there was one
+const catsOf = (b: JoinBreakdown): StepCat[] => b.totals.queue > 0 ? [...CATS, "queue"] : CATS;
 
 function InfoIcon({ warn }: { warn?: boolean; }) {
     return warn
@@ -33,6 +35,7 @@ function DocIcon() {
 function noteFor(entry: SnipeEntry, b: JoinBreakdown, reading: boolean): { text: string; warn?: boolean; action?: boolean; } {
     // Opening an older snipe starts a read; don't call the log missing until it's done
     if (reading && !entry.robloxTimeline) return { text: "Reading Roblox's log…" };
+    if (b.totals.queue > 0) return { text: `The server was full, so you waited ${formatSecs(b.totals.queue)} in its queue.`, warn: true };
     switch (b.situation) {
         case "cold":
             return entry.metrics?.joinMode === "safe"
@@ -66,7 +69,8 @@ function Summary({ entry, b, reading, onRead, hover, setHover }: {
     const joined = b.spot !== null;
     const hasRoblox = b.totals.hw > 0 || b.totals.net > 0;
     const open = b.steps.find(s => s.end === null);
-    const parts = CATS.filter(k => b.totals[k] > 0);
+    const cats = catsOf(b);
+    const parts = cats.filter(k => b.totals[k] > 0);
     const barTotal = parts.reduce((a, k) => a + b.totals[k], 0);
     const note = noteFor(entry, b, reading);
     const dim = (k: StepCat): React.CSSProperties => ({ opacity: hover && hover !== k ? 0.35 : 1 });
@@ -99,8 +103,8 @@ function Summary({ entry, b, reading, onRead, hover, setHover }: {
                 </div>
             )}
 
-            <div className="vc-sora-tm-tiles">
-                {CATS.map(k => {
+            <div className="vc-sora-tm-tiles" style={{ gridTemplateColumns: `repeat(${cats.length}, minmax(0, 1fr))` }}>
+                {cats.map(k => {
                     const has = b.totals[k] > 0 || k === "plugin";
                     return (
                         <Tooltip key={k} text={STEP_CATS[k].tip}>
@@ -191,7 +195,7 @@ function Steps({ b }: { b: JoinBreakdown; }) {
                 );
             })}
             <div className="vc-sora-tm-key">
-                {CATS.filter(k => b.totals[k] > 0).map(k => <span key={k}><i style={{ background: STEP_CATS[k].color }} />{STEP_CATS[k].name}</span>)}
+                {catsOf(b).filter(k => b.totals[k] > 0).map(k => <span key={k}><i style={{ background: STEP_CATS[k].color }} />{STEP_CATS[k].name}</span>)}
                 {b.spot !== null && <span><i className="spot" />Spot in the server</span>}
             </div>
         </div>
