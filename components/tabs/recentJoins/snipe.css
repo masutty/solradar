@@ -376,3 +376,324 @@
 .vc-sora-raw-line.debug .vc-sora-raw-msg {
     color: var(--text-muted);
 }
+
+/* --- Timing (join speed) --- */
+
+:root {
+    --vc-sora-hw: #d95926;
+    --vc-sora-net: #199e70;
+}
+
+.theme-light {
+    --vc-sora-hw: #d4561f;
+    --vc-sora-net: #138a60;
+}
+
+.vc-sora-tm-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    min-height: 26px;
+}
+
+.vc-sora-tm-switch {
+    display: flex;
+    gap: 2px;
+    padding: 2px;
+    border-radius: 6px;
+    background: var(--background-mod-strong);
+}
+
+.vc-sora-tm-switch button {
+    border: none;
+    border-radius: 4px;
+    padding: 3px 10px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.vc-sora-tm-switch button[aria-pressed="true"] {
+    background: var(--background-mod-normal);
+    color: var(--text-default);
+}
+
+.vc-sora-tm-card {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 14px 14px 12px;
+    border-radius: 10px;
+    background: var(--background-mod-subtle);
+}
+
+.vc-sora-tm-card.steps {
+    gap: 0;
+    padding: 6px 8px 8px;
+}
+
+.vc-sora-tm-headline {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 10px;
+    color: var(--control-secondary-text-default, var(--text-default));
+    font-size: 13.5px;
+}
+
+.vc-sora-tm-big {
+    color: var(--text-default);
+    font-size: 28px;
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: -0.01em;
+    font-variant-numeric: tabular-nums;
+}
+
+.vc-sora-tm-big.warn {
+    color: var(--status-warning);
+}
+
+/* One pill: only the outer ends are round */
+.vc-sora-tm-bar {
+    display: flex;
+    gap: 2px;
+    height: 8px;
+    overflow: hidden;
+    border-radius: 999px;
+}
+
+.vc-sora-tm-bar i {
+    display: block;
+    min-width: 4px;
+    transition: opacity 0.12s ease-out;
+}
+
+.vc-sora-tm-bar i.open,
+.vc-sora-wf-span.open,
+.vc-sora-tm-span.open {
+    background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--status-warning) 60%, transparent) 0 3px, color-mix(in srgb, var(--status-warning) 15%, transparent) 3px 7px);
+}
+
+.vc-sora-tm-tiles {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+}
+
+.vc-sora-tm-tile {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: 9px 11px 10px;
+    border-radius: 6px;
+    background: var(--background-mod-subtle);
+    box-shadow: inset 0 0 0 1px var(--background-mod-subtle);
+    cursor: default;
+    transition: opacity 0.12s ease-out;
+}
+
+.vc-sora-tm-tile-k {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--text-muted);
+    font-size: 12px;
+}
+
+.vc-sora-tm-tile-k i {
+    width: 8px;
+    height: 8px;
+    border-radius: 2px;
+}
+
+.vc-sora-tm-tile-v {
+    color: var(--text-default);
+    font-size: 18px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+.vc-sora-tm-tile-v.none {
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+.vc-sora-tm-note {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding-top: 10px;
+    border-top: 1px solid var(--background-mod-subtle);
+    color: var(--control-secondary-text-default, var(--text-default));
+    font-size: 12.5px;
+    text-wrap: pretty;
+}
+
+.vc-sora-tm-note svg {
+    flex: none;
+    margin-top: 1px;
+    color: var(--text-muted);
+}
+
+.vc-sora-tm-note.warn svg {
+    color: var(--status-warning);
+}
+
+.vc-sora-tm-row {
+    display: grid;
+    grid-template-columns: 112px minmax(0, 1fr) 56px;
+    gap: 8px;
+    align-items: center;
+    height: 24px;
+    padding: 0 4px;
+    border-radius: 4px;
+    cursor: default;
+}
+
+.vc-sora-tm-row:not(.ruler):hover {
+    background: var(--background-mod-subtle);
+}
+
+.vc-sora-tm-row.ruler {
+    height: 18px;
+}
+
+.vc-sora-tm-name {
+    overflow: hidden;
+    color: var(--control-secondary-text-default, var(--text-default));
+    font-size: 12.5px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.vc-sora-tm-dur {
+    color: var(--text-default);
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+    white-space: nowrap;
+}
+
+.vc-sora-tm-dur.warn {
+    color: var(--status-warning);
+}
+
+.vc-sora-tm-lane {
+    position: relative;
+    height: 100%;
+}
+
+.vc-sora-tm-row.ruler .vc-sora-tm-lane span {
+    position: absolute;
+    top: 1px;
+    color: var(--text-muted);
+    font-size: 10.5px;
+    white-space: nowrap;
+    transform: translateX(-50%);
+}
+
+.vc-sora-tm-row.ruler .vc-sora-tm-lane span.first {
+    transform: none;
+}
+
+.vc-sora-tm-grid {
+    position: absolute;
+    top: 3px;
+    bottom: 3px;
+    width: 1px;
+    background: var(--background-mod-subtle);
+}
+
+.vc-sora-tm-spot {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    border-left: 1px dashed color-mix(in srgb, var(--text-default) 50%, transparent);
+}
+
+.vc-sora-tm-span {
+    position: absolute;
+    top: 8px;
+    height: 8px;
+    min-width: 3px;
+    border-radius: 3px;
+}
+
+.vc-sora-tm-key {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 12px;
+    margin-top: 6px;
+    padding: 8px 4px 0;
+    border-top: 1px solid var(--background-mod-subtle);
+    color: var(--text-muted);
+    font-size: 11.5px;
+}
+
+.vc-sora-tm-key span {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.vc-sora-tm-key i {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 2px;
+}
+
+.vc-sora-tm-key i.spot {
+    width: 0;
+    height: 10px;
+    border-radius: 0;
+    border-left: 1px dashed color-mix(in srgb, var(--text-default) 60%, transparent);
+}
+
+.vc-sora-tm-cells {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+    gap: 6px;
+}
+
+.vc-sora-tm-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    background: var(--background-mod-subtle);
+    cursor: default;
+}
+
+.vc-sora-tm-cell b {
+    color: var(--text-default);
+    font-size: 15px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+.vc-sora-tm-cell span {
+    color: var(--text-muted);
+    font-size: 11px;
+}
+
+/* Roblox events in the story: hollow dot and a small tag */
+.vc-sora-story-dot.hollow {
+    box-shadow: inset 0 0 0 2px var(--vc-sora-hw);
+    background: transparent !important;
+}
+
+.vc-sora-story-tag {
+    display: inline-block;
+    margin-right: 6px;
+    padding: 0 5px;
+    border-radius: 4px;
+    background: var(--background-mod-strong);
+    color: var(--text-muted);
+    font-size: 10.5px;
+    font-weight: 700;
+    vertical-align: 1px;
+}

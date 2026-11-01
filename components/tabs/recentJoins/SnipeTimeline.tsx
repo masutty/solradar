@@ -8,6 +8,7 @@ import "./snipe.css";
 
 import { React, Tooltip } from "@webpack/common";
 
+import { JOIN_STEPS, joinBreakdown, JoinStepKey, STEP_CATS } from "../../../services/JoinTimeline";
 import { SnipeEntry, SnipeLogEntry } from "../../../stores/SnipeStore";
 import { COLORS } from "../../ui/styles";
 import { formatClock } from "./components";
@@ -41,8 +42,7 @@ function lineColor(line: SnipeLogEntry): string {
  * Time axis where long gaps are squeezed, so a 30s wait doesn't flatten the quick steps.
  * Gaps longer than CAP_MS shrink to CAP_MS and are reported as breaks to draw striped.
  */
-export function traceAxis(times: number[]) {
-    const CAP_MS = 500;
+export function traceAxis(times: number[], CAP_MS = 500) {
     const pts = [...new Set(times)].sort((a, b) => a - b);
     const mapped = [0];
     const raw: [number, number, number][] = [];
@@ -90,45 +90,35 @@ export function OutcomeGlyph({ icon, size = 12 }: { icon: OutcomeIcon; size?: nu
     );
 }
 
-// --- Phase bar ---
+// --- Roblox steps ---
 
-export function PhaseBar({ entry }: { entry: SnipeEntry; }) {
-    const spans = phaseSpans(entry);
-    if (!spans.length) return null;
-    // Square root keeps a 0.3s join visible next to a 30s wait
-    const weights = spans.map(s => Math.sqrt(Math.max(s.end - s.start, 1)));
-    const total = weights.reduce((a, b) => a + b, 0);
+type StoryLine = SnipeLogEntry & { roblox?: boolean; };
 
-    return (
-        <div className="vc-sora-snipe-pbar">
-            <span className="vc-sora-snipe-pbar-total">
-                Total processing time: <b>{formatSecs(processingTime(spans))}</b>
-            </span>
-            <div className="vc-sora-snipe-bar">
-                {spans.map((s, i) => <i key={s.key} style={{ flex: weights[i] / total, background: PHASES[s.key].color }} />)}
-            </div>
-            <div className="vc-sora-snipe-legend">
-                {spans.map(s => (
-                    <Tooltip key={s.key} text={`${PHASES[s.key].tip} Took ${formatSecs(s.end - s.start)}.`} position="bottom">
-                        {props => (
-                            <span {...props} className="vc-sora-snipe-legend-item">
-                                <i style={{ background: PHASES[s.key].color }} />
-                                <span className="vc-sora-snipe-help">{PHASES[s.key].name}</span>
-                                <b>{formatSecs(s.end - s.start)}</b>
-                            </span>
-                        )}
-                    </Tooltip>
-                ))}
-            </div>
-        </div>
-    );
+const ROBLOX_STEPS = new Set<JoinStepKey>(["startup", "helper", "loading", "resolve", "prepare", "server", "connect"]);
+
+/** Roblox's own milestones as log-like lines, on the same clock as the snipe's log. */
+function robloxLines(entry: SnipeEntry): StoryLine[] {
+    const b = joinBreakdown(entry);
+    const at = entry.metrics?.receivedAt;
+    if (!b || at === undefined || !b.steps.some(s => ROBLOX_STEPS.has(s.key))) return [];
+    const line = (t: number, message: string): StoryLine => ({ timestamp: at + t, level: "info", message, roblox: true });
+    const out: StoryLine[] = [];
+    const loaded = b.steps.find(s => s.key === "loading");
+    const handed = b.steps.find(s => s.key === "helper") ?? b.steps.find(s => s.key === "startup");
+    if (loaded?.end != null) out.push(line(loaded.end, "Roblox finished loading and resolved the link."));
+    else if (handed?.end != null) out.push(line(handed.end, `Roblox got the link after ${formatSecs(handed.end - b.steps[0].start)}.`));
+    const ask = b.steps.find(s => s.key === "server");
+    if (b.spot !== null) out.push(line(b.spot, `Roblox got a spot in the server (${formatSecs(b.spot)} after the message).`));
+    else if (ask) out.push(line(ask.start, "Roblox asked for a spot and got no reply."));
+    if (b.connected !== null) out.push(line(b.connected, "Roblox connected to the server."));
+    return out;
 }
 
 // --- Timeline ---
 
 /** The story: each step shows the time since the step above it, so slow steps stand out. */
 export function StoryView({ entry, quote }: { entry: SnipeEntry; quote: React.ReactNode; }) {
-    const lines = visibleLines(entry);
+    const lines: StoryLine[] = [...visibleLines(entry), ...robloxLines(entry)].sort((a, b) => a.timestamp - b.timestamp);
     const rows: React.ReactNode[] = [];
     let prev = entry.timestamp;
 
@@ -154,8 +144,8 @@ export function StoryView({ entry, quote }: { entry: SnipeEntry; quote: React.Re
                 <Tooltip text={`${formatSecs(line.timestamp - entry.timestamp)} after the snipe · ${clockMs(line.timestamp)}`}>
                     {props => <span {...props} className={`vc-sora-story-time${delta < 10 ? " zero" : ""}`}>{time}</span>}
                 </Tooltip>
-                <span className="vc-sora-story-rail"><span className="vc-sora-story-dot" style={{ background: lineColor(line) }} /></span>
-                <div className="vc-sora-story-msg">{line.message}</div>
+                <span className="vc-sora-story-rail"><span className={`vc-sora-story-dot${line.roblox ? " hollow" : ""}`} style={{ background: lineColor(line) }} /></span>
+                <div className="vc-sora-story-msg">{line.roblox && <span className="vc-sora-story-tag">Roblox</span>}{line.message}</div>
             </div>
         );
     });
@@ -209,12 +199,26 @@ export function WaterfallView({ entry }: { entry: SnipeEntry; }) {
     const steps = stepSpans(entry);
     if (!phases.length) return <div className="vc-sora-snipe-empty">This snipe didn't join, so there is nothing to time.</div>;
 
+    // Roblox's steps (from its own log) go under Joining, on the snipe's clock
+    const b = joinBreakdown(entry);
+    const offset = (entry.metrics?.receivedAt ?? entry.timestamp) - entry.timestamp;
+    const rbx = b && b.steps.some(s => ROBLOX_STEPS.has(s.key))
+        ? b.steps.map(s => ({ key: s.key, start: s.start + offset, end: (s.end ?? s.start + 1500) + offset, open: s.end === null }))
+        : null;
+    if (rbx) {
+        const join = phases.find(p => p.key === "join");
+        if (join) join.end = Math.max(join.end, ...rbx.map(s => s.end));
+    }
+
     const end = processingTime(phases);
-    const axis = traceAxis([0, ...phases.flatMap(p => [p.start, p.end]), ...steps.flatMap(s => [s.start, s.end])]);
+    const times = [0, ...phases.flatMap(p => [p.start, p.end]), ...steps.flatMap(s => [s.start, s.end]), ...(rbx ?? []).flatMap(s => [s.start, s.end])];
+    // With Roblox's steps, keep a few seconds at real scale so Roblox startup isn't squeezed
+    const axis = traceAxis(times, rbx ? 2000 : 500);
     const pct = (t: number) => `${(axis.pos(t) * 100).toFixed(2)}%`;
 
+    const tickStep = Math.min(axis.firstBreakAt, end) > 2000 ? 1000 : 250;
     const ticks: number[] = [];
-    for (let t = 0; t <= Math.min(axis.firstBreakAt, end); t += 250) ticks.push(t);
+    for (let t = 0; t <= Math.min(axis.firstBreakAt, end); t += tickStep) ticks.push(t);
 
     const lane = (inner: React.ReactNode) => (
         <div className="vc-sora-wf-lane">
@@ -233,7 +237,7 @@ export function WaterfallView({ entry }: { entry: SnipeEntry; }) {
             <div className="vc-sora-wf-row ruler">
                 <span />
                 <div className="vc-sora-wf-lane">
-                    {ticks.filter((_, i) => i % 2 === 0).map((t, i) => (
+                    {ticks.filter((_, i) => tickStep === 1000 || i % 2 === 0).map((t, i) => (
                         <span key={t} className={`vc-sora-wf-tick${i === 0 ? " first" : ""}`} style={{ left: pct(t) }}>{t ? formatSecs(t) : "0"}</span>
                     ))}
                     {axis.breaks.map((b, i) => <span key={`b${i}`} className="vc-sora-wf-tick" style={{ left: `${(b.a + b.b) * 50}%` }}>≈{formatSecs(b.real)}</span>)}
@@ -252,7 +256,8 @@ export function WaterfallView({ entry }: { entry: SnipeEntry; }) {
                             </div>
                         )}
                     </Tooltip>
-                    {steps.filter(s => phaseOf(s.step) === p.key).map(s => (
+                    {/* Roblox's steps replace the single "Open in Roblox" step, which they include */}
+                    {steps.filter(s => phaseOf(s.step) === p.key && !(rbx && s.step === "join")).map(s => (
                         <Tooltip key={s.step} text={s.lines.map(l => l.message).join("\n")}>
                             {props => (
                                 <div {...props} className={`vc-sora-wf-row step${s.warn ? " warn" : ""}`}>
@@ -263,9 +268,25 @@ export function WaterfallView({ entry }: { entry: SnipeEntry; }) {
                             )}
                         </Tooltip>
                     ))}
+                    {p.key === "join" && rbx?.map(s => (
+                        <Tooltip key={s.key} text={JOIN_STEPS[s.key].tip}>
+                            {props => (
+                                <div {...props} className={`vc-sora-wf-row step${s.open ? " warn" : ""}`}>
+                                    <span className="vc-sora-wf-label">{JOIN_STEPS[s.key].name}</span>
+                                    {lane(s.open
+                                        ? <span className="vc-sora-wf-span open" style={{ left: pct(s.start), width: `calc(${pct(s.end)} - ${pct(s.start)})` }} />
+                                        : shape(s.start, s.end, STEP_CATS[JOIN_STEPS[s.key].cat].color))}
+                                    {s.open ? <span className="vc-sora-wf-dur slow">no reply</span> : dur(s.end - s.start)}
+                                </div>
+                            )}
+                        </Tooltip>
+                    ))}
                 </React.Fragment>
             ))}
             <div className="vc-sora-wf-key">
+                {rbx && (["plugin", "hw", "net"] as const).map(k => (
+                    <span key={k}><i style={{ width: 8, height: 8, borderRadius: 2, background: STEP_CATS[k].color }} />{STEP_CATS[k].name}</span>
+                ))}
                 <span><i className="vc-sora-wf-key-diamond" />Instant step</span>
                 <span><i className="vc-sora-wf-key-break" />Long wait, shortened</span>
                 <span>Hover a row for the full log</span>

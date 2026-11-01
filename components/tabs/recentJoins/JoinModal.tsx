@@ -18,14 +18,13 @@ import { settings } from "../../../settings";
 import { SnipeEntry, SnipeLogEntry, SnipeStore, useSnipeEntry } from "../../../stores/SnipeStore";
 import { useTourAction } from "../../../stores/TourStore";
 import { SnipeTag } from "../../../types";
-import { formatElapsedTime } from "../../../utils";
 import { TourAnchor, tourAnchor } from "../../tour/TourAnchor";
 import { closeAllModals, ModalCloseButton, ModalContent, ModalFooter, ModalHeader, ModalProps, ModalRoot, openModal } from "../../ui/LegacyModal";
 import Spoiler from "../../ui/Spoiler";
 import { COLORS, sectionTitle } from "../../ui/styles";
 import { FallbackImage, formatClock, getSnipeStatus } from "./components";
-import { JoinSpeed } from "./JoinSpeed";
-import { PhaseBar, RawView, StoryView, WaterfallView } from "./SnipeTimeline";
+import { RawView, StoryView, WaterfallView } from "./SnipeTimeline";
+import { TimingSection } from "./TimingSection";
 
 // --- Helpers ---
 
@@ -36,8 +35,6 @@ const BIOME_VERDICT_TAGS: SnipeTag[] = [
     "biome-verified-timeout",
     "biome-not-verified",
 ];
-
-const ms = (n: number) => `${Math.round(n)}ms`;
 
 function typeLabel(type: string): string {
     const words = type.toLowerCase().replace(/_/g, " ");
@@ -71,34 +68,20 @@ function Hidden({ anonymize, children, block }: { anonymize: boolean; children: 
 
 const card: React.CSSProperties = { borderRadius: 8, background: "var(--background-mod-subtle)" };
 
-// --- Sections ---
+const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
-function Timing({ entry }: { entry: SnipeEntry; }) {
+/** How the join ran: join mode and launch method, whether Roblox was open, and Discord's state. */
+function joinContextRows(entry: SnipeEntry): [string, string][] {
     const m = entry.metrics;
-    const isReal = entry.tags.includes("biome-verified-real");
-    const cells: [string, string, string][] = [
-        ["Reaction time", m ? ms(m.timeToJoinMs) : "-", "From the message arriving to Roblox being told to open the server. Loading into the server comes after and isn't counted."],
-        ["Plugin", m ? ms(m.overheadMs) : "-", "Part of the reaction time spent by Sol Radar: reading the message, finding the trigger and checking for duplicates."],
-        ["Launch", m ? ms(m.openUriDurationMs) : "-", `Part of the reaction time spent by Windows handing the link to Roblox${m?.launchMethod ? ` (${m.launchMethod} launch)` : ""}. This depends on your PC, not Sol Radar: a busy CPU (macros, emulators, games), antivirus scans and Roblox updates can all make it slower.`],
-        ...(m?.killDurationMs != null ? [["Macro kill", ms(m.killDurationMs), "Part of the reaction time spent closing your game before joining (Safe join mode)."] as [string, string, string]] : []),
-        ["Biome lasted", isReal && entry.biomeDurationMs != null ? formatElapsedTime(entry.biomeDurationMs) : "-", "How long the real biome lasted"],
-    ];
-
-    return (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(88px, 1fr))", gap: 6 }}>
-            {cells.map(([label, value, tip]) => (
-                <Tooltip key={label} text={tip}>
-                    {props => (
-                        <div {...props} style={{ ...card, display: "flex", flexDirection: "column", gap: 1, padding: "8px 10px" }}>
-                            <span style={{ fontSize: 15, fontWeight: 600, color: COLORS.text, fontVariantNumeric: "tabular-nums" }}>{value}</span>
-                            <span style={{ fontSize: 11, color: COLORS.muted }}>{label}</span>
-                        </div>
-                    )}
-                </Tooltip>
-            ))}
-        </div>
-    );
+    if (!m?.launchedAt) return [];
+    const launch = m.launchMethod ? `${capitalize(m.launchMethod)} launch${m.launchFallback ? " (direct failed)" : ""}` : "Unknown launch";
+    const mode = m.joinMode ? capitalize(m.joinMode) : "Unknown mode";
+    const roblox = entry.robloxTimeline ? (entry.robloxTimeline.mode === "warm" ? "Already open" : "Started from closed") : "Unknown";
+    const discord = m.discordFocused == null ? "Unknown" : `${m.discordFocused ? "Focused" : "In the background"}${m.discordAwake ? ", kept awake" : ""}`;
+    return [["Join", `${mode} · ${launch}`], ["Roblox", roblox], ["Discord", discord]];
 }
+
+// --- Sections ---
 
 function BiomeVerdict({ entry }: { entry: SnipeEntry; }) {
     // Timed out is there to undo a misclick: it puts back the result the check gave
@@ -155,6 +138,7 @@ function Details({ entry, anonymize }: { entry: SnipeEntry; anonymize: boolean; 
         ...(entry.guildName ? [["Server", <Hidden key="s" anonymize={anonymize}>{entry.guildName}</Hidden>] as [string, React.ReactNode]] : []),
         ["Type", typeLabel(entry.triggerType)],
         ["Priority", entry.triggerPriority],
+        ...joinContextRows(entry),
         ["Snipe ID", `#${entry.id}`],
     ];
 
@@ -284,10 +268,7 @@ function JoinModal({ entry: initialEntry, modalProps }: {
 
             <ModalContent>
                 <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: "12px 0 16px" }}>
-                    <p style={{ ...sectionTitle, margin: 0 }}>Timing</p>
-                    <Timing entry={entry} />
-                    <PhaseBar entry={entry} />
-                    <JoinSpeed entry={entry} />
+                    <TimingSection entry={entry} />
 
                     {isBiomeEntry && <TourAnchor id="details.verdict"><BiomeVerdict entry={entry} /></TourAnchor>}
 

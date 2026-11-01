@@ -67,6 +67,8 @@ export interface SnipeMetrics {
     /** Message created (or edited) on Discord's servers -> reached the plugin. Includes clock drift. */
     discordDelayMs?: number | null;
     launchMethod?: "direct" | "shell";
+    /** Safe closes the game before launching, so Roblox always starts from closed. */
+    joinMode?: "safe" | "unsafe";
     /** Why a direct launch fell back to the shell. */
     launchFallback?: string;
     /** Whether "keep Discord awake" was on, and whether Discord's window had focus. */

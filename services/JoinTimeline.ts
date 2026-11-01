@@ -46,27 +46,143 @@ export function scheduleTimelineCapture(id: number): void {
     }, CAPTURE_DELAY_MS);
 }
 
-// --- Phases ---
+// --- Join breakdown ---
+// One ordered list of steps from the message to the game server, used by the snipe menu,
+// the log waterfall, the Developer stats and the CSV, so they always agree.
+
+export type StepCat = "plugin" | "hw" | "net";
+export type JoinStepKey = "read" | "close" | "open" | "startup" | "helper" | "loading" | "resolve" | "prepare" | "server" | "connect";
+
+export const STEP_CATS: Record<StepCat, { name: string; color: string; tip: string; }> = {
+    plugin: { name: "Plugin", color: "var(--brand-500)", tip: "Sol Radar's part: reading the message and opening Roblox. This is the ⚡." },
+    hw: { name: "Hardware", color: "var(--vc-sora-hw)", tip: "Roblox starting and loading on your PC." },
+    net: { name: "Network", color: "var(--vc-sora-net)", tip: "Roblox talking to its servers." },
+};
+
+export const JOIN_STEPS: Record<JoinStepKey, { name: string; cat: StepCat; tip: string; }> = {
+    read: { name: "Read message", cat: "plugin", tip: "Finding the trigger and checking for duplicates." },
+    close: { name: "Close Roblox", cat: "plugin", tip: "Safe join mode closes the game before joining." },
+    open: { name: "Open Roblox", cat: "plugin", tip: "Windows starting Roblox with the link." },
+    startup: { name: "Roblox startup", cat: "hw", tip: "A new Roblox process starting before it runs its own code." },
+    helper: { name: "Helper", cat: "hw", tip: "The new Roblox passes the link to the Roblox that was already open, then closes." },
+    loading: { name: "Roblox loading", cat: "hw", tip: "Roblox loading from closed, then resolving the link. Roblox doesn't log the two apart." },
+    resolve: { name: "Link resolve", cat: "net", tip: "Roblox asking where the link points." },
+    prepare: { name: "Prepare", cat: "hw", tip: "Roblox setting up the game on your PC." },
+    server: { name: "Server request", cat: "net", tip: "Roblox asking for a spot in the server. Ends when it has one." },
+    connect: { name: "Connect", cat: "net", tip: "Connecting to the server after getting the spot." },
+};
+
+export interface JoinStep {
+    key: JoinStepKey;
+    /** ms after the message reached Sol Radar */
+    start: number;
+    /** null: never finished (no spot in the server) */
+    end: number | null;
+}
+
+/**
+ * - joined: Roblox got a spot (warm: Roblox was open, cold: it started from closed)
+ * - noSpot: Roblox got the link but never got a spot
+ * - pending: Roblox's log hasn't been read yet
+ * - noLog: the log was looked for and has nothing for this join
+ * - old: snipe made before join-speed metrics existed
+ */
+export type JoinSituation = "warm" | "cold" | "noSpot" | "pending" | "noLog" | "old";
+
+export interface JoinBreakdown {
+    situation: JoinSituation;
+    steps: JoinStep[];
+    /** ms to a spot in the server */
+    spot: number | null;
+    connected: number | null;
+    /** Time to the spot by category. Connect comes after the spot, so it isn't counted. */
+    totals: Record<StepCat, number>;
+}
+
+const PENDING_MS = CAPTURE_DELAY_MS + 10_000;
+
+export function joinBreakdown(entry: SnipeEntry, now = Date.now()): JoinBreakdown | null {
+    const m = entry.metrics;
+    if (!m) return null;
+
+    const steps: JoinStep[] = [];
+    let t = 0;
+    const push = (key: JoinStepKey, ms: number) => { steps.push({ key, start: t, end: t + ms }); t += ms; };
+    push("read", Math.max(0, m.overheadMs));
+    if (m.joinMode === "safe" || (m.joinMode === undefined && (m.killDurationMs ?? 0) >= 1)) push("close", Math.max(0, m.killDurationMs ?? 0));
+    push("open", Math.max(0, m.openUriDurationMs));
+    const openEnd = t;
+
+    const result = (situation: JoinSituation, spot: number | null = null, connected: number | null = null): JoinBreakdown => {
+        const totals: Record<StepCat, number> = { plugin: 0, hw: 0, net: 0 };
+        for (const s of steps) if (s.end !== null && s.key !== "connect") totals[JOIN_STEPS[s.key].cat] += s.end - s.start;
+        return { situation, steps, spot, connected, totals };
+    };
+
+    if (!m.receivedAt || !m.launchedAt) return result("old");
+    const tl = entry.robloxTimeline;
+    if (!tl) return result(now - m.launchedAt < PENDING_MS ? "pending" : "noLog");
+
+    const st = tl.stages;
+    const rel = (abs: number | undefined) => abs === undefined ? undefined : abs - m.receivedAt!;
+    // Clocks can disagree by a few ms; never draw a step that ends before it starts
+    let cursor = openEnd;
+    const step = (key: JoinStepKey, end: number | undefined) => {
+        if (end === undefined) return false;
+        const e = Math.max(end, cursor);
+        steps.push({ key, start: cursor, end: e });
+        cursor = e;
+        return true;
+    };
+
+    if (tl.mode === "warm") {
+        const helperStart = rel(st.helperStart);
+        if (helperStart !== undefined) step("startup", helperStart);
+        if (!step(helperStart !== undefined ? "helper" : "startup", rel(st.deeplink))) return result("noLog");
+        if (!step("resolve", rel(st.linkResolved))) return result("noSpot");
+    } else {
+        if (!step("startup", rel(st.processStart))) return result("noLog");
+        if (!step("loading", rel(st.linkResolved))) return result("noSpot");
+    }
+    step("prepare", rel(st.dmReady));
+
+    const spot = rel(st.serverAssigned);
+    if (spot === undefined) {
+        steps.push({ key: "server", start: cursor, end: null });
+        return result("noSpot");
+    }
+    step("server", spot);
+    const spotAt = cursor;
+    const connected = step("connect", rel(st.connected)) ? cursor : null;
+    return result(tl.mode, spotAt, connected);
+}
+
+// --- Phases (Developer stats and CSV) ---
 
 export type PhaseKey =
     | "discord" | "plugin" | "launch"
-    | "handoff" | "preStart" | "helper" | "resolve" | "prepare" | "gamejoin" | "connect"
+    | "handoff" | "preStart" | "helper" | "loading" | "resolve" | "prepare" | "gamejoin" | "connect"
     | "toServer" | "total";
 
 export const PHASES: { key: PhaseKey; label: string; tip: string; }[] = [
     { key: "discord", label: "Discord delivery", tip: "Message created on Discord's servers until it reached the plugin. Includes your clock's drift, so compare it with itself, not as an exact number." },
     { key: "plugin", label: "Plugin", tip: "Reading the message, finding the trigger, checking for duplicates." },
     { key: "launch", label: "Launch call", tip: "Handing the link to Windows. Direct starts Roblox's exe; Shell goes through cmd.exe first." },
-    { key: "handoff", label: "Hand-off", tip: "From the launch call until the open Roblox got the link. Mostly a second Roblox process starting up just to pass the link along (home page mode). For a cold start, until the new Roblox wrote its first log line." },
-    { key: "preStart", label: "↳ Before Roblox code", tip: "Part of Hand-off: from the launch until the helper Roblox's own clock started. Windows creating the process, loading the exe, anti-cheat start. Roblox logs nothing here." },
-    { key: "helper", label: "↳ Helper process", tip: "Part of Hand-off: the helper Roblox running its own code until the open Roblox got the link. Roblox reports this one itself (\"warm start adjustment\")." },
-    { key: "resolve", label: "Link resolve", tip: "Roblox asking its API what the link points to. Network bound." },
-    { key: "prepare", label: "Prepare", tip: "Roblox setting up the game on your PC. CPU bound." },
-    { key: "gamejoin", label: "Server request", tip: "Roblox asking for a spot in the server. Ends when it has one: this is the moment that wins or loses a full server. Network bound." },
-    { key: "connect", label: "Connect", tip: "Connecting to the game server itself." },
+    { key: "handoff", label: "Hand-off", tip: "After the launch call until Roblox had the link: Roblox startup, plus the helper when Roblox was already open." },
+    { key: "preStart", label: "↳ Roblox startup", tip: JOIN_STEPS.startup.tip },
+    { key: "helper", label: "↳ Helper", tip: JOIN_STEPS.helper.tip },
+    { key: "loading", label: "Roblox loading", tip: JOIN_STEPS.loading.tip },
+    { key: "resolve", label: "Link resolve", tip: JOIN_STEPS.resolve.tip },
+    { key: "prepare", label: "Prepare", tip: JOIN_STEPS.prepare.tip },
+    { key: "gamejoin", label: "Server request", tip: JOIN_STEPS.server.tip },
+    { key: "connect", label: "Connect", tip: JOIN_STEPS.connect.tip },
     { key: "toServer", label: "Message → server", tip: "From the message reaching the plugin until Roblox got a spot in the server." },
     { key: "total", label: "Message → connected", tip: "From the message reaching the plugin until connected to the game server." },
 ];
+
+const STEP_PHASE: Partial<Record<JoinStepKey, PhaseKey>> = {
+    startup: "preStart", helper: "helper", loading: "loading", resolve: "resolve", prepare: "prepare", server: "gamejoin", connect: "connect",
+};
 
 /** Every phase this entry has data for, in ms. */
 export function phasesOf(entry: SnipeEntry): Partial<Record<PhaseKey, number>> {
@@ -77,24 +193,16 @@ export function phasesOf(entry: SnipeEntry): Partial<Record<PhaseKey, number>> {
     out.plugin = m.overheadMs;
     out.launch = m.openUriDurationMs;
 
-    const t = entry.robloxTimeline;
-    if (!t || !m.launchedAt) return out;
-    const s = t.stages;
-    const gotLink = s.deeplink ?? s.processStart;
-    const diff = (a?: number, b?: number) => a !== undefined && b !== undefined && b >= a ? b - a : undefined;
-
-    const set = (k: PhaseKey, v: number | undefined) => { if (v !== undefined) out[k] = v; };
-    set("handoff", diff(m.launchedAt, gotLink));
-    set("preStart", diff(m.launchedAt, s.helperStart));
-    set("helper", diff(s.helperStart, s.deeplink));
-    set("resolve", diff(gotLink, s.linkResolved));
-    set("prepare", diff(s.linkResolved, s.dmReady));
-    set("gamejoin", diff(s.dmReady ?? s.linkResolved, s.serverAssigned));
-    set("connect", diff(s.serverAssigned, s.connected));
-    if (m.receivedAt) {
-        set("toServer", diff(m.receivedAt, s.serverAssigned));
-        set("total", diff(m.receivedAt, s.connected));
+    const b = joinBreakdown(entry);
+    if (!b) return out;
+    for (const s of b.steps) {
+        const k = STEP_PHASE[s.key];
+        if (k && s.end !== null) out[k] = s.end - s.start;
     }
+    const handoff = (out.preStart ?? 0) + (out.helper ?? 0);
+    if (out.preStart !== undefined || out.helper !== undefined) out.handoff = handoff;
+    if (b.spot !== null) out.toServer = b.spot;
+    if (b.connected !== null) out.total = b.connected;
     return out;
 }
 
