@@ -1,6 +1,15 @@
 {
-    "currentVersion": "1.7.1",
+    "currentVersion": "1.8.0",
     "changelog": [
+        {
+            "version": "1.8.0",
+            "entries": [
+                { "type": "Added", "text": "Ignore messages with these words", "description": "In Settings, under Monitoring, add words that stop every trigger from matching. It is empty by default and best left that way unless you know what you are doing. It matches whole words only, so \"hunt\" does not block \"hunting\"; turn off Match whole words only to change that." },
+                { "type": "Added", "text": "Bypass global excluded words", "description": "A trigger can skip the global list. Turn it on in the trigger's Bypasses section." },
+                { "type": "Added", "text": "History timing number", "description": "In Settings, under Other, pick what the ⚡ next to each snipe in Snipe History adds up: a preset like Reaction time or Until server slot request, or any steps you choose." },
+                { "type": "Improved", "text": "Timing no longer counts Windows starting Roblox as Sol Radar's own time" }
+            ]
+        },
         {
             "version": "1.7.1",
             "entries": [
