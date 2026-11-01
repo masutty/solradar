@@ -342,9 +342,14 @@ export function Setting({ id, label, description, tooltip, disabled, style, chip
     if (!def) return null;
 
     const restartNeeded = !!def.restartNeeded;
+    // A select sits beside its label only when both its description and its options are short;
+    // a long option would squeeze the label into a narrow column
+    const longestOption = def.type === OptionType.SELECT
+        ? Math.max(0, ...(def.options ?? []).map((o: { label: string; }) => o.label.length))
+        : 0;
     const isInline =
         def.type === OptionType.BOOLEAN
-        || (def.type === OptionType.SELECT && (!description
+        || (def.type === OptionType.SELECT && longestOption <= 30 && (!description
             || description.split(/\s+/).filter(Boolean).join(" ").length < 50));
 
     const labelNode = (
