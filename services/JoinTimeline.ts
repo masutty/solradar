@@ -5,7 +5,7 @@
  */
 
 // Join speed: reads what Roblox logged after a launch and turns snipes into stats.
-// Experimental, used by the join-speed tests (JoinModal and the Developer tab).
+// Used by the snipe menu's Timing section, the log waterfall and the Developer tab stats.
 
 import { Logger } from "../logger";
 import { RobloxTimelineData, SnipeEntry, SnipeStore } from "../stores/SnipeStore";
@@ -36,7 +36,6 @@ export async function captureRobloxTimeline(id: number, force = false): Promise<
     }
     const data: RobloxTimelineData = { mode: res.mode, forwarderMs: res.forwarderMs, stages: res.stages, slowHttp: res.slowHttp };
     SnipeStore.update(id, { robloxTimeline: data });
-    saveJoinSpeedCsv();
     return data;
 }
 
@@ -258,12 +257,4 @@ export function joinSpeedCsv(entries: SnipeEntry[]): string {
         ].join(",");
     });
     return [head.join(","), ...rows].join("\n");
-}
-
-/** Writes every join's phases to a CSV in the temp folder, so they can be read outside Discord. */
-export function saveJoinSpeedCsv(): void {
-    const save = (Native as any).saveJoinSpeedCsv as ((csv: string) => Promise<string>) | undefined;
-    if (typeof save !== "function") return; // natives from before this build
-    const entries = joinedEntries(SnipeStore.all).sort((a, b) => a.timestamp - b.timestamp);
-    save(joinSpeedCsv(entries)).catch(err => logger.warn("Could not save the join speed CSV:", err));
 }

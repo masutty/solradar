@@ -436,21 +436,6 @@ export async function getRobloxJoinTimeline(_: IpcMainInvokeEvent, launchedAt: n
     }
 }
 
-/** Writes the join speed CSV to %TEMP%\solradar\joinspeed.csv and returns the path. */
-export async function saveJoinSpeedCsv(_: IpcMainInvokeEvent, csv: string): Promise<string> {
-    if (typeof csv !== "string") throw new Error("csv must be a string");
-    const dir = path.join(os.tmpdir(), "solradar");
-    await fs.promises.mkdir(dir, { recursive: true });
-    const file = path.join(dir, "joinspeed.csv");
-    await fs.promises.writeFile(file, csv, "utf8");
-    return file;
-}
-
-export async function getRobloxJoinTimelines(e: IpcMainInvokeEvent, launches: number[]): Promise<RobloxJoinTimeline[]> {
-    const out: RobloxJoinTimeline[] = [];
-    for (const t of launches) out.push(await getRobloxJoinTimeline(e, t));
-    return out;
-}
 
 // --- Roblox: resolve share link ---
 

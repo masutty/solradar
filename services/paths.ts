@@ -13,5 +13,9 @@ export function redactUserPath(p: string): string {
         .replace(/^[A-Z]:\\Users\\[^\\]+(?=\\|$)/i, "%USERPROFILE%");
 }
 
+/** Same as redactUserPath, for any user folder inside a longer text, like an error or a command line. */
+export const redactUserPaths = (text: string) =>
+    text.replace(/[A-Z]:\\Users\\[^\\"]+(\\AppData\\Local)?/gi, m => redactUserPath(m));
+
 /** Whether a path is Roblox's own player, as opposed to another launcher. */
 export const isRobloxPlayerExe = (p: string) => /(^|\\)RobloxPlayerBeta\.exe$/i.test(p);

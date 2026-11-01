@@ -12,7 +12,7 @@ import { saveFile } from "@utils/web";
 import { React, ScrollerThin } from "@webpack/common";
 
 import { getRecentLogs } from "../../../logger";
-import { redactUserPath } from "../../../services/paths";
+import { redactUserPath, redactUserPaths } from "../../../services/paths";
 import { settings } from "../../../settings";
 import { SnipeEntry, SnipeStore } from "../../../stores/SnipeStore";
 import { UIState } from "../../../stores/UIStateStore";
@@ -51,15 +51,12 @@ function formatSnipe(e: SnipeEntry, detailed: boolean) {
         time: new Date(e.timestamp).toISOString(),
         trigger: { name: e.triggerName, type: e.triggerType, priority: e.triggerPriority },
         tags: e.tags,
-        metrics: e.metrics && { ...e.metrics, launchExe: e.metrics.launchExe && redactUserPath(e.metrics.launchExe) },
+        metrics: e.metrics && { ...e.metrics, launchExe: e.metrics.launchExe && redactUserPath(e.metrics.launchExe), launchFallback: e.metrics.launchFallback && redactUserPaths(e.metrics.launchFallback) },
         biomeDurationMs: e.biomeDurationMs,
         ...(detailed && snipeOrigin(e)),
-        log: e.log.map(l => `${new Date(l.timestamp).toISOString()} [${l.level}] ${l.message}`),
+        log: e.log.map(l => `${new Date(l.timestamp).toISOString()} [${l.level}] ${redactUserPaths(l.message)}`),
     };
 }
-
-// Any user folder inside a longer string, like a command line
-const hideUserFolders = (text: string) => text.replace(/[A-Z]:\\Users\\[^\\"]+(\\AppData\\Local)?/gi, m => redactUserPath(m));
 
 /** How Windows opens Roblox links, from every registry key read, with the user folder hidden. */
 async function readLaunchHandlers(): Promise<unknown> {
@@ -68,10 +65,10 @@ async function readLaunchHandlers(): Promise<unknown> {
     return reports.map(r => ({
         scheme: r.scheme,
         exe: r.handler && redactUserPath(r.handler.exe),
-        command: r.handler && hideUserFolders(r.handler.command),
+        command: r.handler && redactUserPaths(r.handler.command),
         userChoice: r.handler?.userChoice,
         borrowedFrom: r.handler?.borrowedFrom,
-        tried: r.tried.map(t => `${t.key} -> ${hideUserFolders(t.result)}`),
+        tried: r.tried.map(t => `${t.key} -> ${redactUserPaths(t.result)}`),
     }));
 }
 
@@ -104,7 +101,7 @@ export function buildDebugReport({ detailed, includeLogs, includeSnipes, launchH
             recentSnipes: SnipeStore.getRecent(SNIPE_COUNT).map(e => formatSnipe(e, detailed)),
         }),
         ...(includeLogs && {
-            recentLogs: getRecentLogs(LOG_LINES).map(e => `${new Date(e.time).toISOString()} [${e.level}] ${e.source}: ${e.message}`),
+            recentLogs: getRecentLogs(LOG_LINES).map(e => `${new Date(e.time).toISOString()} [${e.level}] ${e.source}: ${redactUserPaths(e.message)}`),
         }),
     };
 }

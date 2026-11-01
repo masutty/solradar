@@ -16,7 +16,7 @@ import { executeAction } from "./ActionExecutor";
 import { BiomeDetector } from "./BiomeDetector";
 import { startBiomeDetection } from "./BiomeWatcher";
 import { scheduleTimelineCapture } from "./JoinTimeline";
-import { redactUserPath } from "./paths";
+import { redactUserPath, redactUserPaths } from "./paths";
 import { closeGame, getPlaceId } from "./RobloxService";
 
 const logger = new Logger("SolRadar:Join");
@@ -282,7 +282,7 @@ async function joinServer(uri: string, snipe: Snipe): Promise<JoinServerResult> 
 
     if (launch?.exe) snipe.logDebug(`Direct launch ran ${redactUserPath(launch.exe)}`);
     if (launch?.fallbackReason && settings.store.launchMethod !== "shell") {
-        snipe.logWarn(`Direct launch not used, fell back to the shell: ${launch.fallbackReason}`);
+        snipe.logWarn(`Direct launch not used, fell back to the shell: ${redactUserPaths(launch.fallbackReason)}`);
     }
 
     const receivedAt = toWall(snipe.tMessageReceived);

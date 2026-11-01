@@ -25,6 +25,7 @@ import { isJoinLocked, join, shouldJoin } from "./services/JoinService";
 import { recordSnipe, shouldProcessEdit, snipedTriggers } from "./services/MessageEditWatcher";
 import { flattenEmbeds, getSnipableLink, isMessageAllowed, isValidMessage, resolveTrigger, sanitizeContent } from "./services/MessageProcessor";
 import { canNotify, notify } from "./services/NotificationService";
+import { redactUserPath } from "./services/paths";
 import { isDuplicateLink, markAsSeen } from "./services/SnipeDeduplicator";
 import { settings } from "./settings";
 import { ActiveChannelStore } from "./stores/ActiveChannelStore";
@@ -164,7 +165,7 @@ export default definePlugin({
         // Natives only reload with a full Discord restart, so this can be missing after Ctrl+R
         if (typeof Native.warmLaunchHandler === "function") {
             Native.warmLaunchHandler()
-                .then(exe => logger.info(`Roblox handler: ${exe ?? "not found, joins will use the shell"}`))
+                .then(exe => logger.info(`Roblox handler: ${exe ? redactUserPath(exe) : "not found, joins will use the shell"}`))
                 .catch(err => logger.error("Failed to read the Roblox handler:", err));
         } else {
             logger.warn("Native helpers are outdated. Fully restart Discord (quit from the tray) to load them.");

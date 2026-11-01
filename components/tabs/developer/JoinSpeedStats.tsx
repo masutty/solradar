@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-// Join speed stats (test build): averages and percentiles of every join phase,
+// Join speed stats (developer only): averages and percentiles of every join phase,
 // split by the things being tested (launch method, Discord focused, warm/cold Roblox).
 
 import { Button } from "@components/Button";

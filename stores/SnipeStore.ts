@@ -59,7 +59,7 @@ export interface SnipeMetrics {
     overheadMs: number;
     killDurationMs: number | null;
     openUriDurationMs: number;
-    // Added with the join-speed tests. Missing on older snipes.
+    // Added with join timing. Missing on older snipes.
     /** Wall clock (epoch ms) when the message reached the plugin. */
     receivedAt?: number;
     /** Wall clock (epoch ms) when the launch started. Lines up with Roblox's logs. */
