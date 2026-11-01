@@ -105,14 +105,14 @@ function robloxLines(entry: SnipeEntry): StoryLine[] {
     const out: StoryLine[] = [];
     const loaded = b.steps.find(s => s.key === "loading");
     const handed = b.steps.find(s => s.key === "helper") ?? b.steps.find(s => s.key === "startup");
-    if (loaded?.end != null) out.push(line(loaded.end, "Roblox finished loading and resolved the link."));
-    else if (handed?.end != null) out.push(line(handed.end, `Roblox got the link after ${formatSecs(handed.end - b.steps[0].start)}.`));
+    if (loaded?.end != null) out.push(line(loaded.end, "Finished loading and resolved the link."));
+    else if (handed?.end != null) out.push(line(handed.end, `Got the link after ${formatSecs(handed.end - b.steps[0].start)}.`));
     const ask = b.steps.find(s => s.key === "server");
     const queue = b.steps.find(s => s.key === "queue");
-    if (queue) out.push(line(queue.start, "The server was full. Roblox waited in its queue."));
-    if (b.spot !== null) out.push(line(b.spot, `Roblox got a spot in the server (${formatSecs(b.spot)} after the message).`));
-    else if (ask) out.push(line(ask.start, "Roblox asked for a spot and got no reply."));
-    if (b.connected !== null) out.push(line(b.connected, "Roblox connected to the server."));
+    if (queue) out.push(line(queue.start, "The server was full, waited in its queue."));
+    if (b.spot !== null) out.push(line(b.spot, `Got a spot in the server (${formatSecs(b.spot)} after the message).`));
+    else if (ask) out.push(line(ask.start, "Asked for a spot and got no reply."));
+    if (b.connected !== null) out.push(line(b.connected, "Connected to the server."));
     return out;
 }
 
