@@ -70,12 +70,15 @@ export function TextField({ label, hint, tooltip, value, placeholder, onChange, 
     );
 }
 
-export function NumberField({ label, tooltip, value, unit, onChange }: {
-    label: string; tooltip?: string; value: number; unit?: string; onChange: (v: number) => void;
+export function NumberField({ label, hint, tooltip, value, unit, onChange }: {
+    label: string; hint?: string; tooltip?: string; value: number; unit?: string; onChange: (v: number) => void;
 }) {
     return (
         <div style={row}>
-            <Label label={label} tooltip={tooltip} />
+            <span style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
+                <Label label={label} tooltip={tooltip} />
+                {hint && <span style={descriptionText}>{hint}</span>}
+            </span>
             <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <div style={{ width: 90 }}>
                     <TextInput value={String(value)} onChange={v => onChange(Number(v) || 0)} />
@@ -94,28 +97,13 @@ export function TextAreaField({ label, hint, value, placeholder, onChange, maxLe
         <div style={rowStacked}>
             <Label label={label} />
             {hint && <span style={descriptionText}>{hint}</span>}
+            {/* No scrollbar-width here: setting it turns off the thin-scroll styles and brings back the arrows */}
             <textarea
-                className="vc-sora-thin-scroll"
+                className="vc-sora-textarea vc-sora-thin-scroll"
                 value={value}
                 placeholder={placeholder}
                 onChange={e => onChange(e.target.value)}
                 maxLength={maxLength}
-                style={{
-                    width: "100%",
-                    resize: "vertical",
-                    padding: "8px 10px",
-                    borderRadius: 6,
-                    border: "1px solid var(--background-mod-subtle)",
-                    background: "var(--background-mod-strong)",
-                    color: "var(--text-default)",
-                    fontSize: 13,
-                    fontFamily: "var(--font-primary)",
-                    lineHeight: 1.5,
-                    minHeight: 72,
-                    boxSizing: "border-box",
-                    outline: "none",
-                    scrollbarWidth: "thin",
-                }}
             />
         </div>
     );

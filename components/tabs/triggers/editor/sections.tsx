@@ -7,7 +7,7 @@
 import "../../../ui/choice.css";
 
 import { copyToClipboard } from "@utils/clipboard";
-import { React, showToast, useEffect, useState } from "@webpack/common";
+import { React, showToast, Tooltip, useEffect, useState } from "@webpack/common";
 
 import { settings } from "../../../../settings";
 import { DEFAULT_BIOME, Trigger, TriggerType } from "../../../../stores/TriggerStore";
@@ -165,29 +165,16 @@ function CoreTiles({ draft, patch }: { draft: Draft; patch: Patch; }) {
     );
 }
 
-/** The trigger's ID, read-only and small: it's technical. Click to copy, or select the text. */
+/** The trigger's ID, small and quiet: it's technical. Click to copy. */
 export function TriggerIdLine({ id }: { id: string; }) {
     const copy = () => {
         copyToClipboard(id);
-        showToast({ text: "ID copied!", variant: "success" });
+        showToast({ text: "ID copied", variant: "success" });
     };
     return (
-        <div style={{ display: "flex", alignItems: "center", gap: 4, minWidth: 0, fontSize: 11, color: COLORS.muted }}>
-            <span>ID</span>
-            <code style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", userSelect: "text", fontFamily: "var(--font-code)" }}>{id}</code>
-            <button
-                type="button"
-                aria-label="Copy ID"
-                title="Copy ID"
-                onClick={copy}
-                style={{ display: "flex", flexShrink: 0, padding: 2, border: 0, borderRadius: 4, background: "none", color: "inherit", cursor: "pointer" }}
-            >
-                <svg viewBox="0 0 24 24" width={12} height={12} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                    <rect x="9" y="9" width="11" height="11" rx="2" />
-                    <path d="M5 15V6a2 2 0 0 1 2-2h9" />
-                </svg>
-            </button>
-        </div>
+        <Tooltip text="Click to copy">
+            {props => <button {...props} type="button" className="vc-sora-trigger-id" aria-label={`Copy trigger ID ${id}`} onClick={copy}>{id}</button>}
+        </Tooltip>
     );
 }
 
@@ -282,11 +269,18 @@ function JoinLockSection({ draft, patch }: { draft: Draft; patch: Patch; }) {
             {draft.state.joinlock && <>
                 <NumberField
                     label="Priority"
+                    hint="Lower numbers win, so only triggers with a lower number can join while this lock is on"
                     tooltip="1 is the highest. While the lock is on, only triggers with a lower number can still join."
                     value={draft.state.priority}
                     onChange={v => patchState({ priority: v })}
                 />
-                <NumberField label="Lock for" unit="seconds" value={draft.state.joinlockDuration} onChange={v => patchState({ joinlockDuration: v })} />
+                <NumberField
+                    label="Lock for"
+                    hint="How long other triggers stay blocked after this one joins"
+                    unit="seconds"
+                    value={draft.state.joinlockDuration}
+                    onChange={v => patchState({ joinlockDuration: v })}
+                />
             </>}
         </>
     );

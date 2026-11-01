@@ -39,18 +39,25 @@
 .vc-sora-idf-rows {
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 0;
     margin-top: 8px;
+    padding: 4px;
+    border-radius: 8px;
+    background: var(--input-background-default);
+    border: 1px solid var(--input-border-default);
 }
 
 .vc-sora-idf-row {
     display: flex;
     align-items: center;
-    gap: 10px;
-    min-height: 36px;
-    padding: 6px 8px;
-    border-radius: 6px;
-    background: var(--background-mod-strong);
+    gap: 8px;
+    min-height: 30px;
+    padding: 2px 4px 2px 8px;
+    border-radius: 5px;
+}
+
+.vc-sora-idf-row:hover {
+    background: var(--background-mod-subtle);
 }
 
 .vc-sora-idf-row-bad {
@@ -65,7 +72,7 @@
     flex: 1;
     min-width: 0;
     display: flex;
-    align-items: baseline;
+    align-items: center;
     gap: 6px;
     overflow: hidden;
 }
@@ -100,9 +107,9 @@
 /* --- Icons --- */
 
 .vc-sora-idf-icon {
-    width: 22px;
-    height: 22px;
-    border-radius: 6px;
+    width: 20px;
+    height: 20px;
+    border-radius: 5px;
     flex-shrink: 0;
     object-fit: cover;
     display: grid;
@@ -177,8 +184,8 @@
 .vc-sora-idf-btn {
     display: grid;
     place-items: center;
-    width: 26px;
-    height: 26px;
+    width: 24px;
+    height: 24px;
     border: none;
     border-radius: var(--radius-sm, 4px);
     background: transparent;
@@ -306,8 +313,8 @@
     margin-top: 4px;
     padding: 4px;
     border-radius: 8px;
-    background: var(--background-mod-subtle);
-    border: 1px solid var(--background-mod-strong);
+    background: var(--input-background-default);
+    border: 1px solid var(--input-border-default);
 }
 
 .vc-sora-idf-opt {
