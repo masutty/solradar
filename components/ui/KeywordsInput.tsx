@@ -4,10 +4,11 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-import { FormSwitch } from "@components/FormSwitch";
+import { Switch } from "@components/Switch";
 import { copyToClipboard } from "@utils/clipboard";
 import { React, showToast, useState } from "@webpack/common";
 
+import { HelpTip } from "./HelpTip";
 import { Note } from "./Note";
 
 const DISCORD_ID_RE = /\d{17,20}/;
@@ -144,8 +145,9 @@ export function KeywordsInput({
             padding: "10px 14px", borderRadius: 8,
             background: "var(--background-mod-subtle)",
         }}>
-            <span style={{ color: "var(--control-secondary-text-default)", fontSize: 14, fontWeight: 500 }}>
+            <span style={{ display: "flex", alignItems: "center", gap: 6, color: "var(--control-secondary-text-default)", fontSize: 14, fontWeight: 500 }}>
                 {label}
+                <HelpTip text="Enter or a comma adds a word. Backspace removes the last one. Ctrl+A then Ctrl+C copies them all." />
             </span>
             {hint && (
                 <span style={{ color: "var(--text-muted)", fontSize: 12, lineHeight: 1.4, marginTop: 2 }}>
@@ -153,14 +155,14 @@ export function KeywordsInput({
                 </span>
             )}
 
-            {/* Chip area */}
+            {/* Chip area, styled like Discord's inputs */}
             <div
                 style={{
                     display: "flex", flexWrap: "wrap", alignItems: "center",
-                    gap: 5, marginTop: 8, padding: "6px 10px",
-                    borderRadius: 6, background: "var(--background-tertiary)",
-                    border: "1px solid var(--background-mod-normal)",
-                    minHeight: 38, cursor: "text",
+                    gap: 5, marginTop: 8, padding: "7px 10px",
+                    borderRadius: 8, background: "var(--input-background-default)",
+                    border: "1px solid var(--input-border-default)",
+                    minHeight: 40, boxSizing: "border-box", cursor: "text",
                 }}
                 onClick={e => (e.currentTarget as HTMLElement).querySelector("input")?.focus()}
             >
@@ -178,43 +180,35 @@ export function KeywordsInput({
                     onChange={e => handleChange(e.target.value)}
                     onKeyDown={handleKeyDown}
                     onBlur={() => setAllPicked(false)}
-                    placeholder={value.length === 0 ? (placeholder ?? "Type and press Enter or comma…") : undefined}
+                    placeholder={value.length === 0 ? (placeholder ?? "Type a word and press Enter") : "Add a word"}
                     style={{
                         border: "none", outline: "none", background: "transparent",
                         color: "var(--text-default)", fontSize: 13,
-                        minWidth: 140, flex: 1, padding: "2px 0",
+                        minWidth: 100, flex: 1, padding: "2px 0",
                     }}
                 />
             </div>
 
-            <span style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 4 }}>
-                Press <strong>Enter</strong> or <strong>,</strong> to add · <strong>Backspace</strong> to remove last · <strong>Ctrl+A</strong>, <strong>Ctrl+C</strong> to copy all
-            </span>
-
-            {/* Discord ID warning */}
             {showIdWarning && (
                 <Note variant="danger" style={{ marginTop: 6, fontSize: 12 }}>
                     If you are trying to match a role ID, please use the appropriate setting!
                 </Note>
             )}
 
-            {/* Strict match toggle */}
-            {onChangeStrict && <div style={{
-                marginTop: 8, display: "flex", alignItems: "center",
-                justifyContent: "space-between", gap: 12,
-                padding: "8px 12px", borderRadius: 6,
-                background: "var(--background-mod-normal)",
-            }}>
-                <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                    <span style={{ fontSize: 13, fontWeight: 500, color: "var(--text-default)" }}>
-                        Strict match
-                    </span>
-                    <span style={{ fontSize: 11, color: "var(--text-muted)", lineHeight: 1.4 }}>
-                        When on, only matches the exact word, not partial matches.
-                    </span>
+            {/* Strict match: a plain row under a line, on the same edges as everything above */}
+            {onChangeStrict && (
+                <div style={{
+                    marginTop: 10, paddingTop: 10,
+                    borderTop: "1px solid var(--background-mod-normal)",
+                    display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12,
+                }}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
+                        <span style={{ fontSize: 13, fontWeight: 500, color: "var(--text-default)" }}>Strict match</span>
+                        <span style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.4 }}>Only whole words count, so "cyber" won't match "cyberspace"</span>
+                    </div>
+                    <Switch checked={!!strict} onChange={onChangeStrict} />
                 </div>
-                <FormSwitch title="" value={!!strict} onChange={onChangeStrict} hideBorder />
-            </div>}
+            )}
         </div>
     );
 }

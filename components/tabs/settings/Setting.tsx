@@ -9,8 +9,11 @@ import { OptionType } from "@utils/types";
 import { React, Select, TextInput, Tooltip } from "@webpack/common";
 
 import { settings } from "../../../settings";
+import { HelpTip } from "../../ui/HelpTip";
 import { ChipKind, IdChipInput } from "../../ui/IdChipInput";
 import { KeywordsInput } from "../../ui/KeywordsInput";
+
+export { HelpTip };
 
 // --- Types ---
 
@@ -142,30 +145,6 @@ const S = {
 };
 
 // --- Badges ---
-
-export function HelpTip({ text }: { text: string; }) {
-    return (
-        <Tooltip text={text}>
-            {props => (
-                <span {...props} style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    width: 15,
-                    height: 15,
-                    borderRadius: "50%",
-                    background: "var(--background-mod-strong)",
-                    color: "var(--text-muted)",
-                    fontSize: 10,
-                    fontWeight: 700,
-                    cursor: "help",
-                    flexShrink: 0,
-                    userSelect: "none",
-                }}>?</span>
-            )}
-        </Tooltip>
-    );
-}
 
 export function TechBadge() {
     return (

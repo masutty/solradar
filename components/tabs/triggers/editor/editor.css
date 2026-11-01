@@ -18,19 +18,12 @@
     overflow-y: auto;
 }
 
-/* Group labels stay quieter than the items they group */
-.vc-sora-editor-navgroup {
-    color: var(--text-muted);
-    font-size: 10px;
-    font-weight: 600;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    opacity: 0.75;
-    padding: 14px 10px 4px;
-}
-
-.vc-sora-editor-navgroup:first-child {
-    padding-top: 4px;
+/* Essentials apart from the optional sections, without a label that looks like an item */
+.vc-sora-editor-navsep {
+    height: 1px;
+    margin: 6px 10px;
+    background: var(--background-mod-normal);
+    flex-shrink: 0;
 }
 
 .vc-sora-textarea {
@@ -61,6 +54,61 @@
 
 .vc-sora-textarea::placeholder {
     color: var(--input-placeholder-text-default, var(--text-muted));
+}
+
+/* Type picker: one input-style box, the active type stands out, color only as a dot */
+.vc-sora-typegrid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 2px;
+    margin-top: 6px;
+    padding: 3px;
+    border-radius: 8px;
+    background: var(--input-background-default);
+    border: 1px solid var(--input-border-default);
+}
+
+.vc-sora-typeopt {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 10px;
+    border: none;
+    border-radius: 6px;
+    background: none;
+    color: var(--text-muted);
+    font-size: 13px;
+    font-weight: 500;
+    text-align: left;
+    cursor: pointer;
+    transition: background 0.12s ease-out, color 0.12s ease-out;
+}
+
+.vc-sora-typeopt:hover {
+    background: var(--background-mod-subtle);
+    color: var(--text-default);
+}
+
+.vc-sora-typeopt[aria-pressed="true"] {
+    background: var(--background-mod-strong);
+    color: var(--text-default);
+}
+
+.vc-sora-typeopt i {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    opacity: 0.5;
+}
+
+.vc-sora-typeopt[aria-pressed="true"] i {
+    opacity: 1;
+}
+
+.vc-sora-typeopt:focus-visible {
+    outline: 2px solid var(--focus-primary, var(--brand-500));
+    outline-offset: 1px;
 }
 
 .vc-sora-trigger-id {
@@ -169,7 +217,7 @@
         scrollbar-width: none;
     }
 
-    .vc-sora-editor-navgroup {
+    .vc-sora-editor-navsep {
         display: none;
     }
 

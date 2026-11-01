@@ -160,10 +160,10 @@ function TriggerEditor({ modalProps, trigger }: { modalProps: ModalProps; trigge
             <ModalContent style={{ padding: 0, overflow: "hidden" }}>
                 <div className="vc-sora-editor-body">
                     <nav className="vc-sora-editor-nav vc-sora-thin-scroll">
-                        {groups.map(([group, title]) => {
+                        {groups.map(([group]) => {
                             const items = (
                                 <>
-                                    <div className="vc-sora-editor-navgroup">{title}</div>
+                                    {group === "optional" && <div className="vc-sora-editor-navsep" role="separator" />}
                                     {visible.filter(s => s.group === group).map(s => (
                                         <NavButton key={s.id} section={s} draft={draft} active={s.id === active.id} onSelect={() => setActiveId(s.id)} />
                                     ))}

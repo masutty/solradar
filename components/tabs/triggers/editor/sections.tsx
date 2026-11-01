@@ -7,7 +7,7 @@
 import "../../../ui/choice.css";
 
 import { copyToClipboard } from "@utils/clipboard";
-import { React, showToast, Tooltip, useEffect, useState } from "@webpack/common";
+import { React, showToast, TextInput, Tooltip, useEffect, useState } from "@webpack/common";
 
 import { settings } from "../../../../settings";
 import { DEFAULT_BIOME, Trigger, TriggerType } from "../../../../stores/TriggerStore";
@@ -15,7 +15,7 @@ import { TourAnchor, tourAnchor } from "../../../tour/TourAnchor";
 import { IdChipInput } from "../../../ui/IdChipInput";
 import { KeywordsInput } from "../../../ui/KeywordsInput";
 import { Note } from "../../../ui/Note";
-import { COLORS, descriptionText } from "../../../ui/styles";
+import { descriptionText, labelText } from "../../../ui/styles";
 import { AudioField, NumberField, RoleChipInput, rowStacked, sectionHeading, SwitchRow, TextAreaField, TextField } from "./fields";
 import { MatchPreview } from "./MatchPreview";
 
@@ -80,36 +80,14 @@ function TypePicker({ draft, patch }: { draft: Draft; patch: Patch; }) {
 
     return (
         <div style={rowStacked}>
-            <span style={{ fontSize: 14, fontWeight: 500, color: COLORS.label }}>Type</span>
-            <span style={descriptionText}>What kind of event this trigger watches for.</span>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(130px, 1fr))", gap: 6, marginTop: 4 }}>
+            <span style={labelText}>Type</span>
+            <span style={descriptionText}>What kind of event this trigger watches for</span>
+            <div className="vc-sora-typegrid" role="group" aria-label="Trigger type">
                 {(Object.keys(TYPE_META) as TriggerType[]).map(type => {
                     const meta = TYPE_META[type];
-                    const active = draft.type === type;
                     return (
-                        <button
-                            key={type}
-                            type="button"
-                            className="vc-sora-tile"
-                            onClick={() => choose(type)}
-                            aria-pressed={active}
-                            style={{
-                                display: "flex",
-                                alignItems: "center",
-                                padding: "8px 12px",
-                                border: "none",
-                                borderRadius: 8,
-                                cursor: "pointer",
-                                textAlign: "left",
-                                fontSize: 13,
-                                fontWeight: 500,
-                                ...(active && {
-                                    color: COLORS.text,
-                                    background: `color-mix(in srgb, ${meta.color} 16%, var(--background-mod-strong))`,
-                                    boxShadow: `inset 0 0 0 1px color-mix(in srgb, ${meta.color} 55%, transparent)`,
-                                }),
-                            }}
-                        >
+                        <button key={type} type="button" className="vc-sora-typeopt" aria-pressed={draft.type === type} onClick={() => choose(type)}>
+                            <i style={{ background: meta.color }} />
                             {meta.label}
                         </button>
                     );
@@ -120,52 +98,27 @@ function TypePicker({ draft, patch }: { draft: Draft; patch: Patch; }) {
 }
 
 function CoreTiles({ draft, patch }: { draft: Draft; patch: Patch; }) {
-    const tiles: [keyof Draft["state"], string, string, string, string][] = [
-        ["enabled", "⚡", "Enabled", "The trigger is active.", COLORS.positive],
-        ["autojoin", "🎯", "Auto-join", "Join as soon as it matches.", "var(--brand-500)"],
-        ["notify", "🔔", "Notify", "Desktop alert on a match.", "#eb459e"],
+    const toggles: [keyof Draft["state"], string, string][] = [
+        ["enabled", "Enabled", "The trigger is active"],
+        ["autojoin", "Auto-join", "Join as soon as it matches"],
+        ["notify", "Notify", "Desktop alert on a match"],
     ];
 
     return (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 8 }}>
-            {tiles.map(([key, emoji, label, desc, color]) => {
-                const on = Boolean(draft.state[key]);
-                return (
-                    <button
-                        key={key}
-                        type="button"
-                        className="vc-sora-press"
-                        aria-pressed={on}
-                        onClick={() => patch({ state: { ...draft.state, [key]: !on } })}
-                        style={{
-                            position: "relative",
-                            display: "flex",
-                            flexDirection: "column",
-                            gap: 6,
-                            padding: 12,
-                            border: "none",
-                            borderRadius: 10,
-                            cursor: "pointer",
-                            textAlign: "left",
-                            color: COLORS.text,
-                            background: on ? `color-mix(in srgb, ${color} 14%, var(--background-mod-subtle))` : "var(--background-mod-subtle)",
-                            boxShadow: on ? `inset 0 0 0 1.5px color-mix(in srgb, ${color} 55%, transparent)` : "none",
-                        }}
-                    >
-                        <span style={{ position: "absolute", top: 10, right: 10, fontSize: 11, fontWeight: 700, padding: "1px 7px", borderRadius: 999, color: on ? "#fff" : COLORS.muted, background: on ? color : "var(--background-mod-strong)" }}>
-                            {on ? "ON" : "OFF"}
-                        </span>
-                        <span style={{ fontSize: 22, lineHeight: 1 }}>{emoji}</span>
-                        <span style={{ fontSize: 14, fontWeight: 600 }}>{label}</span>
-                        <span style={{ fontSize: 12, color: COLORS.muted, lineHeight: 1.35 }}>{desc}</span>
-                    </button>
-                );
-            })}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 8 }}>
+            {toggles.map(([key, label, hint]) => (
+                <SwitchRow
+                    key={key}
+                    label={label}
+                    hint={hint}
+                    value={Boolean(draft.state[key])}
+                    onChange={v => patch({ state: { ...draft.state, [key]: v } })}
+                />
+            ))}
         </div>
     );
 }
 
-/** The trigger's ID, small and quiet: it's technical. Click to copy. */
 export function TriggerIdLine({ id }: { id: string; }) {
     const copy = () => {
         copyToClipboard(id);
@@ -189,17 +142,18 @@ export function EssentialsSection({ draft, patch }: { draft: Draft; patch: Patch
             <p style={{ ...sectionHeading, marginTop: 0 }}>Identity</p>
             <TourAnchor id="editor.type"><TypePicker draft={draft} patch={patch} /></TourAnchor>
             <div style={rowStacked} {...tourAnchor("editor.name")}>
-                <span style={{ fontSize: 14, fontWeight: 500, color: COLORS.label }}>Name and icon</span>
-                <div style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 2 }}>
-                    <TriggerIcon draft={draft} size={48} />
-                    <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 6 }}>
-                        <TextField label="" value={draft.name} placeholder="Name, e.g. Glitched" onChange={v => patch({ name: v })} />
+                <span style={labelText}>Name and icon</span>
+                {/* The icon is the same height as the input next to it */}
+                <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 4 }}>
+                    <TriggerIcon draft={draft} size={40} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                        <TextInput value={draft.name} placeholder="Name, e.g. Glitched" onChange={(v: string) => patch({ name: v })} />
                     </div>
                 </div>
             </div>
             <TextField
                 label="Icon URL"
-                hint="Optional. A direct link to an image."
+                hint="Optional, a direct link to an image"
                 value={draft.iconUrl}
                 placeholder="https://cdn.discordapp.com/..."
                 onChange={v => patch({ iconUrl: v })}
@@ -209,7 +163,7 @@ export function EssentialsSection({ draft, patch }: { draft: Draft; patch: Patch
                     This image probably won't load, because Discord only shows images from allowed sites. Use cdn.discordapp.com, imgur.com or githubusercontent.com instead. The trigger still works either way.
                 </Note>
             )}
-            <TextField label="Description" hint="Only for you, to remember what this trigger is." value={draft.description} placeholder="Optional" onChange={v => patch({ description: v })} />
+            <TextField label="Description" hint="Only for you, to remember what this trigger is" value={draft.description} placeholder="Optional" onChange={v => patch({ description: v })} />
 
             <p style={sectionHeading}>What it does</p>
             <TourAnchor id="editor.actions"><CoreTiles draft={draft} patch={patch} /></TourAnchor>
@@ -218,7 +172,7 @@ export function EssentialsSection({ draft, patch }: { draft: Draft; patch: Patch
             <TourAnchor id="editor.keywords">
             <KeywordsInput
                 label="Must contain"
-                hint="At least one of these words."
+                hint="At least one of these words"
                 value={keywords.match.value}
                 strict={keywords.match.strict}
                 variant="match"
@@ -228,7 +182,7 @@ export function EssentialsSection({ draft, patch }: { draft: Draft; patch: Patch
             />
             <KeywordsInput
                 label="Must not contain"
-                hint="Any of these cancels the match."
+                hint="Any of these cancels the match"
                 value={keywords.exclude.value}
                 strict={keywords.exclude.strict}
                 variant="exclude"
