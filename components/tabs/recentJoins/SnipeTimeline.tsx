@@ -40,15 +40,16 @@ function lineColor(line: SnipeLogEntry): string {
 
 /**
  * Time axis where long gaps are squeezed, so a 30s wait doesn't flatten the quick steps.
- * Gaps longer than CAP_MS shrink to CAP_MS and are reported as breaks to draw striped.
+ * Gaps longer than CAP_MS shrink to CAP_MS; those over twice CAP_MS are reported as breaks to draw striped.
+ * With onlyBreaks, gaps are kept to scale unless they become a striped break.
  */
-export function traceAxis(times: number[], CAP_MS = 500) {
+export function traceAxis(times: number[], CAP_MS = 500, onlyBreaks = false) {
     const pts = [...new Set(times)].sort((a, b) => a - b);
     const mapped = [0];
     const raw: [number, number, number][] = [];
     for (let i = 1; i < pts.length; i++) {
         const gap = pts[i] - pts[i - 1];
-        const w = Math.min(gap, CAP_MS);
+        const w = onlyBreaks && gap <= CAP_MS * 2 ? gap : Math.min(gap, CAP_MS);
         if (gap > CAP_MS * 2) raw.push([mapped[i - 1] + w * 0.2, mapped[i - 1] + w * 0.8, gap]);
         mapped.push(mapped[i - 1] + w);
     }
@@ -215,7 +216,7 @@ export function WaterfallView({ entry }: { entry: SnipeEntry; }) {
     const end = processingTime(phases);
     const times = [0, ...phases.flatMap(p => [p.start, p.end]), ...steps.flatMap(s => [s.start, s.end]), ...(rbx ?? []).flatMap(s => [s.start, s.end])];
     // With Roblox's steps, keep a few seconds at real scale so Roblox startup isn't squeezed
-    const axis = traceAxis(times, rbx ? 2000 : 500);
+    const axis = traceAxis(times, rbx ? 2000 : 500, !!rbx);
     const pct = (t: number) => `${(axis.pos(t) * 100).toFixed(2)}%`;
 
     const tickStep = Math.min(axis.firstBreakAt, end) > 2000 ? 1000 : 250;

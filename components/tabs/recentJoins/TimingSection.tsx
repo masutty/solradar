@@ -14,7 +14,7 @@ import { captureRobloxTimeline, isTimelineComplete, JOIN_STEPS, JoinBreakdown, j
 import { SnipeEntry } from "../../../stores/SnipeStore";
 import { formatElapsedTime } from "../../../utils";
 import { COLORS, sectionTitle } from "../../ui/styles";
-import { formatSecs } from "./SnipeTimeline";
+import { formatSecs, traceAxis } from "./SnipeTimeline";
 import { phaseSpans } from "./steps";
 
 type View = "summary" | "steps";
@@ -138,23 +138,25 @@ function Summary({ entry, b, reading, onRead, hover, setHover }: {
     );
 }
 
-const tickStep = (dom: number) => dom <= 60 ? 10 : dom <= 600 ? 100 : dom <= 3000 ? 500 : 1000;
+// At most ~5 labelled ticks on the part of the axis drawn to scale
+const NICE_STEPS = [10, 20, 50, 100, 200, 250, 500, 1000, 2000, 5000];
 const tickLabel = (t: number) => t === 0 ? "0" : t < 1000 ? `${t}ms` : `${t / 1000}s`;
 
 function Steps({ b }: { b: JoinBreakdown; }) {
-    const last = Math.max(...b.steps.map(s => s.end ?? s.start));
-    const open = b.steps.some(s => s.end === null);
-    const span = (b.spot ?? last) * (open ? 1.25 : 1);
-    const step = tickStep(span);
-    const dom = Math.max(step, Math.ceil((span * 1.04) / step) * step);
-    const pct = (t: number) => `${Math.min(100, (t / dom) * 100)}%`;
+    // A step that never ended (no spot) gets a short striped tail
+    const endOf = (s: JoinBreakdown["steps"][number]) => s.end ?? s.start + 1500;
+    // Long waits (a queue) are squeezed like the log waterfall, so the short steps stay readable
+    const axis = traceAxis([0, ...b.steps.flatMap(s => [s.start, endOf(s)])], 2000, true);
+    const pct = (t: number) => `${(axis.pos(t) * 100).toFixed(2)}%`;
+    const scaled = Math.min(axis.firstBreakAt, Math.max(...b.steps.map(endOf)));
+    const step = NICE_STEPS.find(s => scaled / s <= 5) ?? 10_000;
     const ticks: number[] = [];
-    for (let t = 0; t < dom; t += step) ticks.push(t);
-    const labelEvery = ticks.length > 6 ? 2 : 1;
+    for (let t = 0; t <= scaled; t += step) ticks.push(t);
 
     const grid = (
         <>
             {ticks.slice(1).map(t => <i key={t} className="vc-sora-tm-grid" style={{ left: pct(t) }} />)}
+            {axis.breaks.map((br, i) => <i key={`b${i}`} className="vc-sora-tm-break" style={{ left: `${br.a * 100}%`, width: `${(br.b - br.a) * 100}%` }} />)}
             {b.spot !== null && <i className="vc-sora-tm-spot" style={{ left: pct(b.spot) }} />}
         </>
     );
@@ -164,7 +166,8 @@ function Steps({ b }: { b: JoinBreakdown; }) {
             <div className="vc-sora-tm-row ruler">
                 <span />
                 <div className="vc-sora-tm-lane">
-                    {ticks.filter((_, i) => i % labelEvery === 0).map((t, i) => <span key={t} className={i ? "" : "first"} style={{ left: pct(t) }}>{tickLabel(t)}</span>)}
+                    {ticks.map((t, i) => <span key={t} className={i ? "" : "first"} style={{ left: pct(t) }}>{tickLabel(t)}</span>)}
+                    {axis.breaks.map((br, i) => <span key={`b${i}`} style={{ left: `${(br.a + br.b) * 50}%` }}>≈{formatSecs(br.real)}</span>)}
                 </div>
                 <span />
             </div>
@@ -182,7 +185,7 @@ function Steps({ b }: { b: JoinBreakdown; }) {
                                         className={`vc-sora-tm-span${dur === null ? " open" : ""}`}
                                         style={{
                                             left: pct(s.start),
-                                            width: dur === null ? `calc(100% - ${pct(s.start)})` : pct(dur),
+                                            width: `calc(${pct(endOf(s))} - ${pct(s.start)})`,
                                             background: dur === null ? undefined : STEP_CATS[info.cat].color,
                                             opacity: s.key === "connect" ? 0.5 : 1,
                                         }}
@@ -197,6 +200,7 @@ function Steps({ b }: { b: JoinBreakdown; }) {
             <div className="vc-sora-tm-key">
                 {catsOf(b).filter(k => b.totals[k] > 0).map(k => <span key={k}><i style={{ background: STEP_CATS[k].color }} />{STEP_CATS[k].name}</span>)}
                 {b.spot !== null && <span><i className="spot" />Spot in the server</span>}
+                {axis.breaks.length > 0 && <span><i className="break" />Shortened</span>}
             </div>
         </div>
     );
