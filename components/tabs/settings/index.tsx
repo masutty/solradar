@@ -7,7 +7,7 @@
 import { Button } from "@components/Button";
 import { copyToClipboard } from "@utils/clipboard";
 import { PluginNative } from "@utils/types";
-import { React, showToast, TextInput } from "@webpack/common";
+import { React, showToast, TextInput, Tooltip } from "@webpack/common";
 
 import { settings } from "../../../settings";
 import { useTourAction } from "../../../stores/TourStore";
@@ -128,38 +128,58 @@ function reportText(reports: LaunchHandlerReport[]): string {
     ].join("\n")).join("\n\n");
 }
 
-function HandlerResult({ report }: { report: LaunchHandlerReport; }) {
+const handlerTail = (exe: string) => exe.split(/[\\/]/).slice(-2);
+
+// One line per scheme: the exe, its Roblox version folder, and a short status
+function HandlerLine({ report }: { report: LaunchHandlerReport; }) {
     const h = report.handler;
-    const small: React.CSSProperties = { fontSize: 12, color: "var(--text-muted)" };
-    const isRobloxExe = h && /RobloxPlayerBeta\.exe$/i.test(h.exe);
+    const [folder, file] = h ? handlerTail(h.exe) : [];
+    const thirdParty = !!h && !/RobloxPlayerBeta\.exe$/i.test(h.exe);
+    const status = !h
+        ? { text: "Not found, uses cmd start", color: "var(--status-danger)" }
+        : thirdParty
+            ? { text: "Not Roblox's own exe", color: "var(--status-warning)" }
+            : h.userChoice
+                ? { text: "Your choice in Windows", color: "var(--text-muted)" }
+                : h.borrowedFrom
+                    ? { text: `Same as ${h.borrowedFrom}`, color: "var(--text-muted)" }
+                    : { text: "OK", color: "var(--status-positive)" };
+    const tip = h
+        ? [
+            h.exe,
+            `Read from ${h.key}`,
+            ...(h.userChoice ? [`You picked "${h.userChoice}" for these links in Windows.`] : []),
+            ...(h.borrowedFrom ? [`No command for ${report.scheme}://, so the ${h.borrowedFrom} handler is used.`] : []),
+            ...(thirdParty ? ["Not Roblox's own exe, maybe Bloxstrap or another launcher. Direct runs it the same way Windows would."] : []),
+        ]
+        : ["Windows has no program for these links that Direct can run, so joins use cmd start."];
+
     return (
-        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-            <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-default)" }}>{report.scheme}:// links</span>
-            {h ? (
-                <>
-                    <span style={{ fontSize: 12, color: "var(--status-positive)", fontFamily: "var(--font-code)", overflowWrap: "anywhere" }}>✅ {h.exe}</span>
-                    <span style={{ ...small, overflowWrap: "anywhere" }}>From {h.key}</span>
-                    {h.userChoice && <span style={small}>You picked "{h.userChoice}" in Windows for these links, so Direct uses it too.</span>}
-                    {h.borrowedFrom && <span style={small}>No command for {report.scheme}://, so the {h.borrowedFrom} handler is used. It's the same exe.</span>}
-                    {!isRobloxExe && <span style={{ fontSize: 12, color: "var(--status-warning)" }}>This isn't Roblox's own exe (maybe Bloxstrap or another launcher). Direct runs it the same way Windows would.</span>}
-                </>
-            ) : (
-                <span style={{ fontSize: 12, color: "var(--status-danger)" }}>❌ Not found. Direct launch falls back to cmd start for these links.</span>
+        <Tooltip text={<>{tip.map(l => <div key={l} style={{ overflowWrap: "anywhere" }}>{l}</div>)}</>}>
+            {props => (
+                <div {...props} style={{ display: "grid", gridTemplateColumns: "108px minmax(0, 1fr) auto", gap: 10, alignItems: "baseline", padding: "6px 0", cursor: "default" }}>
+                    <span style={{ fontSize: 12.5, color: "var(--text-muted)" }}>{report.scheme}://</span>
+                    <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 13, color: "var(--text-default)" }}>
+                        {h ? <>{file} <span style={{ color: "var(--text-muted)" }}>· {folder}</span></> : <span style={{ color: "var(--text-muted)" }}>-</span>}
+                    </span>
+                    <span style={{ fontSize: 12, color: status.color, whiteSpace: "nowrap" }}>{status.text}</span>
+                </div>
             )}
-        </div>
+        </Tooltip>
     );
 }
 
-// Shows which exe a direct launch runs and where Windows says so, for when joins open the wrong thing.
+// What Direct launch runs, checked when the section opens, for when joins open the wrong thing
 function LaunchHandlerCheck() {
     const [reports, setReports] = React.useState<LaunchHandlerReport[] | null>(null);
     const [error, setError] = React.useState<string | null>(null);
     const [checking, setChecking] = React.useState(false);
+    const [showKeys, setShowKeys] = React.useState(false);
 
     const check = async () => {
         // Natives only reload with a full Discord restart
         if (typeof Native.describeLaunchHandlers !== "function") {
-            setError("Fully restart Discord (quit from the tray) to use this check.");
+            setError("Fully restart Discord (quit from the tray) to see this.");
             return;
         }
         setChecking(true);
@@ -173,22 +193,36 @@ function LaunchHandlerCheck() {
         }
     };
 
+    React.useEffect(() => { void check(); }, []);
+
+    const link: React.CSSProperties = { border: "none", background: "none", padding: 0, fontSize: 12, color: "var(--text-link)", cursor: "pointer" };
+
     return (
         <div style={customRow}>
-            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                <Button size="medium" variant="secondary" onClick={check} disabled={checking}>
-                    {checking ? "Checking…" : "Check which program opens Roblox links"}
-                </Button>
-                {reports && (
-                    <Button size="medium" variant="secondary" onClick={() => { copyToClipboard(reportText(reports)); showToast({ text: "Copied", variant: "success" }); }}>
-                        Copy details
-                    </Button>
-                )}
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+                <div>
+                    <span style={customLabel}>Program that opens Roblox links</span>
+                    <div style={customDescription}>What Direct launch runs. Read from Windows, the same way Windows picks it.</div>
+                </div>
+                <div style={{ display: "flex", gap: 12, flexShrink: 0, paddingTop: 2 }}>
+                    <button type="button" style={link} disabled={checking} onClick={check}>{checking ? "Checking…" : "Check again"}</button>
+                    {reports && <button type="button" style={link} onClick={() => { copyToClipboard(reportText(reports)); showToast({ text: "Copied", variant: "success" }); }}>Copy</button>}
+                </div>
             </div>
-            {error && <span style={{ marginTop: 8, fontSize: 12, color: "var(--status-danger)" }}>{error}</span>}
+
+            {error && <span style={{ ...customDescription, marginTop: 8, color: "var(--status-danger)" }}>{error}</span>}
+
             {reports && (
-                <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 10 }}>
-                    {reports.map(r => <HandlerResult key={r.scheme} report={r} />)}
+                <div style={{ marginTop: 6, borderTop: "1px solid var(--background-mod-subtle)" }}>
+                    {reports.map(r => <HandlerLine key={r.scheme} report={r} />)}
+                    <button type="button" style={{ ...link, marginTop: 2 }} onClick={() => setShowKeys(v => !v)}>
+                        {showKeys ? "Hide details" : "Show details"}
+                    </button>
+                    {showKeys && (
+                        <div style={{ marginTop: 6, display: "flex", flexDirection: "column", gap: 2, fontFamily: "var(--font-code)", fontSize: 11.5, color: "var(--text-muted)", overflowWrap: "anywhere" }}>
+                            {reports.flatMap(r => r.tried.map(t => <span key={r.scheme + t.key}>{t.key} → {t.result}</span>))}
+                        </div>
+                    )}
                 </div>
             )}
         </div>
