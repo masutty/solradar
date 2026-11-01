@@ -148,10 +148,6 @@ function FileIcon() {
     );
 }
 
-function RefreshIcon() {
-    return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7" /><path d="M20 4v7h-7" /></svg>;
-}
-
 /** What the card says for each state. Nothing for the normal case. */
 function programState(p: LaunchProgram): { level: Level; text?: string; muted?: boolean; } {
     if (p.source === "custom") {
@@ -176,6 +172,13 @@ function RobloxProgramCard() {
         setProgram(await Native.getLaunchProgram(launchExePath || undefined));
     };
     React.useEffect(() => { void load(); }, [launchExePath]);
+    // Look again when Discord gets focus back, e.g. after reinstalling Roblox
+    React.useEffect(() => {
+        const onFocus = () => void load();
+        window.addEventListener("focus", onFocus);
+        return () => window.removeEventListener("focus", onFocus);
+    }, [launchExePath]);
+    const [pathHover, setPathHover] = React.useState(false);
 
     const choose = async () => {
         if (typeof Native.pickLaunchExe !== "function") { setOutdated(true); return; }
@@ -205,7 +208,7 @@ function RobloxProgramCard() {
 
             {program && state && (
                 <>
-                    <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", borderRadius: 8, background: "var(--background-base-lowest, rgba(0, 0, 0, 0.22))", boxShadow: "inset 0 0 0 1px var(--background-mod-subtle)" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", borderRadius: 8, background: "color-mix(in srgb, var(--background-base-lowest) 35%, transparent)", boxShadow: "inset 0 0 0 1px var(--background-mod-subtle)" }}>
                         {program.icon
                             ? <img src={program.icon} alt="" width={32} height={32} style={{ flexShrink: 0 }} />
                             : <FileIcon />}
@@ -215,7 +218,19 @@ function RobloxProgramCard() {
                                 ? (
                                     <Tooltip text={`${program.display} · Click to copy the full path`}>
                                         {props => (
-                                            <button {...props} type="button" onClick={copyPath} style={{ border: "none", background: "none", padding: 0, textAlign: "left", cursor: "copy", fontSize: 12, color: "var(--text-muted)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "100%" }}>
+                                            <button
+                                                {...props}
+                                                type="button"
+                                                onClick={copyPath}
+                                                onMouseEnter={() => { props.onMouseEnter?.(); setPathHover(true); }}
+                                                onMouseLeave={() => { props.onMouseLeave?.(); setPathHover(false); }}
+                                                style={{
+                                                    border: "none", background: "none", padding: 0, textAlign: "left", cursor: "copy", fontSize: 12,
+                                                    color: pathHover ? "var(--text-default)" : "var(--text-muted)",
+                                                    textDecoration: pathHover ? "underline dotted" : "none",
+                                                    whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "100%",
+                                                }}
+                                            >
                                                 {folder}
                                             </button>
                                         )}
@@ -237,14 +252,6 @@ function RobloxProgramCard() {
                                 <Button size="small" variant="secondary" onClick={choose}>Choose another file</Button>
                             </>
                             : <Button size="small" variant="secondary" onClick={choose}>Choose a file</Button>}
-                        <span style={{ flex: 1 }} />
-                        <Tooltip text="Look again">
-                            {props => (
-                                <button {...props} type="button" aria-label="Look again" onClick={load} style={{ width: 30, height: 30, border: "none", borderRadius: 6, display: "grid", placeItems: "center", cursor: "pointer", color: "var(--text-muted)", background: "var(--background-mod-normal)" }}>
-                                    <RefreshIcon />
-                                </button>
-                            )}
-                        </Tooltip>
                     </div>
                 </>
             )}

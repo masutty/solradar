@@ -183,12 +183,26 @@ export interface LaunchProgram {
     icon: string | null;
 }
 
+const iconCache = new Map<string, string | null>();
+
+/**
+ * The exe's own icon as a PNG data URL. Asks Windows directly: Electron's getFileIcon returns
+ * the generic program icon for RobloxPlayerBeta.exe. The path goes in an env var, never in the script.
+ */
 async function fileIcon(exe: string): Promise<string | null> {
+    if (iconCache.has(exe)) return iconCache.get(exe)!;
+    let url: string | null = null;
     try {
-        return (await app.getFileIcon(exe, { size: "large" })).toDataURL();
-    } catch {
-        return null;
+        const script = "Add-Type -AssemblyName System.Drawing; $i = [System.Drawing.Icon]::ExtractAssociatedIcon($env:SR_ICON_EXE); $m = New-Object System.IO.MemoryStream; $i.ToBitmap().Save($m, [System.Drawing.Imaging.ImageFormat]::Png); [Convert]::ToBase64String($m.ToArray())";
+        const { stdout } = await execFile("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", script], { env: { ...process.env, SR_ICON_EXE: exe }, windowsHide: true, timeout: 8000 });
+        const b64 = stdout.trim();
+        if (/^[A-Za-z0-9+/=]+$/.test(b64)) url = `data:image/png;base64,${b64}`;
+    } catch { }
+    if (!url) {
+        try { url = (await app.getFileIcon(exe, { size: "large" })).toDataURL(); } catch { }
     }
+    iconCache.set(exe, url);
+    return url;
 }
 
 /** What Direct launch runs: customExe when set, otherwise the program Windows opens Roblox links with. */
