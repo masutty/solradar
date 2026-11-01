@@ -32,11 +32,12 @@ function Highlight({ text, query }: { text: string; query: string; }) {
     return <>{text.slice(0, i)}<mark className="vc-sora-idf-mark">{text.slice(i, i + q.length)}</mark>{text.slice(i + q.length)}</>;
 }
 
-/** Search field with an in-flow results list. Enter or a click toggles the item in `ids`. */
-export function SearchBox({ kind, ids, onToggle }: { kind: ChipKind; ids: string[]; onToggle: (id: string) => void; }) {
+/** Search field with an in-flow results list. Enter or a click adds the item to `ids`; one already there stays. */
+export function SearchBox({ kind, ids, onAdd }: { kind: ChipKind; ids: string[]; onAdd: (id: string) => void; }) {
     const [query, setQuery] = useState("");
     const [open, setOpen] = useState(false);
     const [active, setActive] = useState(0);
+    const [notice, setNotice] = useState<string | null>(null);
 
     const results = React.useMemo(() => (open ? searchIds(kind, query) : []), [open, kind, query]);
     const listRef = React.useRef<HTMLDivElement>(null);
@@ -47,7 +48,12 @@ export function SearchBox({ kind, ids, onToggle }: { kind: ChipKind; ids: string
 
     const pick = (r: SearchResult | undefined) => {
         if (!r) return;
-        onToggle(r.id);
+        if (ids.includes(r.id)) {
+            setNotice(`${r.raw ? r.id : r.name} is already in the list`);
+        } else {
+            onAdd(r.id);
+            setNotice(null);
+        }
         setQuery("");
         setActive(0);
     };
@@ -64,7 +70,7 @@ export function SearchBox({ kind, ids, onToggle }: { kind: ChipKind; ids: string
             <TextInput
                 value={query}
                 placeholder={PLACEHOLDER[kind]}
-                onChange={(v: string) => { setQuery(v); setActive(0); setOpen(true); }}
+                onChange={(v: string) => { setQuery(v); setActive(0); setOpen(true); setNotice(null); }}
                 onFocus={() => setOpen(true)}
                 onBlur={() => setOpen(false)}
                 onKeyDown={onKeyDown}
@@ -87,27 +93,28 @@ export function SearchBox({ kind, ids, onToggle }: { kind: ChipKind; ids: string
                             >
                                 <ResultIcon kind={kind} r={r} />
                                 {r.raw
-                                    ? <span className="vc-sora-idf-opt-name vc-sora-idf-warn">Add {r.id}</span>
+                                    ? <span className="vc-sora-idf-opt-name vc-sora-idf-warn">{ids.includes(r.id) ? r.id : `Add ${r.id}`}</span>
                                     : (
                                         <span className="vc-sora-idf-opt-name">
                                             <Highlight text={r.name} query={query} />
                                             {r.sub && <span className="vc-sora-idf-sub"> <Highlight text={r.sub} query={query} /></span>}
                                         </span>
                                     )}
-                                {r.raw && <span className="vc-sora-idf-sub">{kind === "channel" || kind === "user" ? "you can check it after adding" : "not found in your servers"}</span>}
-                                {ids.includes(r.id) && <span className="vc-sora-idf-added">✓ added</span>}
+                                {r.raw && !ids.includes(r.id) && <span className="vc-sora-idf-sub">{kind === "channel" || kind === "user" ? "you can check it after adding" : "not found in your servers"}</span>}
+                                {ids.includes(r.id) && <span className="vc-sora-idf-added">✓ already added</span>}
                             </div>
                         ))}
                     </ScrollerThin>
                     {results.length > 0 && (
                         <div className="vc-sora-idf-dd-foot">
                             <span><kbd>↑</kbd><kbd>↓</kbd> move</span>
-                            <span><kbd>Enter</kbd> add / remove</span>
+                            <span><kbd>Enter</kbd> add</span>
                             <span><kbd>Esc</kbd> close</span>
                         </div>
                     )}
                 </div>
             )}
+            {notice && <span className="vc-sora-chip-hint">{notice}</span>}
         </div>
     );
 }

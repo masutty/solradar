@@ -36,7 +36,8 @@ export function IdChipInput({ kind, label, hint, ids, labels, onChange }: {
     const shown = rows.slice(0, VISIBLE_ROWS);
     const hidden = rows.slice(VISIBLE_ROWS);
 
-    const toggle = (id: string) => onChange(ids.includes(id) ? ids.filter(i => i !== id) : [...ids, id]);
+    // Adding never removes: an ID already in the list stays, removing is the row's ×
+    const add = (id: string) => { if (!ids.includes(id)) onChange([...ids, id]); };
     const removeBad = () => {
         const bad = new Set(rows.filter(isBad).map(r => r.id));
         onChange(ids.filter(id => !bad.has(id)));
@@ -70,7 +71,7 @@ export function IdChipInput({ kind, label, hint, ids, labels, onChange }: {
                 </div>
             )}
 
-            <SearchBox kind={kind} ids={ids} onToggle={toggle} />
+            <SearchBox kind={kind} ids={ids} onAdd={add} />
         </div>
     );
 }
