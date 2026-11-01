@@ -93,12 +93,22 @@ export function TextAreaField({ label, hint, value, placeholder, onChange, maxLe
     label: string; hint?: string; value: string;
     placeholder?: string; onChange: (v: string) => void; maxLength?: number;
 }) {
+    // Grows with the text up to TEXTAREA_MAX_PX, then scrolls. No resize grip to drag.
+    const ref = React.useRef<HTMLTextAreaElement>(null);
+    React.useLayoutEffect(() => {
+        const el = ref.current;
+        if (!el) return;
+        el.style.height = "auto";
+        el.style.height = `${Math.min(el.scrollHeight + 2, TEXTAREA_MAX_PX)}px`;
+    }, [value]);
+
     return (
         <div style={rowStacked}>
             <Label label={label} />
             {hint && <span style={descriptionText}>{hint}</span>}
             {/* No scrollbar-width here: setting it turns off the thin-scroll styles and brings back the arrows */}
             <textarea
+                ref={ref}
                 className="vc-sora-textarea vc-sora-thin-scroll"
                 value={value}
                 placeholder={placeholder}
@@ -108,6 +118,8 @@ export function TextAreaField({ label, hint, value, placeholder, onChange, maxLe
         </div>
     );
 }
+
+const TEXTAREA_MAX_PX = 220;
 
 export function SwitchRow({ label, hint, tooltip, value, onChange }: {
     label: string; hint?: string; tooltip?: string; value: boolean; onChange: (v: boolean) => void;

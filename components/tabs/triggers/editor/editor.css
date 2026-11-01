@@ -38,7 +38,8 @@
     min-height: 72px;
     padding: 9px 12px;
     box-sizing: border-box;
-    resize: vertical;
+    resize: none;
+    overflow-y: auto;
     border-radius: 8px;
     border: 1px solid var(--input-border-default);
     background: var(--input-background-default);
