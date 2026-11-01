@@ -67,4 +67,8 @@ export const Priority = ({ lock, value }: { lock?: boolean; value: number; }) =>
 export const DisabledTag = () => <span className="vc-sora-trigger-offtag">Disabled</span>;
 
 /** The editor's "this section is set up" dot. */
-export const SetUpDot = () => <span className="vc-sora-editor-dot" style={{ display: "inline-block", margin: "0 2px", verticalAlign: 1 }} />;
+export const SetUpDot = () => (
+    <span className="vc-sora-editor-set" style={{ display: "inline-grid", margin: "0 2px", verticalAlign: -2 }}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4.5 12.5l5 5 10-11" /></svg>
+    </span>
+);

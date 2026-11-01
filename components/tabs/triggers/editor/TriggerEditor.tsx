@@ -47,6 +47,7 @@ function IconButton({ tooltip, danger, onClick, children }: { tooltip: string; d
 
 function NavButton({ section, draft, active, onSelect }: { section: EditorSection; draft: Draft; active: boolean; onSelect: () => void; }) {
     const missing = section.id === "essentials" ? missingEssentials(draft) : [];
+    const summary = section.summary(draft);
     return (
         <button type="button" className={`vc-sora-editor-navbtn${active ? " active" : ""}`} onClick={onSelect} aria-current={active}>
             <span className="label">{section.label}</span>
@@ -55,9 +56,13 @@ function NavButton({ section, draft, active, onSelect }: { section: EditorSectio
                     {props => <span {...props} className="vc-sora-editor-warn">!</span>}
                 </Tooltip>
             )}
-            {section.configured(draft) && (
-                <Tooltip text="Configured">
-                    {props => <span {...props} className="vc-sora-editor-dot" />}
+            {summary && (
+                <Tooltip text={summary}>
+                    {props => (
+                        <span {...props} className="vc-sora-editor-set" aria-label={summary}>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4.5 12.5l5 5 10-11" /></svg>
+                        </span>
+                    )}
                 </Tooltip>
             )}
         </button>

@@ -98,10 +98,11 @@ function TypePicker({ draft, patch }: { draft: Draft; patch: Patch; }) {
 }
 
 function CoreTiles({ draft, patch }: { draft: Draft; patch: Patch; }) {
+    // Same emojis as the trigger list, so each one is easy to spot there
     const toggles: [keyof Draft["state"], string, string][] = [
-        ["enabled", "Enabled", "The trigger is active"],
-        ["autojoin", "Auto-join", "Join as soon as it matches"],
-        ["notify", "Notify", "Desktop alert on a match"],
+        ["enabled", "⚡ Enabled", "The trigger is active"],
+        ["autojoin", "🎯 Auto-join", "Join as soon as it matches"],
+        ["notify", "🔔 Notify", "Desktop alert on a match"],
     ];
 
     return (
@@ -115,6 +116,47 @@ function CoreTiles({ draft, patch }: { draft: Draft; patch: Patch; }) {
                     onChange={v => patch({ state: { ...draft.state, [key]: v } })}
                 />
             ))}
+        </div>
+    );
+}
+
+function PencilIcon() {
+    return (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+        </svg>
+    );
+}
+
+// Name, icon and description together. Clicking the icon shows the field for its link.
+function IdentityCard({ draft, patch, iconAllowed }: { draft: Draft; patch: Patch; iconAllowed: boolean | null; }) {
+    const [editingIcon, setEditingIcon] = useState(false);
+    return (
+        <div style={rowStacked} {...tourAnchor("editor.name")}>
+            <span style={labelText}>Name, icon and description</span>
+            <span style={descriptionText}>Click the icon to change it. The description is only for you</span>
+            <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 4 }}>
+                <Tooltip text={editingIcon ? "Hide the icon link" : "Change the icon"}>
+                    {props => (
+                        <button {...props} type="button" className="vc-sora-iconpick" aria-label="Change the icon" aria-expanded={editingIcon} onClick={() => setEditingIcon(v => !v)}>
+                            <TriggerIcon draft={draft} size={40} />
+                            <span className="vc-sora-iconpick-edit"><PencilIcon /></span>
+                        </button>
+                    )}
+                </Tooltip>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                    <TextInput value={draft.name} placeholder="Name, e.g. Glitched" onChange={(v: string) => patch({ name: v })} />
+                </div>
+            </div>
+            {editingIcon && (
+                <TextInput value={draft.iconUrl} placeholder="Link to an image, e.g. https://cdn.discordapp.com/..." onChange={(v: string) => patch({ iconUrl: v })} autoFocus />
+            )}
+            {iconAllowed === false && (
+                <Note variant="warning">
+                    This image probably won't load, because Discord only shows images from allowed sites. Use cdn.discordapp.com, imgur.com or githubusercontent.com instead. The trigger still works either way.
+                </Note>
+            )}
+            <TextInput value={draft.description} placeholder="Description, e.g. what this trigger is for" onChange={(v: string) => patch({ description: v })} />
         </div>
     );
 }
@@ -141,29 +183,7 @@ export function EssentialsSection({ draft, patch }: { draft: Draft; patch: Patch
         <>
             <p style={{ ...sectionHeading, marginTop: 0 }}>Identity</p>
             <TourAnchor id="editor.type"><TypePicker draft={draft} patch={patch} /></TourAnchor>
-            <div style={rowStacked} {...tourAnchor("editor.name")}>
-                <span style={labelText}>Name and icon</span>
-                {/* The icon is the same height as the input next to it */}
-                <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 4 }}>
-                    <TriggerIcon draft={draft} size={40} />
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                        <TextInput value={draft.name} placeholder="Name, e.g. Glitched" onChange={(v: string) => patch({ name: v })} />
-                    </div>
-                </div>
-            </div>
-            <TextField
-                label="Icon URL"
-                hint="Optional, a direct link to an image"
-                value={draft.iconUrl}
-                placeholder="https://cdn.discordapp.com/..."
-                onChange={v => patch({ iconUrl: v })}
-            />
-            {iconAllowed === false && (
-                <Note variant="warning">
-                    This image probably won't load, because Discord only shows images from allowed sites. Use cdn.discordapp.com, imgur.com or githubusercontent.com instead. The trigger still works either way.
-                </Note>
-            )}
-            <TextField label="Description" hint="Only for you, to remember what this trigger is" value={draft.description} placeholder="Optional" onChange={v => patch({ description: v })} />
+            <IdentityCard draft={draft} patch={patch} iconAllowed={iconAllowed} />
 
             <p style={sectionHeading}>What it does</p>
             <TourAnchor id="editor.actions"><CoreTiles draft={draft} patch={patch} /></TourAnchor>
@@ -191,6 +211,10 @@ export function EssentialsSection({ draft, patch }: { draft: Draft; patch: Patch
                 placeholder="e.g. hunt, help, looking for"
             />
             </TourAnchor>
+            <TourAnchor id="editor.roles">
+                <RoleChipInput roles={draft.conditions.mentionRoles} onChange={roles => patch({ conditions: { ...draft.conditions, mentionRoles: roles } })} />
+            </TourAnchor>
+            {/* Last: it checks every way above that can fire the trigger */}
             <TourAnchor id="editor.preview">
             <MatchPreview
                 triggerName={draft.name}
@@ -199,9 +223,6 @@ export function EssentialsSection({ draft, patch }: { draft: Draft; patch: Patch
                 excludeKeywords={keywords.exclude.value}
                 excludeStrict={keywords.exclude.strict}
             />
-            </TourAnchor>
-            <TourAnchor id="editor.roles">
-                <RoleChipInput roles={draft.conditions.mentionRoles} onChange={roles => patch({ conditions: { ...draft.conditions, mentionRoles: roles } })} />
             </TourAnchor>
         </>
     );
@@ -352,22 +373,47 @@ export interface EditorSection {
     group: "required" | "optional";
     tech?: boolean;
     visible: (d: Draft) => boolean;
-    configured: (d: Draft) => boolean;
+    /** What this section has set, in a few words. Null when it is left at its defaults. */
+    summary: (d: Draft) => string | null;
     Component: React.ComponentType<{ draft: Draft; patch: Patch; }>;
 }
 
+const count = (n: number, one: string, many: string) => n > 0 ? `${n} ${n === 1 ? one : many}` : null;
+const joinParts = (parts: (string | null | false)[]) => parts.filter(Boolean).join(", ") || null;
+
 export const SECTIONS: EditorSection[] = [
-    { id: "essentials", label: "Essentials", group: "required", visible: () => true, configured: () => false, Component: EssentialsSection },
-    { id: "lock", label: "Join lock", group: "optional", visible: () => true, configured: d => d.state.joinlock, Component: JoinLockSection },
-    { id: "sound", label: "Sound", group: "optional", visible: d => d.state.notify, configured: d => Boolean(d.state.notificationSound), Component: SoundSection },
-    { id: "biome", label: "Biome check", group: "optional", visible: d => hasBiomeCheck(d.type), configured: d => Boolean(d.biome?.detectionEnabled), Component: BiomeSection },
-    { id: "forwarding", label: "Forwarding", group: "optional", visible: () => true, configured: d => d.forwarding.onMatch.enabled || d.forwarding.onDetection.enabled, Component: ForwardingSection },
+    { id: "essentials", label: "Essentials", group: "required", visible: () => true, summary: () => null, Component: EssentialsSection },
+    {
+        id: "lock", label: "Join lock", group: "optional", visible: () => true,
+        summary: d => d.state.joinlock ? `Priority ${d.state.priority}, locks for ${d.state.joinlockDuration}s` : null,
+        Component: JoinLockSection,
+    },
+    { id: "sound", label: "Sound", group: "optional", visible: d => d.state.notify, summary: d => d.state.notificationSound ? "Plays a custom sound" : null, Component: SoundSection },
+    { id: "biome", label: "Biome check", group: "optional", visible: d => hasBiomeCheck(d.type), summary: d => d.biome?.detectionEnabled ? "Checks the biome after joining" : null, Component: BiomeSection },
+    {
+        id: "forwarding", label: "Forwarding", group: "optional", visible: () => true,
+        summary: d => {
+            const when = [d.forwarding.onMatch.enabled && "on a match", d.forwarding.onDetection.enabled && "when the biome is confirmed"].filter(Boolean);
+            return when.length ? `Forwards ${when.join(" and ")}` : null;
+        },
+        Component: ForwardingSection,
+    },
     {
         id: "filters", label: "Filters", group: "optional", visible: () => true,
-        configured: d => [d.conditions.fromUser, d.conditions.inChannel, d.conditions.ignoredChannels, d.conditions.ignoredGuilds].some(a => a.length > 0) || d.conditions.ignoreEdits,
+        summary: d => joinParts([
+            count(d.conditions.fromUser.length, "user", "users"),
+            count(d.conditions.inChannel.length, "channel", "channels"),
+            count(d.conditions.ignoredChannels.length, "ignored channel", "ignored channels"),
+            count(d.conditions.ignoredGuilds.length, "ignored server", "ignored servers"),
+            d.conditions.ignoreEdits && "ignores edits",
+        ]),
         Component: FiltersSection,
     },
-    { id: "bypasses", label: "Bypasses", group: "optional", tech: true, visible: () => true, configured: d => BYPASSES.some(([k]) => Boolean(d.conditions[k])), Component: BypassesSection },
+    {
+        id: "bypasses", label: "Bypasses", group: "optional", tech: true, visible: () => true,
+        summary: d => joinParts(BYPASSES.filter(([k]) => Boolean(d.conditions[k])).map(([, label]) => label)),
+        Component: BypassesSection,
+    },
 ];
 
 /** What's missing for the trigger to be useful. Shown as a warning on Essentials. */

@@ -100,7 +100,7 @@ export const makeEditorTour = (): Tour => ({
             title: "Extras",
             body: <>
                 <P>Optional sections: join lock, biome check, forwarding and filters.</P>
-                <P>A <SetUpDot /> means that section is set up.</P>
+                <P>A <SetUpDot /> means that section is set up. Hover it to see what.</P>
             </>,
         },
         {

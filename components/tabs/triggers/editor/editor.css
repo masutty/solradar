@@ -111,6 +111,41 @@
     outline-offset: 1px;
 }
 
+/* The trigger icon is a button: a pencil shows on hover */
+.vc-sora-iconpick {
+    position: relative;
+    display: block;
+    flex-shrink: 0;
+    padding: 0;
+    border: none;
+    border-radius: 9px;
+    background: none;
+    overflow: hidden;
+    cursor: pointer;
+}
+
+.vc-sora-iconpick-edit {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    background: rgb(0 0 0 / 55%);
+    color: #fff;
+    opacity: 0;
+    transition: opacity 0.12s ease-out;
+}
+
+.vc-sora-iconpick:hover .vc-sora-iconpick-edit,
+.vc-sora-iconpick:focus-visible .vc-sora-iconpick-edit,
+.vc-sora-iconpick[aria-expanded="true"] .vc-sora-iconpick-edit {
+    opacity: 1;
+}
+
+.vc-sora-iconpick:focus-visible {
+    outline: 2px solid var(--focus-primary, var(--brand-500));
+    outline-offset: 2px;
+}
+
 .vc-sora-trigger-id {
     align-self: flex-start;
     max-width: 100%;
@@ -166,12 +201,13 @@
     text-overflow: ellipsis;
 }
 
-.vc-sora-editor-dot {
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
+/* An optional section that has something set: a quiet check, the tooltip says what */
+.vc-sora-editor-set {
+    display: grid;
+    place-items: center;
     flex-shrink: 0;
-    background: var(--status-positive);
+    color: var(--status-positive);
+    opacity: 0.85;
 }
 
 .vc-sora-editor-warn {
