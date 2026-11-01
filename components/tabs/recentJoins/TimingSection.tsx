@@ -264,7 +264,7 @@ function Cells({ entry }: { entry: SnipeEntry; }) {
         ["Discord delay", m?.discordDelayMs == null ? "-" : m.discordDelayMs < 0 ? "~0ms" : formatSecs(m.discordDelayMs), "How long Discord took to deliver the message to Sol Radar. It's measured against your PC clock, so it's only roughly right."],
         ["Link check", took("verify"), "Checking the link leads to a place you allow. Runs while Roblox starts."],
         ["Biome check", took("wait"), "Waiting for your game to show the biome."],
-        ["Biome lasted", isReal && entry.biomeDurationMs != null ? formatElapsedTime(entry.biomeDurationMs) : "-", "How long the real biome lasted."],
+        ["Biome lasted", isReal && entry.biomeDurationMs != null ? formatElapsedTime(entry.biomeDurationMs) : "-", "How long the biome lasted"],
     ];
     return (
         <div className="vc-sora-tm-cells">
