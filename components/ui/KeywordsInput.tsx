@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+import "./choice.css";
+
 import { Switch } from "@components/Switch";
 import { copyToClipboard } from "@utils/clipboard";
 import { React, showToast, useState } from "@webpack/common";
@@ -23,41 +25,39 @@ function KeywordChip({ label, variant, selected, onRemove }: {
     onRemove: () => void;
 }) {
     const isMatch = variant === "match";
+    const color = isMatch ? "var(--brand-500)" : "var(--status-danger)";
+    // Square-ish tag, same height as the text input next to it, everything centered on one line
     return (
         <span style={{
             display: "inline-flex",
             alignItems: "center",
-            gap: 4,
-            padding: "2px 8px 2px 10px",
-            borderRadius: 999,
+            gap: 2,
+            height: 22,
+            padding: "0 2px 0 7px",
+            borderRadius: 4,
             fontSize: 12,
             fontWeight: 500,
-            background: isMatch ? "hsl(var(--brand-500-hsl) / 0.15)" : "hsl(0deg 65% 50% / 0.15)",
-            color: isMatch ? "var(--brand-400)" : "hsl(0deg 65% 65%)",
-            border: `1px solid ${isMatch ? "hsl(var(--brand-500-hsl) / 0.35)" : "hsl(0deg 65% 50% / 0.35)"}`,
-            boxShadow: selected ? `0 0 0 2px ${isMatch ? "var(--brand-500)" : "hsl(0deg 65% 55%)"}` : undefined,
+            lineHeight: "22px",
+            boxSizing: "border-box",
+            color: "var(--text-default)",
+            background: `color-mix(in srgb, ${color} 22%, transparent)`,
+            boxShadow: selected ? `0 0 0 2px ${color}` : undefined,
         }}>
-            <span style={{
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-                maxWidth: 180,
-            }}>
+            <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 180 }}>
                 {label}
             </span>
             <button
+                type="button"
+                aria-label={`Remove ${label}`}
                 onClick={onRemove}
-                style={{
-                    background: "none", border: "none", cursor: "pointer",
-                    padding: 0, lineHeight: 1, fontSize: 15,
-                    color: "inherit", opacity: 0.7, flexShrink: 0,
-                }}
-            >×</button>
+                className="vc-sora-iconbtn"
+                style={{ display: "grid", placeItems: "center", width: 18, height: 18, padding: 0, border: "none", borderRadius: 3, cursor: "pointer", flexShrink: 0 }}
+            >
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg>
+            </button>
         </span>
     );
 }
-
-// --- KeywordsInput ---
 
 export interface KeywordsInputProps {
     label: React.ReactNode;
@@ -184,7 +184,7 @@ export function KeywordsInput({
                     style={{
                         border: "none", outline: "none", background: "transparent",
                         color: "var(--text-default)", fontSize: 13,
-                        minWidth: 100, flex: 1, padding: "2px 0",
+                        minWidth: 100, flex: 1, padding: 0, height: 22, lineHeight: "22px",
                     }}
                 />
             </div>
