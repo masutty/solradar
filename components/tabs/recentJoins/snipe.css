@@ -1,75 +1,3 @@
-/* --- Phase bar --- */
-
-.vc-sora-snipe-pbar {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    padding: 10px 12px;
-    border-radius: 8px;
-    background: var(--background-mod-subtle);
-}
-
-.vc-sora-snipe-pbar-total {
-    color: var(--text-muted);
-    font-size: 13px;
-}
-
-.vc-sora-snipe-pbar-total b {
-    color: var(--text-default);
-    font-weight: 600;
-    font-variant-numeric: tabular-nums;
-}
-
-.vc-sora-snipe-bar {
-    display: flex;
-    gap: 2px;
-    height: 10px;
-    overflow: hidden;
-    border-radius: 5px;
-}
-
-.vc-sora-snipe-bar i {
-    display: block;
-    min-width: 3px;
-}
-
-.vc-sora-snipe-legend {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px 14px;
-    color: var(--text-muted);
-    font-size: 12px;
-}
-
-.vc-sora-snipe-legend-item {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    cursor: help;
-}
-
-.vc-sora-snipe-legend-item i {
-    width: 8px;
-    height: 8px;
-    border-radius: 2px;
-}
-
-.vc-sora-snipe-legend-item b {
-    color: var(--text-default);
-    font-weight: 600;
-    font-variant-numeric: tabular-nums;
-}
-
-.vc-sora-snipe-help {
-    border-bottom: 1px dotted var(--text-muted);
-}
-
-.vc-sora-snipe-empty {
-    padding: 10px 0;
-    color: var(--text-muted);
-    font-size: 13px;
-}
-
 /* --- Timeline (story) --- */
 
 .vc-sora-story {
@@ -158,160 +86,6 @@
     color: var(--text-muted);
     font-size: 12px;
     font-style: italic;
-}
-
-/* --- Waterfall --- */
-
-.vc-sora-wf {
-    padding: 6px 0 8px;
-    border-radius: 8px;
-    background: var(--background-mod-subtle);
-    font-size: 12.5px;
-}
-
-.vc-sora-wf-row {
-    display: grid;
-    grid-template-columns: 132px minmax(0, 1fr) 46px;
-    gap: 8px;
-    align-items: center;
-    height: 24px;
-    padding: 0 10px;
-}
-
-.vc-sora-wf-row:not(.ruler):hover {
-    background: var(--background-mod-subtle);
-}
-
-.vc-sora-wf-row.ruler {
-    height: 20px;
-    margin-bottom: 2px;
-    border-bottom: 1px solid var(--background-mod-subtle);
-    color: var(--text-muted);
-    font-size: 10.5px;
-}
-
-.vc-sora-wf-label {
-    overflow: hidden;
-    color: var(--text-default);
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.vc-sora-wf-row.phase .vc-sora-wf-label {
-    font-weight: 600;
-}
-
-.vc-sora-wf-row.step .vc-sora-wf-label {
-    padding-left: 14px;
-    color: var(--text-muted);
-}
-
-.vc-sora-wf-row.warn .vc-sora-wf-label {
-    color: var(--status-warning);
-}
-
-.vc-sora-wf-dur {
-    color: var(--text-muted);
-    font-size: 11.5px;
-    font-variant-numeric: tabular-nums;
-    text-align: right;
-}
-
-.vc-sora-wf-row.phase .vc-sora-wf-dur {
-    color: var(--text-default);
-    font-weight: 600;
-}
-
-.vc-sora-wf-dur.slow {
-    color: var(--status-warning);
-}
-
-.vc-sora-wf-lane {
-    position: relative;
-    height: 100%;
-}
-
-.vc-sora-wf-grid {
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    width: 1px;
-    background: var(--background-mod-subtle);
-}
-
-.vc-sora-wf-break {
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    z-index: 2;
-    background: repeating-linear-gradient(135deg, transparent 0 3px, var(--background-mod-strong) 3px 5px);
-}
-
-.vc-sora-wf-span {
-    position: absolute;
-    top: 50%;
-    z-index: 1;
-    min-width: 3px;
-    height: 10px;
-    border-radius: 3px;
-    transform: translateY(-50%);
-}
-
-.vc-sora-wf-row.phase .vc-sora-wf-span {
-    height: 6px;
-}
-
-.vc-sora-wf-diamond {
-    position: absolute;
-    top: 50%;
-    z-index: 1;
-    width: 9px;
-    height: 9px;
-    border-radius: 1px;
-    transform: translate(-50%, -50%) rotate(45deg);
-}
-
-.vc-sora-wf-tick {
-    position: absolute;
-    top: 3px;
-    transform: translateX(-50%);
-    white-space: nowrap;
-}
-
-.vc-sora-wf-tick.first {
-    transform: none;
-}
-
-.vc-sora-wf-tick.last {
-    transform: translateX(-100%);
-}
-
-.vc-sora-wf-key {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 14px;
-    padding: 8px 10px 0;
-    color: var(--text-muted);
-    font-size: 12px;
-}
-
-.vc-sora-wf-key i {
-    display: inline-block;
-    margin-right: 6px;
-    vertical-align: -1px;
-}
-
-.vc-sora-wf-key-diamond {
-    width: 8px;
-    height: 8px;
-    background: var(--text-muted);
-    transform: rotate(45deg);
-}
-
-.vc-sora-wf-key-break {
-    width: 14px;
-    height: 8px;
-    background: repeating-linear-gradient(135deg, transparent 0 3px, var(--text-muted) 3px 5px);
 }
 
 /* --- Raw --- */
@@ -471,7 +245,6 @@
 }
 
 .vc-sora-tm-bar i.open,
-.vc-sora-wf-span.open,
 .vc-sora-tm-span.open {
     background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--status-warning) 60%, transparent) 0 3px, color-mix(in srgb, var(--status-warning) 15%, transparent) 3px 7px);
 }
@@ -704,12 +477,42 @@
     vertical-align: 1px;
 }
 
+/* Fixed to the window so the stripes line up from row to row, as one continuous band */
 .vc-sora-tm-break {
     position: absolute;
     top: 0;
     bottom: 0;
     z-index: 2;
     background: repeating-linear-gradient(135deg, transparent 0 3px, var(--background-mod-strong) 3px 5px);
+    background-attachment: fixed;
+}
+
+.vc-sora-tm-grid-boxes {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+    gap: 6px;
+}
+
+.vc-sora-tm-grid-boxes.totals {
+    padding-top: 10px;
+    border-top: 1px solid var(--background-mod-subtle);
+}
+
+.vc-sora-tm-grid-boxes .vc-sora-tm-cell span {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.vc-sora-tm-grid-boxes .vc-sora-tm-cell i {
+    width: 7px;
+    height: 7px;
+    border-radius: 2px;
+    flex-shrink: 0;
+}
+
+.vc-sora-tm-grid-boxes .vc-sora-tm-cell b.warn {
+    color: var(--status-warning);
 }
 
 .vc-sora-tm-key i.break {

@@ -23,7 +23,7 @@ import { closeAllModals, ModalCloseButton, ModalContent, ModalFooter, ModalHeade
 import Spoiler from "../../ui/Spoiler";
 import { COLORS, sectionTitle } from "../../ui/styles";
 import { FallbackImage, formatClock, getSnipeStatus } from "./components";
-import { RawView, StoryView, WaterfallView } from "./SnipeTimeline";
+import { RawView, StoryView } from "./SnipeTimeline";
 import { TimingSection } from "./TimingSection";
 
 // --- Helpers ---
@@ -167,8 +167,8 @@ function Details({ entry, anonymize }: { entry: SnipeEntry; anonymize: boolean; 
     );
 }
 
-type View = "timeline" | "waterfall" | "raw";
-const VIEWS: [View, string][] = [["timeline", "Timeline"], ["waterfall", "Waterfall"], ["raw", "Raw"]];
+type View = "timeline" | "raw";
+const VIEWS: [View, string][] = [["timeline", "Timeline"], ["raw", "Raw"]];
 
 function MessageQuote({ entry }: { entry: SnipeEntry; }) {
     if (!entry.processedMessageText) return null;
@@ -299,8 +299,7 @@ function JoinModal({ entry: initialEntry, modalProps }: {
                     </div>
                     <Hidden anonymize={anonymizeEverything} block>
                         {view === "timeline" ? <StoryView entry={entry} quote={<MessageQuote entry={entry} />} />
-                            : view === "waterfall" ? <WaterfallView entry={entry} />
-                                : <RawView entry={entry} />}
+                            : <RawView entry={entry} />}
                     </Hidden>
                     </TourAnchor>
                 </div>

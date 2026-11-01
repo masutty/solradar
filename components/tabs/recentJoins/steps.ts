@@ -40,7 +40,7 @@ const PHASE_OF: Partial<Record<StepKey, PhaseKey>> = {
 export const PHASES: Record<PhaseKey, { name: string; color: string; tip: string; }> = {
     join: { name: "Joining", color: "var(--brand-500)", tip: "From the message arriving to Roblox opening the server." },
     // Same colors as the Timing section: checking the link is network, the biome check is waiting
-    verify: { name: "Checking the link", color: "var(--vc-sora-net)", tip: "Making sure the link leads to a Sol's RNG server you allow." },
+    verify: { name: "Checking the link", color: "var(--vc-sora-net)", tip: "Making sure the link leads to a place you allow." },
     wait: { name: "Biome check", color: "var(--text-muted)", tip: "Waiting for your game to show the biome. Ends when it's confirmed, turns out to be bait, or times out." },
 };
 
@@ -74,8 +74,6 @@ export function phaseSpans(entry: SnipeEntry): PhaseSpan[] {
     });
     return spans.map(s => ({ ...s, start: Math.max(0, Math.min(s.start, s.end)) }));
 }
-
-export const processingTime = (spans: PhaseSpan[]) => spans.reduce((max, s) => Math.max(max, s.end), 0);
 
 // --- Result icon ---
 

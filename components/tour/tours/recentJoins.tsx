@@ -104,12 +104,10 @@ export const makeRecentJoinsTour = (): Tour => ({
             group: "details",
             when: () => hasSnipes() && demoHasTimings(),
             anchor: "details.timeline",
-            enter: () => { runTourAction("details.setView", "waterfall"); },
-            leave: () => { runTourAction("details.setView", "timeline"); },
             title: "Step by step",
             body: <>
                 <P>Every step from the message to the join, with timings.</P>
-                <P><b>Waterfall</b>, shown here, makes it easy to see where the time went.</P>
+                <P><b>Raw</b> shows the plain log, for bug reports.</P>
             </>,
         },
         {
