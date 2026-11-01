@@ -37,9 +37,9 @@ function IconButton({ tooltip, danger, onClick, children }: { tooltip: string; d
     return (
         <Tooltip text={tooltip}>
             {props => (
-                <button {...props} type="button" aria-label={tooltip} className={`vc-sora-editor-iconbtn${danger ? " danger" : ""}`} onClick={onClick}>
+                <Button {...props} size="small" variant={danger ? "dangerSecondary" : "secondary"} style={{ minWidth: 30, width: 30, padding: 0 }} aria-label={tooltip} onClick={onClick}>
                     {children}
-                </button>
+                </Button>
             )}
         </Tooltip>
     );

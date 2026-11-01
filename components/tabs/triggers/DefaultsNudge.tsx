@@ -6,6 +6,7 @@
 
 import "./ImportPicker.css";
 
+import { Button } from "@components/Button";
 import { React } from "@webpack/common";
 
 import { DefaultChanges, DefaultTrigger } from "../../../stores/defaultTriggers";
@@ -39,8 +40,8 @@ export function DefaultsNudge({ changes, onDismiss, onOpen }: { changes: Default
                 <div className="vc-sora-nudge-body"><Summary changes={changes} /></div>
             </div>
             <div className="vc-sora-nudge-actions">
-                <button type="button" className="vc-sora-nudge-btn" onClick={onDismiss}>Not now</button>
-                <button type="button" className="vc-sora-nudge-btn primary" onClick={onOpen}>Take a look</button>
+                <Button size="small" variant="secondary" onClick={onDismiss}>Not now</Button>
+                <Button size="small" variant="primary" onClick={onOpen}>Take a look</Button>
             </div>
         </div>
     );

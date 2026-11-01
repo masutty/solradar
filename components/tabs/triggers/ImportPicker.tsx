@@ -6,7 +6,7 @@
 
 import "./ImportPicker.css";
 
-import { Button } from "@components/Button";
+import { Button, TextButton } from "@components/Button";
 import { Heading } from "@components/Heading";
 import { React, showToast, useMemo, useState } from "@webpack/common";
 
@@ -230,7 +230,7 @@ function ImportPicker({ modalProps, source, triggers, fileName, changes }: Picke
                                 <span className="vc-sora-ip-banner-text"><b>{changesTotal} {changesTotal === 1 ? "change" : "changes"}</b> since your last look</span>
                                 {allChangesPicked
                                     ? <span className="vc-sora-ip-banner-done">Selected</span>
-                                    : <button type="button" className="vc-sora-ip-link" onClick={() => setPicked(prev => new Set([...prev, ...changeIds]))}>Select them</button>}
+                                    : <TextButton variant="link" onClick={() => setPicked(prev => new Set([...prev, ...changeIds]))}>Select them</TextButton>}
                             </div>
                         )}
                     </div>

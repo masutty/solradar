@@ -6,6 +6,7 @@
 
 import "./tour.css";
 
+import { Button } from "@components/Button";
 import { React, ReactDOM, useEffect, useRef, useState } from "@webpack/common";
 
 import { Logger } from "../../logger";
@@ -256,14 +257,14 @@ export function TourOverlay() {
                 <div className="vc-sora-tour-foot">
                     <span className="vc-sora-tour-count"><b>{pos}</b> / {total}</span>
                     {step.kind === "action" && <span className="vc-sora-tour-hint"><i />{step.hint}</span>}
-                    {canBack && <button type="button" className="vc-sora-tour-btn ghost" onClick={() => TourStore.back()}>Back</button>}
+                    {canBack && <Button size="small" variant="secondary" onClick={() => TourStore.back()}>Back</Button>}
                     {step.kind !== "action" && step.secondaryLabel && (
-                        <button type="button" className="vc-sora-tour-btn ghost" onClick={() => runSecondary(step)}>{step.secondaryLabel}</button>
+                        <Button size="small" variant="secondary" onClick={() => runSecondary(step)}>{step.secondaryLabel}</Button>
                     )}
                     {step.kind !== "action" && (
-                        <button type="button" className="vc-sora-tour-btn primary" onClick={() => runPrimary(step)}>
+                        <Button size="small" variant="primary" onClick={() => runPrimary(step)}>
                             {step.primary?.label ?? (isLast ? "Done" : "Next")}
-                        </button>
+                        </Button>
                     )}
                 </div>
             </div>

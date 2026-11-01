@@ -263,23 +263,6 @@
 
 .vc-sora-idf-banner span { flex: 1; }
 
-.vc-sora-idf-banner button {
-    flex-shrink: 0;
-    padding: 3px 10px;
-    border-radius: 4px;
-    border: 1px solid color-mix(in srgb, var(--text-feedback-critical) 50%, transparent);
-    background: transparent;
-    color: var(--text-feedback-critical);
-    font-size: 12px;
-    font-weight: 600;
-    cursor: pointer;
-}
-
-.vc-sora-idf-banner button:hover {
-    background: var(--text-feedback-critical);
-    color: #fff;
-}
-
 /* --- "Show all" --- */
 
 .vc-sora-idf-more {

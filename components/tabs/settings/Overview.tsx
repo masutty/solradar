@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-import { Button } from "@components/Button";
+import { Button, TextButton } from "@components/Button";
 import { Switch } from "@components/Switch";
 import { React } from "@webpack/common";
 
@@ -181,13 +181,9 @@ export function Overview({ onFix }: { onFix: (block: BlockId, setting: string) =
             <div style={{ ...divider, display: "flex", flexDirection: "column", gap: 2, paddingTop: 10 }}>
                 {visible.map(c => <CheckRow key={c.text} check={c} onFix={onFix} />)}
                 {checks.length > MAX_VISIBLE_CHECKS && (
-                    <button
-                        type="button"
-                        onClick={() => setShowAll(v => !v)}
-                        style={{ alignSelf: "flex-start", margin: "4px 8px 0", background: "none", border: "none", padding: 0, color: "var(--text-link)", cursor: "pointer", fontSize: 12, fontWeight: 500 }}
-                    >
+                    <TextButton variant="link" onClick={() => setShowAll(v => !v)} style={{ alignSelf: "flex-start", margin: "4px 8px 0", fontSize: 12 }}>
                         {showAll ? "Show less" : `Show ${checks.length - MAX_VISIBLE_CHECKS} more`}
-                    </button>
+                    </TextButton>
                 )}
             </div>
         </div>

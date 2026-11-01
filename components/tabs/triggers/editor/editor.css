@@ -100,27 +100,6 @@
     font-weight: 600;
 }
 
-.vc-sora-editor-iconbtn {
-    display: grid;
-    place-items: center;
-    width: 32px;
-    height: 32px;
-    border: none;
-    border-radius: 6px;
-    background: var(--background-mod-subtle);
-    color: var(--text-muted);
-    cursor: pointer;
-}
-
-.vc-sora-editor-iconbtn:hover {
-    background: var(--background-mod-strong);
-    color: var(--text-default);
-}
-
-.vc-sora-editor-iconbtn.danger:hover {
-    color: var(--status-danger);
-}
-
 /* Narrow windows: the nav turns into a row of tabs above the content. */
 @media (width <= 720px) {
     .vc-sora-editor-body {

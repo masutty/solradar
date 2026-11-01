@@ -8,6 +8,7 @@ import "./debug/debug.css";
 import "./choice.css";
 import "./modal.css";
 
+import { Button } from "@components/Button";
 import { CopyIcon, LinkIcon, OpenExternalIcon, PencilIcon, SafetyIcon } from "@components/Icons";
 import { copyToClipboard } from "@utils/clipboard";
 import { Channel, Guild, Message } from "@vencord/discord-types";
@@ -68,9 +69,9 @@ function IconButton({ tip, doneTip, onClick, children }: { tip: string; doneTip:
     return (
         <Tooltip text={done ? doneTip : tip} forceOpen={done || undefined}>
             {props => (
-                <button {...props} type="button" className={`vc-sora-dbg-ibtn${done ? " done" : ""}`} aria-label={done ? doneTip : tip} onClick={click}>
+                <Button {...props} size="small" variant="secondary" style={{ minWidth: 30, width: 30, padding: 0 }} aria-label={done ? doneTip : tip} onClick={click}>
                     {done ? <StatusIcon status="pass" size={14} /> : children}
-                </button>
+                </Button>
             )}
         </Tooltip>
     );
@@ -93,10 +94,10 @@ function FixButtons({ fixes, onFixed }: { fixes?: Fix[]; onFixed: () => void; })
     return (
         <div className="vc-sora-dbg-fixes">
             {fixes.map(f => (
-                <button
+                <Button
                     key={f.label}
-                    type="button"
-                    className="vc-sora-dbg-fix"
+                    size="xs"
+                    variant="secondary"
                     onClick={async () => {
                         await f.run();
                         showToast({ text: `${f.label}: done`, variant: "success" });
@@ -104,7 +105,7 @@ function FixButtons({ fixes, onFixed }: { fixes?: Fix[]; onFixed: () => void; })
                     }}
                 >
                     {f.label}
-                </button>
+                </Button>
             ))}
         </div>
     );
@@ -358,29 +359,29 @@ function DebugModal({ modalProps, message, channel, guild }: { modalProps: Modal
                     {result.link && (
                         <Tooltip text={placeIdTip(result.link)}>
                             {props => (
-                                <button {...props} type="button" className="vc-sora-dbg-fbtn" disabled={linkCheck.check.state !== "idle"} onClick={linkCheck.run}>
+                                <Button {...props} size="small" variant="secondary" style={{ gap: 6 }} disabled={linkCheck.check.state !== "idle"} onClick={linkCheck.run}>
                                     <SafetyIcon width={16} height={16} />
                                     Check Roblox PlaceID
-                                </button>
+                                </Button>
                             )}
                         </Tooltip>
                     )}
                     {result.link && result.verdict !== "join" && (
                         <Tooltip text="Opens this server in Roblox now, skipping every check.">
                             {props => (
-                                <button {...props} type="button" className="vc-sora-dbg-fbtn" onClick={() => { void joinLink(result.link!); modalProps.onClose(); }}>
+                                <Button {...props} size="small" variant="secondary" style={{ gap: 6 }} onClick={() => { void joinLink(result.link!); modalProps.onClose(); }}>
                                     <OpenExternalIcon width={16} height={16} />
                                     Join
-                                </button>
+                                </Button>
                             )}
                         </Tooltip>
                     )}
                     <span style={{ flex: 1 }} />
                     {result.trigger && (
-                        <button type="button" className="vc-sora-dbg-fbtn primary" onClick={() => openEditTriggerModal(result.trigger!)}>
+                        <Button size="small" variant="primary" style={{ gap: 6 }} onClick={() => openEditTriggerModal(result.trigger!)}>
                             <PencilIcon width={16} height={16} />
                             Edit {result.trigger.name}
-                        </button>
+                        </Button>
                     )}
                 </div>
             </ModalFooter>

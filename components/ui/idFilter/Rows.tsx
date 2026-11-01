@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+import { Button } from "@components/Button";
 import { copyToClipboard } from "@utils/clipboard";
 import { ChannelStore, GuildRoleStore, GuildStore, React, showToast, Tooltip, UserStore, useStateFromStores } from "@webpack/common";
 
@@ -121,7 +122,7 @@ export function ProblemBanner({ kind, rows, onRemoveBad }: { kind: ChipKind; row
     return (
         <div className="vc-sora-idf-banner">
             <span>{n} {NOUN[kind]}{many ? "s" : ""} in this list {many ? "no longer exist or aren't" : "no longer exists or isn't"} reachable.</span>
-            <button type="button" onClick={onRemoveBad}>Remove {many ? "them" : "it"}</button>
+            <Button size="xs" variant="dangerSecondary" onClick={onRemoveBad}>Remove {many ? "them" : "it"}</Button>
         </div>
     );
 }

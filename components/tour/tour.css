@@ -211,36 +211,6 @@
     min-height: 32px;
 }
 
-.vc-sora-tour-btn {
-    padding: 6px 14px;
-    white-space: nowrap;
-    border: none;
-    border-radius: 6px;
-    font-size: 13px;
-    font-weight: 600;
-    cursor: pointer;
-}
-
-.vc-sora-tour-btn.ghost {
-    padding: 6px 10px;
-    background: none;
-    color: var(--text-muted);
-}
-
-.vc-sora-tour-btn.ghost:hover {
-    color: var(--text-default);
-}
-
-.vc-sora-tour-btn.primary {
-    background: var(--brand-500);
-    color: #fff;
-}
-
-.vc-sora-tour-btn.primary:hover {
-    background: var(--brand-560, #4752c4);
-}
-
-.vc-sora-tour-btn:focus-visible,
 .vc-sora-tour-x:focus-visible {
     outline: 2px solid var(--brand-360, #949cf7);
     outline-offset: 2px;

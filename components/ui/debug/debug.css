@@ -58,69 +58,6 @@
     font-size: 12.5px;
 }
 
-/* Icon-only buttons for copy actions, labelled buttons for the rest */
-.vc-sora-dbg-ibtn,
-.vc-sora-dbg-fbtn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    height: 32px;
-    border: none;
-    border-radius: 8px;
-    background: var(--background-mod-normal);
-    color: var(--interactive-text-default, var(--text-default));
-    font-size: 13px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: background 0.15s ease-out, color 0.15s ease-out;
-}
-
-.vc-sora-dbg-ibtn {
-    width: 32px;
-    color: var(--text-muted);
-}
-
-.vc-sora-dbg-fbtn {
-    padding: 0 12px;
-}
-
-.vc-sora-dbg-ibtn.done {
-    background: color-mix(in srgb, var(--status-positive) 18%, transparent);
-}
-
-.vc-sora-dbg-ibtn.done .vc-sora-dbg-ic {
-    background: none;
-}
-
-.vc-sora-dbg-ibtn:hover,
-.vc-sora-dbg-fbtn:hover:not(:disabled) {
-    background: var(--background-mod-strong);
-    color: var(--text-default);
-}
-
-.vc-sora-dbg-fbtn.primary {
-    background: var(--brand-500);
-    color: #fff;
-}
-
-.vc-sora-dbg-fbtn.primary:hover {
-    background: var(--brand-560, var(--brand-500));
-    color: #fff;
-    filter: brightness(1.08);
-}
-
-.vc-sora-dbg-fbtn:disabled {
-    opacity: 0.5;
-    cursor: default;
-}
-
-.vc-sora-dbg-ibtn:focus-visible,
-.vc-sora-dbg-fbtn:focus-visible {
-    outline: 2px solid var(--focus-primary, var(--brand-500));
-    outline-offset: 2px;
-}
-
 .vc-sora-dbg-sec {
     margin-top: 4px;
     color: var(--text-muted);
@@ -316,22 +253,6 @@
     margin-top: 6px;
 }
 
-.vc-sora-dbg-fix {
-    padding: 4px 10px;
-    border: none;
-    border-radius: 6px;
-    background: color-mix(in srgb, var(--brand-500) 16%, transparent);
-    color: var(--text-brand);
-    font-size: 12px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: background 0.15s ease-out;
-}
-
-.vc-sora-dbg-fix:hover {
-    background: color-mix(in srgb, var(--brand-500) 28%, transparent);
-}
-
 /* --- Checklist --- */
 
 .vc-sora-dbg-group-head {
@@ -476,5 +397,5 @@
 
 @media (prefers-reduced-motion: reduce) {
     .vc-sora-dbg-spin { animation-duration: 2s; }
-    .vc-sora-dbg-fix { transition: none; }
+
 }
