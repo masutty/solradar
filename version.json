@@ -1,6 +1,16 @@
 {
-    "currentVersion": "1.6.1",
+    "currentVersion": "1.7.0",
     "changelog": [
+        {
+            "version": "1.7.0",
+            "entries": [
+                { "type": "Added", "text": "Join timing", "description": "Open a snipe in Snipe History to see how long it took to reach the server, and whether the time went to your PC, the network or a full server." },
+                { "type": "Added", "text": "Launch method", "description": "In Settings, under Join behavior, you can have Sol Radar run Roblox directly, a little faster than the default." },
+                { "type": "Improved", "text": "A cleaner trigger editor and settings" },
+                { "type": "Fixed", "text": "Custom triggers now check the biome after joining" },
+                { "type": "Fixed", "text": "Adding an ID that's already in a list no longer removes it" }
+            ]
+        },
         {
             "version": "1.6.1",
             "entries": [
