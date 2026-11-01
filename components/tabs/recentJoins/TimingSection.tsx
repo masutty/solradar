@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-// Timing: how long the join took, from the Discord message to a spot in the server.
-// Summary (number, bar, three totals, one note) or Steps (one row per step, DevTools style).
+// Timing: how long the join took, from the Discord message until the server let Roblox in.
+// Summary (number, bar, totals, one note), Steps (one row per step, DevTools style) or Grid (every value as a box).
 
 import { Button } from "@components/Button";
 import { React, Tooltip } from "@webpack/common";
@@ -17,7 +17,8 @@ import { COLORS, sectionTitle } from "../../ui/styles";
 import { formatSecs, traceAxis } from "./SnipeTimeline";
 import { phaseSpans } from "./steps";
 
-type View = "summary" | "steps";
+type View = "summary" | "steps" | "grid";
+const VIEW_LABEL: Record<View, string> = { summary: "Summary", steps: "Steps", grid: "Grid" };
 const CATS: StepCat[] = ["plugin", "hw", "net"];
 // Queue only shows up when there was one
 const catsOf = (b: JoinBreakdown): StepCat[] => b.totals.queue > 0 ? [...CATS, "queue"] : CATS;
@@ -35,7 +36,7 @@ function DocIcon() {
 function noteFor(entry: SnipeEntry, b: JoinBreakdown, reading: boolean): { text: string; warn?: boolean; action?: boolean; } {
     // Opening an older snipe starts a read; don't call the log missing until it's done
     if (reading && !entry.robloxTimeline) return { text: "Reading Roblox's log…" };
-    if (b.totals.queue > 0) return { text: `The server was full, so you waited ${formatSecs(b.totals.queue)} in its queue.`, warn: true };
+    if (b.totals.queue > 0) return { text: `The server was full, so Roblox waited ${formatSecs(b.totals.queue)} in its queue.`, warn: true };
     switch (b.situation) {
         case "cold":
             return entry.metrics?.joinMode === "safe"
@@ -50,8 +51,8 @@ function noteFor(entry: SnipeEntry, b: JoinBreakdown, reading: boolean): { text:
         case "noSpot": {
             const ask = b.steps.find(s => s.key === "server");
             return ask
-                ? { text: `Roblox asked for a spot at ${formatSecs(ask.start)} and didn't get one. The server was probably full.`, warn: true }
-                : { text: "Roblox got the link but stopped before asking for a spot.", warn: true };
+                ? { text: `Roblox asked to join at ${formatSecs(ask.start)} and never got a server. It was probably full.`, warn: true }
+                : { text: "Roblox got the link but stopped before asking to join.", warn: true };
         }
         case "pending":
             return { text: reading ? "Reading Roblox's log…" : "Roblox's log is read about 30s after the join." };
@@ -67,6 +68,8 @@ function Summary({ entry, b, reading, onRead, hover, setHover }: {
     hover: StepCat | null; setHover: (c: StepCat | null) => void;
 }) {
     const joined = b.spot !== null;
+    // With a queue, the time that's yours is until Roblox asked to join; the wait after it is the server's
+    const queue = b.steps.find(s => s.key === "queue");
     const hasRoblox = b.totals.hw > 0 || b.totals.net > 0;
     const open = b.steps.find(s => s.end === null);
     const cats = catsOf(b);
@@ -78,10 +81,12 @@ function Summary({ entry, b, reading, onRead, hover, setHover }: {
     return (
         <div className="vc-sora-tm-card">
             <div className="vc-sora-tm-headline">
-                {joined
-                    ? <><span className="vc-sora-tm-big">{formatSecs(b.spot!)}</span><span>to get into the server</span></>
+                {joined && queue
+                    ? <><span className="vc-sora-tm-big">{formatSecs(queue.start)}</span><span>until Roblox asked to join</span></>
+                    : joined
+                        ? <><span className="vc-sora-tm-big">{formatSecs(b.spot!)}</span><span>until Roblox got a server</span></>
                     : b.situation === "noSpot"
-                        ? <><span className="vc-sora-tm-big warn">No spot</span><span>Roblox didn't get into the server</span></>
+                        ? <><span className="vc-sora-tm-big warn">No server</span><span>Roblox never got a server</span></>
                         : <><span className="vc-sora-tm-big">{formatSecs(b.totals.plugin)}</span><span>reaction, Sol Radar's part only</span></>}
             </div>
 
@@ -199,8 +204,48 @@ function Steps({ b }: { b: JoinBreakdown; }) {
             })}
             <div className="vc-sora-tm-key">
                 {catsOf(b).filter(k => b.totals[k] > 0).map(k => <span key={k}><i style={{ background: STEP_CATS[k].color }} />{STEP_CATS[k].name}</span>)}
-                {b.spot !== null && <span><i className="spot" />Spot in the server</span>}
+                {b.spot !== null && <span><i className="spot" />Got a server</span>}
                 {axis.breaks.length > 0 && <span><i className="break" />Shortened</span>}
+            </div>
+        </div>
+    );
+}
+
+function Grid({ b }: { b: JoinBreakdown; }) {
+    const queue = b.steps.find(s => s.key === "queue");
+    const totals: [string, number | null, string][] = [
+        ...(queue ? [["Until Roblox asked to join", queue.start, "Your part: from the message until Roblox asked the server to let you in."] as [string, number, string]] : []),
+        ["Until Roblox got a server", b.spot, "From the message until the server let Roblox in."],
+        ["Until connected", b.connected, "From the message until Roblox was connected to the server."],
+    ];
+    return (
+        <div className="vc-sora-tm-card">
+            <div className="vc-sora-tm-grid-boxes">
+                {b.steps.map(s => {
+                    const info = JOIN_STEPS[s.key];
+                    return (
+                        <Tooltip key={s.key} text={info.tip}>
+                            {props => (
+                                <div {...props} className="vc-sora-tm-cell">
+                                    <b className={s.end === null ? "warn" : ""}>{s.end === null ? "No reply" : formatSecs(s.end - s.start)}</b>
+                                    <span><i style={{ background: STEP_CATS[info.cat].color }} />{info.name}</span>
+                                </div>
+                            )}
+                        </Tooltip>
+                    );
+                })}
+            </div>
+            <div className="vc-sora-tm-grid-boxes totals">
+                {totals.filter(([, v]) => v !== null).map(([label, v, tip]) => (
+                    <Tooltip key={label} text={tip}>
+                        {props => (
+                            <div {...props} className="vc-sora-tm-cell">
+                                <b>{formatSecs(v!)}</b>
+                                <span>{label}</span>
+                            </div>
+                        )}
+                    </Tooltip>
+                ))}
             </div>
         </div>
     );
@@ -217,7 +262,7 @@ function Cells({ entry }: { entry: SnipeEntry; }) {
     const cells: [string, string, string][] = [
         // Your PC clock and Discord's never agree exactly, so a few ms below zero just means "instant"
         ["Discord delay", m?.discordDelayMs == null ? "-" : m.discordDelayMs < 0 ? "~0ms" : formatSecs(m.discordDelayMs), "How long Discord took to deliver the message to Sol Radar. It's measured against your PC clock, so it's only roughly right."],
-        ["Link check", took("verify"), "Checking the link leads to a Sol's RNG server you allow. Runs while Roblox starts."],
+        ["Link check", took("verify"), "Checking the link leads to a place you allow. Runs while Roblox starts."],
         ["Biome check", took("wait"), "Waiting for your game to show the biome."],
         ["Biome lasted", isReal && entry.biomeDurationMs != null ? formatElapsedTime(entry.biomeDurationMs) : "-", "How long the real biome lasted."],
     ];
@@ -266,14 +311,14 @@ export function TimingSection({ entry }: { entry: SnipeEntry; }) {
                 {b && (
                     <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                         <div className="vc-sora-tm-switch" role="group" aria-label="Timing view">
-                            {(["summary", "steps"] as View[]).map(v => (
+                            {(Object.keys(VIEW_LABEL) as View[]).map(v => (
                                 <button key={v} type="button" className="vc-sora-seg" aria-pressed={view === v} onClick={() => setView(v)}>
-                                    {v === "summary" ? "Summary" : "Steps"}
+                                    {VIEW_LABEL[v]}
                                 </button>
                             ))}
                         </div>
                         {m?.launchedAt && (
-                            <Tooltip text={reading ? "Reading Roblox's log…" : "Read Roblox's log again"}>
+                            <Tooltip text={reading ? "Reading Roblox's log…" : "Read Roblox's log again. Use it when the Roblox steps are missing or cut short, for example when Roblox was still joining the first time it was read."}>
                                 {props => (
                                     <button {...props} type="button" className="vc-sora-history-iconbtn" aria-label="Read Roblox's log again" disabled={reading} onClick={() => read(true)}>
                                         <DocIcon />
@@ -289,7 +334,9 @@ export function TimingSection({ entry }: { entry: SnipeEntry; }) {
                 ? <span style={{ fontSize: 13, color: COLORS.muted }}>This snipe didn't join, so there is nothing to time.</span>
                 : view === "summary"
                     ? <Summary entry={entry} b={b} reading={reading} onRead={() => read(true)} hover={hover} setHover={setHover} />
-                    : <Steps b={b} />}
+                    : view === "steps"
+                        ? <Steps b={b} />
+                        : <Grid b={b} />}
 
             <Cells entry={entry} />
         </>

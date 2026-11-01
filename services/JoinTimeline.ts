@@ -62,7 +62,7 @@ export const STEP_CATS: Record<StepCat, { name: string; color: string; tip: stri
     plugin: { name: "Plugin", color: "var(--brand-500)", tip: "Sol Radar's part: reading the message and opening Roblox. This is the ⚡." },
     hw: { name: "Hardware", color: "var(--vc-sora-hw)", tip: "Roblox starting and loading on your PC." },
     net: { name: "Network", color: "var(--vc-sora-net)", tip: "Roblox talking to its servers." },
-    queue: { name: "Queue", color: "var(--text-muted)", tip: "Waiting in line for a spot because the server was full." },
+    queue: { name: "Queue", color: "var(--text-muted)", tip: "Waiting in line because the server was full." },
 };
 
 export const JOIN_STEPS: Record<JoinStepKey, { name: string; cat: StepCat; tip: string; }> = {
@@ -74,9 +74,9 @@ export const JOIN_STEPS: Record<JoinStepKey, { name: string; cat: StepCat; tip: 
     loading: { name: "Roblox loading", cat: "hw", tip: "Roblox loading from closed, then resolving the link. Roblox doesn't log the two apart." },
     resolve: { name: "Link resolve", cat: "net", tip: "Roblox asking where the link points." },
     prepare: { name: "Prepare", cat: "hw", tip: "Roblox setting up the game on your PC." },
-    server: { name: "Server request", cat: "net", tip: "Roblox asking for a spot in the server. Ends when it has one." },
-    queue: { name: "Queue", cat: "queue", tip: "The server was full, so Roblox waited in line for a spot." },
-    connect: { name: "Connect", cat: "net", tip: "Connecting to the server after getting the spot." },
+    server: { name: "Server request", cat: "net", tip: "Roblox asking the server to let you in. Ends when it does." },
+    queue: { name: "Queue", cat: "queue", tip: "The server was full, so Roblox waited in line to get in." },
+    connect: { name: "Connect", cat: "net", tip: "Connecting to the server after it let Roblox in." },
 };
 
 export interface JoinStep {
@@ -184,7 +184,7 @@ export const PHASES: { key: PhaseKey; label: string; tip: string; }[] = [
     { key: "gamejoin", label: "Server request", tip: JOIN_STEPS.server.tip },
     { key: "queue", label: "Queue", tip: JOIN_STEPS.queue.tip },
     { key: "connect", label: "Connect", tip: JOIN_STEPS.connect.tip },
-    { key: "toServer", label: "Message → server", tip: "From the message reaching the plugin until Roblox got a spot in the server." },
+    { key: "toServer", label: "Message → server", tip: "From the message reaching the plugin until the server let Roblox in." },
     { key: "total", label: "Message → connected", tip: "From the message reaching the plugin until connected to the game server." },
 ];
 
