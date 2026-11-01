@@ -142,9 +142,30 @@ function StateSymbol({ level }: { level: Level; }) {
     );
 }
 
+// Fixed icons instead of reading the exe's own: no extra process, and the same for everyone
+function RobloxIcon() {
+    return (
+        <svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true" style={{ flexShrink: 0 }}>
+            <rect width="32" height="32" rx="7" fill="#335fff" />
+            <rect x="8" y="8" width="16" height="16" rx="1.5" fill="#fff" transform="rotate(15 16 16)" />
+            <rect x="13.5" y="13.5" width="5" height="5" fill="#335fff" transform="rotate(15 16 16)" />
+        </svg>
+    );
+}
+
+function LauncherIcon() {
+    return (
+        <div style={{ width: 32, height: 32, borderRadius: 7, flexShrink: 0, display: "grid", placeItems: "center", background: "var(--background-mod-normal)", color: "var(--text-default)" }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <rect x="3" y="4" width="18" height="16" rx="2" /><path d="M3 9h18M7 6.5h.01M10 6.5h.01" /><path d="m10 13 3 2-3 2z" />
+            </svg>
+        </div>
+    );
+}
+
 function FileIcon() {
     return (
-        <div style={{ width: 34, height: 34, borderRadius: 8, flexShrink: 0, display: "grid", placeItems: "center", background: "var(--background-mod-normal)", color: "var(--text-muted)" }}>
+        <div style={{ width: 32, height: 32, borderRadius: 7, flexShrink: 0, display: "grid", placeItems: "center", background: "var(--background-mod-normal)", color: "var(--text-muted)" }}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" /><path d="M14 3v5h5" /></svg>
         </div>
     );
@@ -226,14 +247,12 @@ function RobloxProgramCard() {
             {program && state && (
                 <>
                     <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", borderRadius: 8, background: "color-mix(in srgb, var(--background-base-lowest) 35%, transparent)", boxShadow: "inset 0 0 0 1px var(--background-mod-subtle)" }}>
-                        {program.icon
-                            ? <img src={program.icon} alt="" width={32} height={32} style={{ flexShrink: 0 }} />
-                            : <FileIcon />}
+                        {!program.found ? <FileIcon /> : program.otherLauncher ? <LauncherIcon /> : <RobloxIcon />}
                         <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 1 }}>
                             <span style={{ fontSize: 14, fontWeight: 600, color: "var(--text-default)" }}>{program.found || program.source === "custom" ? file : "No program"}</span>
                             {program.exe
                                 ? (
-                                    <Tooltip text={`${program.display} · Click to copy the full path`}>
+                                    <Tooltip text={program.display}>
                                         {props => (
                                             <button
                                                 {...props}
@@ -272,17 +291,17 @@ function RobloxProgramCard() {
                         <span style={{ flex: 1 }} />
                         <Tooltip text={checking ? "Looking…" : "Look for the program again"}>
                             {props => (
-                                <button
+                                <Button
                                     {...props}
-                                    type="button"
-                                    className="vc-sora-iconbtn vc-sora-press"
+                                    size="small"
+                                    variant="secondary"
                                     aria-label="Look for the program again"
                                     disabled={checking}
                                     onClick={() => void load()}
-                                    style={{ width: 32, height: 32, border: "none", borderRadius: 6, display: "grid", placeItems: "center", cursor: "pointer", boxShadow: "inset 0 0 0 1px var(--background-mod-normal)" }}
+                                    style={{ minWidth: 30, width: 30, padding: 0 }}
                                 >
                                     <RefreshIcon spinning={checking} />
-                                </button>
+                                </Button>
                             )}
                         </Tooltip>
                     </div>
