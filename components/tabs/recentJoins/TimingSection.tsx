@@ -79,7 +79,7 @@ function Summary({ entry, b, reading, onRead, hover, setHover }: {
         <div className="vc-sora-tm-card">
             <div className="vc-sora-tm-headline">
                 {joined
-                    ? <><span className="vc-sora-tm-big">{formatSecs(b.spot!)}</span><span>to a spot in the server</span></>
+                    ? <><span className="vc-sora-tm-big">{formatSecs(b.spot!)}</span><span>to get into the server</span></>
                     : b.situation === "noSpot"
                         ? <><span className="vc-sora-tm-big warn">No spot</span><span>Roblox didn't get into the server</span></>
                         : <><span className="vc-sora-tm-big">{formatSecs(b.totals.plugin)}</span><span>reaction, Sol Radar's part only</span></>}
@@ -125,7 +125,7 @@ function Summary({ entry, b, reading, onRead, hover, setHover }: {
                 })}
             </div>
 
-            <div className={`vc-sora-tm-note${note.warn ? " warn" : ""}`}>
+            <div className={`vc-sora-tm-note${note.warn ? " vc-sora-tm-note-warn" : ""}`}>
                 <InfoIcon warn={note.warn} />
                 <span>{note.text}</span>
                 {note.action && (
@@ -215,7 +215,8 @@ function Cells({ entry }: { entry: SnipeEntry; }) {
     };
     const isReal = entry.tags.includes("biome-verified-real");
     const cells: [string, string, string][] = [
-        ["Discord delivery", m?.discordDelayMs != null ? formatSecs(m.discordDelayMs) : "-", "From Discord's servers to Sol Radar. Negative means your PC clock is a bit ahead, so read it as about zero."],
+        // Your PC clock and Discord's never agree exactly, so a few ms below zero just means "instant"
+        ["Discord delay", m?.discordDelayMs == null ? "-" : m.discordDelayMs < 0 ? "~0ms" : formatSecs(m.discordDelayMs), "How long Discord took to deliver the message to Sol Radar. It's measured against your PC clock, so it's only roughly right."],
         ["Link check", took("verify"), "Checking the link leads to a Sol's RNG server you allow. Runs while Roblox starts."],
         ["Biome check", took("wait"), "Waiting for your game to show the biome."],
         ["Biome lasted", isReal && entry.biomeDurationMs != null ? formatElapsedTime(entry.biomeDurationMs) : "-", "How long the real biome lasted."],

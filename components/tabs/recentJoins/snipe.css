@@ -520,14 +520,20 @@
     font-weight: 500;
 }
 
+/* A quiet line under the tiles: muted text like a description, only the icon carries color */
 .vc-sora-tm-note {
     display: flex;
     align-items: flex-start;
     gap: 8px;
-    padding-top: 10px;
+    margin: 0;
+    padding: 10px 0 0;
+    border: none;
     border-top: 1px solid var(--background-mod-subtle);
-    color: var(--control-secondary-text-default, var(--text-default));
+    border-radius: 0;
+    background: none;
+    color: var(--text-muted);
     font-size: 12.5px;
+    line-height: 1.4;
     text-wrap: pretty;
 }
 
@@ -537,7 +543,7 @@
     color: var(--text-muted);
 }
 
-.vc-sora-tm-note.warn svg {
+.vc-sora-tm-note-warn svg {
     color: var(--status-warning);
 }
 
