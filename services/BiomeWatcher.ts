@@ -17,16 +17,34 @@ import { BiomeDetector } from "./BiomeDetector";
 import { forwardSnipe } from "./ForwardingService";
 
 let _unsubscribeBiomeDetection: (() => void) | null = null;
+let _closeBiomeEndWatch: ((reason: string) => void) | null = null;
 
 export function cancelBiomeDetection(): void {
     _unsubscribeBiomeDetection?.();
     _unsubscribeBiomeDetection = null;
+    _closeBiomeEndWatch?.("cancelled");
 }
 
 function _watchForBiomeEnd(snipe: Snipe): void {
+    _closeBiomeEndWatch?.("superseded by a new snipe");
+
     const biomeStartedAt = performance.now();
     const activeBiome = (snipe.trigger.biome?.detectionKeyword || snipe.trigger.name).toUpperCase();
     snipe.logInfo(`Watching for biome "${activeBiome}" to end.`);
+
+    const unsubscribeAll = () => {
+        unsubChange();
+        unsubClear();
+        unsubReset();
+        if (_closeBiomeEndWatch === close) _closeBiomeEndWatch = null;
+    };
+
+    // closes the watch without the end action or releasing the lock, since the end was never observed
+    const close = (reason: string) => {
+        unsubscribeAll();
+        snipe.logInfo(`Stopped watching biome "${activeBiome}" (${reason}). End not observed.`);
+    };
+    _closeBiomeEndWatch = close;
 
     const finish = (reason: string, to?: string) => {
         const duration = Math.round(performance.now() - biomeStartedAt);
@@ -34,8 +52,7 @@ function _watchForBiomeEnd(snipe: Snipe): void {
         snipe.setBiomeDuration(duration);
         snipe.logInfo(`Biome ended (${reason}) - duration: ${formattedDuration}${to ? ` (now "${to?.toUpperCase()}")` : ""}.`);
         JoinLockStore.release();
-        unsubChange();
-        unsubClear();
+        unsubscribeAll();
         scheduleCancelableAction({
             action: settings.store.onBiomeEnd,
             timeoutMs: settings.store.biomeEndActionTimeout ?? 10_000,
@@ -56,10 +73,16 @@ function _watchForBiomeEnd(snipe: Snipe): void {
         if (from.toUpperCase() !== activeBiome) return;
         finish("disconnected");
     });
+
+    const unsubReset = BiomeDetector.on("sessionReset", ({ from }) => {
+        if (from.toUpperCase() !== activeBiome) return;
+        close("game session ended");
+    });
 }
 
 export function startBiomeDetection(snipe: Snipe): void {
     _unsubscribeBiomeDetection?.();
+    _closeBiomeEndWatch?.("superseded by a new snipe");
 
     if (!hasBiomeCheck(snipe.trigger.type)) {
         return;

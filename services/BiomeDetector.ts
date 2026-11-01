@@ -45,6 +45,8 @@ export interface BiomeClearedEvent {
 type BiomeEventMap = {
     biomeChanged: BiomeChangedEvent;
     biomeCleared: BiomeClearedEvent;
+    // a new Roblox log appeared, so the old game session is gone without a disconnect line (e.g. Alt+F4)
+    sessionReset: BiomeClearedEvent;
 };
 
 type BiomeListener<K extends keyof BiomeEventMap> = (event: BiomeEventMap[K]) => void;
@@ -198,10 +200,14 @@ class BiomeDetectorService {
             const found = newest[userid];
             if (found && found.path !== state.logPath) {
                 logger.debug(`Log path for ${state.username}: ${found.path.split(/[\\/]/).pop()}`);
+                const previousBiome = state.lastKnownBiome;
                 state.logPath = found.path;
                 state.lastKnownBiome = undefined;
                 state.lastSeenRpcTs = undefined;
                 state.lastBiomeUpdatedAt = 0;
+                if (previousBiome !== undefined) {
+                    this._emit("sessionReset", { username: state.username, from: previousBiome });
+                }
             }
         }
     }
