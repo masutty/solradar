@@ -31,6 +31,8 @@ function DocIcon() {
 }
 
 function noteFor(entry: SnipeEntry, b: JoinBreakdown, reading: boolean): { text: string; warn?: boolean; action?: boolean; } {
+    // Opening an older snipe starts a read; don't call the log missing until it's done
+    if (reading && !entry.robloxTimeline) return { text: "Reading Roblox's log…" };
     switch (b.situation) {
         case "cold":
             return entry.metrics?.joinMode === "safe"
