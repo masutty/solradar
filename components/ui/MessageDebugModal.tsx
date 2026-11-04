@@ -15,11 +15,11 @@ import { Channel, Guild, Message } from "@vencord/discord-types";
 import { React, showToast, Tooltip } from "@webpack/common";
 
 import { isComponentsV2 } from "../../services/MessageProcessor";
-import { joinLink, lookupPlaceId } from "../../services/RobloxService";
+import { joinLink, lookupPlaceId, resolveShareLinkRaw } from "../../services/RobloxService";
 import { settings } from "../../settings";
 import { UIState } from "../../stores/UIStateStore";
 import { SnipableLink } from "../../types";
-import { parseCsv } from "../../utils";
+import { isDeveloper, parseCsv } from "../../utils";
 import { openEditTriggerModal } from "../tabs/triggers/editor/TriggerEditor";
 import { ALL_STEPS, analyzeMessage, debugReport, DebugResult, DebugStep, Fix, GROUPS, StepStatus, Verdict } from "./debug/analyzeMessage";
 import { ModalCloseButton, ModalContent, ModalFooter, ModalHeader, ModalProps, ModalRoot, ModalSize, openModal } from "./LegacyModal";
@@ -294,6 +294,56 @@ function TraceView({ result, onFixed }: { result: DebugResult; onFixed: () => vo
     );
 }
 
+/** Developer only: what Roblox answers when the share code is resolved, untouched. */
+function RawResolveModal({ modalProps, code }: { modalProps: ModalProps; code: string; }) {
+    const [text, setText] = React.useState<string | null>(null);
+    const [ids, setIds] = React.useState<{ ownerId?: string; placeId?: string; }>({});
+
+    React.useEffect(() => {
+        resolveShareLinkRaw(code).then(res => {
+            if (!res.ok) return setText(`Request failed (${res.status}): ${res.error}`);
+            const { body: rawBody } = res;
+            let body: any = rawBody;
+            try { body = JSON.parse(rawBody); } catch { /* not JSON, show as is */ }
+            const data = body?.privateServerInviteData;
+            setIds({ ownerId: data?.ownerUserId?.toString(), placeId: data?.placeId?.toString() });
+            setText(JSON.stringify({ status: res.status, statusText: res.statusText, headers: res.headers, body }, null, 2));
+        }, err => setText(String(err)));
+    }, []);
+
+    return (
+        <ModalRoot {...modalProps} size={ModalSize.MEDIUM}>
+            <ModalHeader className="vc-sora-modal-header">
+                <div className="vc-sora-dbg-head">
+                    <span className="vc-sora-dbg-title">Raw resolve</span>
+                    <ModalCloseButton onClick={modalProps.onClose} />
+                </div>
+            </ModalHeader>
+            <ModalContent className="vc-sora-dbg-content">
+                <pre className="vc-sora-dbg-raw vc-sora-thin-scroll">{text ?? "Asking Roblox…"}</pre>
+            </ModalContent>
+            <ModalFooter className="vc-sora-modal-footer">
+                <div className="vc-sora-dbg-foot">
+                    {ids.ownerId && (
+                        <Button size="small" variant="secondary" style={{ gap: 6 }} onClick={() => window.open(`https://www.roblox.com/users/${ids.ownerId}/profile`, "_blank")}>
+                            <OpenExternalIcon width={16} height={16} />
+                            Owner profile
+                        </Button>
+                    )}
+                    {ids.placeId && (
+                        <Button size="small" variant="secondary" style={{ gap: 6 }} onClick={() => window.open(`https://www.roblox.com/games/${ids.placeId}`, "_blank")}>
+                            <OpenExternalIcon width={16} height={16} />
+                            Game page
+                        </Button>
+                    )}
+                    <span style={{ flex: 1 }} />
+                    <Button size="small" variant="secondary" disabled={text == null} onClick={() => copyToClipboard(text!)}>Copy</Button>
+                </div>
+            </ModalFooter>
+        </ModalRoot>
+    );
+}
+
 // --- Modal ---
 
 function DebugModal({ modalProps, message, channel, guild }: { modalProps: ModalProps; message: Message; channel: Channel; guild: Guild; }) {
@@ -365,6 +415,11 @@ function DebugModal({ modalProps, message, channel, guild }: { modalProps: Modal
                                 </Button>
                             )}
                         </Tooltip>
+                    )}
+                    {isDeveloper() && result.link?.type === "share" && (
+                        <Button size="small" variant="secondary" onClick={() => openModal(props => <RawResolveModal modalProps={props} code={result.link!.code} />)}>
+                            Raw resolve
+                        </Button>
                     )}
                     {result.link && result.verdict !== "join" && (
                         <Tooltip text="Opens this server in Roblox now, skipping every check.">

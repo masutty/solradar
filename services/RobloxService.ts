@@ -88,6 +88,13 @@ export async function lookupPlaceId(link: SnipableLink): Promise<PlaceLookup> {
     return { ok: true, placeId: Number(res.placeId) };
 }
 
+/** Developer debugging: the untouched Roblox answer for a share code. Saves a rotated token, like a normal lookup. */
+export async function resolveShareLinkRaw(code: string) {
+    const res = await Native.resolveShareLinkRaw(settings.store.robloxToken, code);
+    if (res.ok && res.updatedToken) settings.store.robloxToken = res.updatedToken;
+    return res;
+}
+
 export async function getPlaceId(link: SnipableLink): Promise<number | null> {
     const res = await lookupPlaceId(link);
     return res.ok ? res.placeId : null;

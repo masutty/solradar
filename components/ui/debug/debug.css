@@ -399,3 +399,21 @@
     .vc-sora-dbg-spin { animation-duration: 2s; }
 
 }
+
+/* --- Raw resolve (developer) --- */
+
+.vc-sora-dbg-raw {
+    margin: 0;
+    padding: 12px;
+    max-height: 60vh;
+    overflow: auto;
+    border: 1px solid var(--background-mod-subtle);
+    border-radius: 8px;
+    background: color-mix(in srgb, #000 22%, transparent);
+    color: var(--text-default);
+    font-family: var(--font-code);
+    font-size: 12px;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    user-select: text;
+}

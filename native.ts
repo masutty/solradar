@@ -39,6 +39,10 @@ export type ProcessInfo = {
     path: string;
 };
 
+export type RawShareLink =
+    | { ok: true; status: number; statusText: string; headers: Record<string, string>; body: string; updatedToken: string | null; }
+    | { ok: false; status: number; error: string; };
+
 export type ResolvedShareLink =
     | { ok: true; placeId: string; serverId: string; ownerId: string; isValid: boolean; updatedToken: string | null; }
     | { ok: false; status: number; error: string; };
@@ -439,16 +443,13 @@ export async function getRobloxJoinTimeline(_: IpcMainInvokeEvent, launchedAt: n
 
 // --- Roblox: resolve share link ---
 
+const RESOLVE_URL = "https://apis.roblox.com/sharelinks/v1/resolve-link";
+
 /**
- * Resolves a Roblox share code to its placeId and serverId.
- * Makes two requests: the first only fetches a CSRF token (it always answers 403), the second resolves the link.
+ * Sends the two requests Roblox needs to resolve a share code: the first only fetches a CSRF token
+ * (it always answers 403), the second resolves the link. `resolveRes` is null when no CSRF token came back.
  */
-export async function resolveShareLink(
-    _: IpcMainInvokeEvent,
-    token: string,
-    shareCode: string
-): Promise<ResolvedShareLink> {
-    const RESOLVE_URL = "https://apis.roblox.com/sharelinks/v1/resolve-link";
+async function requestShareLink(token: string, shareCode: string) {
     const headers = (csrf?: string) => ({
         "Cookie": `.ROBLOSECURITY=${token}`,
         "Content-Type": "application/json",
@@ -466,28 +467,29 @@ export async function resolveShareLink(
         return null;
     }
 
-    try {
-        // Step 1: get the CSRF token
-        const csrfRes = await fetch(RESOLVE_URL, {
-            method: "POST",
-            headers: headers(),
-        });
+    const csrfRes = await fetch(RESOLVE_URL, { method: "POST", headers: headers() });
+    const csrf = csrfRes.headers.get("x-csrf-token");
+    if (!csrf) return { csrfRes, resolveRes: null, updatedToken: null };
 
-        const csrf = csrfRes.headers.get("x-csrf-token");
-        if (!csrf) {
+    const resolveRes = await fetch(RESOLVE_URL, {
+        method: "POST",
+        headers: headers(csrf),
+        body: JSON.stringify({ linkId: shareCode, linkType: "Server" }),
+    });
+    return { csrfRes, resolveRes, updatedToken: extractUpdatedToken(resolveRes) ?? extractUpdatedToken(csrfRes) };
+}
+
+/** Resolves a Roblox share code to its placeId and serverId. */
+export async function resolveShareLink(
+    _: IpcMainInvokeEvent,
+    token: string,
+    shareCode: string
+): Promise<ResolvedShareLink> {
+    try {
+        const { csrfRes, resolveRes, updatedToken } = await requestShareLink(token, shareCode);
+        if (!resolveRes) {
             return { ok: false, status: csrfRes.status, error: "CSRF token not returned by server." };
         }
-
-        const updatedToken = extractUpdatedToken(csrfRes);
-
-        // Step 2: resolve the link
-        const resolveRes = await fetch(RESOLVE_URL, {
-            method: "POST",
-            headers: headers(csrf),
-            body: JSON.stringify({ linkId: shareCode, linkType: "Server" }),
-        });
-
-        const updatedTokenFromResolve = extractUpdatedToken(resolveRes);
 
         if (!resolveRes.ok) {
             return { ok: false, status: resolveRes.status, error: `Resolve request failed with HTTP ${resolveRes.status}.` };
@@ -520,8 +522,28 @@ export async function resolveShareLink(
             return { ok: false, status: resolveRes.status, error: `placeId: ${placeId}, serverId: ${serverId}, ownerId: ${ownerId}, isValid: ${isValid} | Unexpected response shape: ${JSON.stringify(data)}` };
         }
 
-        return { ok: true, placeId, serverId, ownerId, isValid, updatedToken: updatedTokenFromResolve ?? updatedToken ?? null };
+        return { ok: true, placeId, serverId, ownerId, isValid, updatedToken };
 
+    } catch (error) {
+        return { ok: false, status: -1, error: (error as Error).message };
+    }
+}
+
+/** The untouched answer to the resolve request, for the debug window. Cookie values are hidden, except a rotated token, which the caller saves. */
+export async function resolveShareLinkRaw(
+    _: IpcMainInvokeEvent,
+    token: string,
+    shareCode: string
+): Promise<RawShareLink> {
+    try {
+        const { csrfRes, resolveRes, updatedToken } = await requestShareLink(token, shareCode);
+        if (!resolveRes) return { ok: false, status: csrfRes.status, error: "CSRF token not returned by server." };
+
+        const headers: Record<string, string> = {};
+        resolveRes.headers.forEach((value, key) => {
+            headers[key] = key === "set-cookie" ? value.replace(/(\.ROBLOSECURITY=)[^;]+/g, "$1<hidden>") : value;
+        });
+        return { ok: true, status: resolveRes.status, statusText: resolveRes.statusText, headers, body: await resolveRes.text(), updatedToken };
     } catch (error) {
         return { ok: false, status: -1, error: (error as Error).message };
     }
