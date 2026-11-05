@@ -123,6 +123,9 @@ export interface SnipeEntry {
     log: SnipeLogEntry[];
 
     biomeDurationMs?: number;
+
+    /** Favorites survive clearing the history and the entry limit. */
+    favorite?: boolean;
 }
 
 export type NewSnipeData = Omit<SnipeEntry, "id" | "timestamp" | "tags" | "log"> & {
@@ -210,8 +213,13 @@ class SnipeHistoryStore {
         };
 
         this._entries.unshift(entry);
-        if (this._entries.length > MAX_ENTRIES) {
-            this._entries.length = MAX_ENTRIES;
+        // Drop the oldest non-favorites past the limit
+        let extra = this._entries.length - MAX_ENTRIES;
+        for (let i = this._entries.length - 1; i >= 0 && extra > 0; i--) {
+            if (!this._entries[i].favorite) {
+                this._entries.splice(i, 1);
+                extra--;
+            }
         }
 
         void this._commit();
@@ -257,8 +265,15 @@ class SnipeHistoryStore {
         return true;
     }
 
+    toggleFavorite(id: number): boolean {
+        const entry = this.getById(id);
+        if (!entry) return false;
+        return this.update(id, { favorite: !entry.favorite });
+    }
+
+    /** Removes every snipe except favorites. */
     clear(): void {
-        this._entries = [];
+        this._entries = this._entries.filter(e => e.favorite);
         void this._commit();
     }
 

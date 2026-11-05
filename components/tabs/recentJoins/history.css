@@ -175,6 +175,13 @@
     white-space: nowrap;
 }
 
+.vc-sora-history-fav {
+    display: inline-flex;
+    margin-right: 5px;
+    color: var(--status-warning);
+    vertical-align: -1px;
+}
+
 /* Author, channel and server share one line; author and channel are capped so the server always shows */
 .vc-sora-history-line {
     display: flex;

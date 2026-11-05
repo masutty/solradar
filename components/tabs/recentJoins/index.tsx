@@ -6,7 +6,7 @@
 
 import "./history.css";
 
-import { DeleteIcon } from "@components/Icons";
+import { DeleteIcon, StarFilled } from "@components/Icons";
 import { Paragraph } from "@components/Paragraph";
 import { Alerts, ContextMenuApi, Menu, React, ScrollerThin, TextInput, Tooltip, useState } from "@webpack/common";
 
@@ -14,8 +14,7 @@ import { BOLT_PRESETS, boltSum, JOIN_STEPS, sameSteps } from "../../../services/
 import { settings } from "../../../settings";
 import { SnipeEntry, SnipeStore, useSnipeHistory } from "../../../stores/SnipeStore";
 import { useTourAction } from "../../../stores/TourStore";
-import { UIState } from "../../../stores/UIStateStore";
-import { SnipeTag } from "../../../types";
+import { JoinFilter, UIState } from "../../../stores/UIStateStore";
 import { formatElapsedTime } from "../../../utils";
 import { JoinLockBanner } from "../../JoinLockBanner";
 import { PendingActionBanner } from "../../PendingActionBanner";
@@ -33,10 +32,11 @@ import { outcomeIcon, phaseSpans } from "./steps";
 
 // --- Filters ---
 
-type Filter = SnipeTag | "all";
+type Filter = JoinFilter;
 
 const FILTERS: { tag: Filter; label: string; color?: string; }[] = [
     { tag: "all", label: "All" },
+    { tag: "favorites", label: "Favorites", color: COLORS.warning },
     { tag: "biome-verified-real", label: "Real", color: COLORS.positive },
     { tag: "biome-verified-bait", label: "Bait", color: COLORS.danger },
     { tag: "biome-verified-timeout", label: "Timed out", color: COLORS.warning },
@@ -46,8 +46,14 @@ const FILTERS: { tag: Filter; label: string; color?: string; }[] = [
 
 const MAX_STAGGER_MS = 300;
 
+function matchesFilter(entry: SnipeEntry, filter: Filter): boolean {
+    if (filter === "all") return true;
+    if (filter === "favorites") return !!entry.favorite;
+    return entry.tags.includes(filter);
+}
+
 function countFor(entries: SnipeEntry[], tag: Filter): number {
-    return tag === "all" ? entries.length : entries.filter(e => e.tags.includes(tag)).length;
+    return entries.filter(e => matchesFilter(e, tag)).length;
 }
 
 function dayLabel(ts: number): string {
@@ -96,7 +102,7 @@ function MoreIcon() {
 function confirmClearHistory() {
     Alerts.show({
         title: "Clear snipe history?",
-        body: <Paragraph>This deletes every snipe in Snipe History and resets the stats. It can't be undone.</Paragraph>,
+        body: <Paragraph>This deletes every snipe in Snipe History, except favorites, and resets the stats. It can't be undone.</Paragraph>,
         confirmText: "Clear history",
         cancelText: "Cancel",
         onConfirm: () => SnipeStore.clear(),
@@ -185,7 +191,14 @@ function SnipeCard({ entry, index, shiftHeld }: { entry: SnipeEntry; index: numb
             </div>
 
             <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", justifyContent: "center", gap: 1 }}>
-                <span className="vc-sora-history-title">{entry.triggerName}</span>
+                <span className="vc-sora-history-title">
+                    {entry.favorite && (
+                        <Tooltip text="Favorite. Kept when you clear the history.">
+                            {props => <span {...props} className="vc-sora-history-fav"><StarFilled width={13} height={13} /></span>}
+                        </Tooltip>
+                    )}
+                    {entry.triggerName}
+                </span>
                 <div className="vc-sora-history-line">
                     {entry.authorName && <>
                         {field("author", `Posted by ${entry.authorName}`, (
@@ -249,7 +262,7 @@ export function RecentJoinsTab() {
     const filtered = React.useMemo(() => {
         const q = search.trim().toLowerCase();
         return entries.filter(e =>
-            (filter === "all" || e.tags.includes(filter))
+            matchesFilter(e, filter)
             && (!q || [e.triggerName, e.authorName, e.channelName, e.guildName].some(v => v?.toLowerCase().includes(q)))
         );
     }, [entries, filter, search]);

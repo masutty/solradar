@@ -14,7 +14,7 @@ const STORAGE_KEY = "vc-sora-ui-state";
 
 export type ModalTab = "recentJoins" | "triggers" | "settings" | "about" | "dev" | "stats" | "utilities" | "updates" | "testtab2" | "testtab3";
 export type TriggerFilter = "all" | "RARE_BIOME" | "EVENT_BIOME" | "BIOME" | "WEATHER" | "MERCHANT" | "CUSTOM";
-export type JoinFilter = SnipeTag | "all";
+export type JoinFilter = SnipeTag | "all" | "favorites";
 
 /** User overrides for an EditableActionButton. Undefined means the button's default. */
 export interface EabData {

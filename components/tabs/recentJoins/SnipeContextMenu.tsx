@@ -10,6 +10,8 @@ import {
     InfoIcon,
     LinkIcon,
     OpenExternalIcon,
+    StarFilled,
+    StarOutlined,
 } from "@components/Icons";
 import { copyToClipboard } from "@utils/clipboard";
 import { ContextMenuApi, Menu, NavigationRouter, React, showToast } from "@webpack/common";
@@ -56,6 +58,12 @@ function SnipeContextMenu({ entry }: { entry: SnipeEntry; }) {
                 label="View details"
                 leadingAccessory={{ type: "icon", icon: InfoIcon }}
                 action={() => openJoinModal(entry)}
+            />
+            <Menu.MenuItem
+                id="vc-sora-snipe-favorite"
+                label={entry.favorite ? "Remove from favorites" : "Add to favorites"}
+                leadingAccessory={{ type: "icon", icon: entry.favorite ? StarOutlined : StarFilled }}
+                action={() => SnipeStore.toggleFavorite(entry.id)}
             />
             <Menu.MenuSeparator />
             {entry.joinUri && (

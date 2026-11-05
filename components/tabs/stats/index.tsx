@@ -261,7 +261,7 @@ function TriggerList({ aggregates }: { aggregates: BiomeAggregate[]; }) {
 function confirmClearHistory() {
     Alerts.show({
         title: "Clear snipe history?",
-        body: <Paragraph>This deletes every snipe in Snipe History and resets these stats. It can't be undone.</Paragraph>,
+        body: <Paragraph>This deletes every snipe in Snipe History, except favorites, and resets these stats. It can't be undone.</Paragraph>,
         confirmText: "Clear history",
         cancelText: "Cancel",
         onConfirm: () => SnipeStore.clear(),
