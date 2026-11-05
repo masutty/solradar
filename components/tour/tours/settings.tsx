@@ -58,24 +58,6 @@ export const makeSettingsTour = (): Tour => ({
             </>,
         },
         {
-            id: "settings.biome",
-            kind: "demo",
-            anchor: "settings.block.biome",
-            placement: "left",
-            enter: reveal("biome"),
-            title: "Biome actions",
-            body: <>
-                <P>After a join, SolRadar can read your Roblox logs to check the biome. Pick what happens when it:</P>
-                <Legend>
-                    <Row el={<Tint color={COLORS.danger}>Is fake</Tint>}>The biome doesn't match the announcement.</Row>
-                    <Row el={<Tint color={COLORS.muted}>Ends</Tint>}>A real biome is over.</Row>
-                    <Row el={<Tint color={COLORS.warning}>Times out</Tint>}>The biome wasn't confirmed in time. <b>Waiting in a server queue counts too</b>: wait too long and this action runs.</Row>
-                </Legend>
-                <Muted>For example: close Roblox, or join a public server or your private one.</Muted>
-                <Muted>Biome detection itself is turned on in <b>Vencord settings → Plugins → SolRadar</b>, and needs a Discord restart.</Muted>
-            </>,
-        },
-        {
             id: "settings.ignored",
             kind: "demo",
             anchor: { css: "[data-sora-setting='ignoredGuilds']", fallback: "settings.block.monitoring" },
@@ -127,6 +109,24 @@ export const makeSettingsTour = (): Tour => ({
                 <P>If you decide to use it, your <code>.ROBLOSECURITY</code> cookie goes in <b>Vencord settings → Plugins → SolRadar → Roblox Token</b>.</P>
                 <P><Tint color={COLORS.danger}>Treat it like a password.</Tint> Never share it, and use an alt account if you can.</P>
                 <Muted>SolRadar only sends it to Roblox, to check links.</Muted>
+            </>,
+        },
+        {
+            id: "settings.biome",
+            kind: "demo",
+            anchor: "settings.block.biome",
+            placement: "left",
+            enter: reveal("biome"),
+            title: "Biome actions",
+            body: <>
+                <P>After a join, SolRadar can read your Roblox logs to check the biome. Pick what happens when it:</P>
+                <Legend>
+                    <Row el={<Tint color={COLORS.danger}>Is fake</Tint>}>The biome doesn't match the announcement.</Row>
+                    <Row el={<Tint color={COLORS.muted}>Ends</Tint>}>A real biome is over.</Row>
+                    <Row el={<Tint color={COLORS.warning}>Times out</Tint>}>The biome wasn't confirmed in time. <b>Waiting in a server queue counts too</b>: wait too long and this action runs.</Row>
+                </Legend>
+                <Muted>For example: close Roblox, or join a public server or your private one.</Muted>
+                <Muted>Biome detection itself is turned on in <b>Vencord settings → Plugins → SolRadar</b>, and needs a Discord restart.</Muted>
             </>,
         },
     ],

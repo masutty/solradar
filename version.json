@@ -9,6 +9,7 @@
                 { "type": "Added", "text": "Forwarding preview", "description": "While a trigger forwards, a preview of the message floats beside the editor and follows your changes." },
                 { "type": "Added", "text": "Hide triggers from the list", "description": "Right-click a trigger and choose Hide from list. Show hidden ones again with the hidden:yes filter, or from the type filter menu." },
                 { "type": "Added", "text": "Favorite snipes", "description": "Right-click a snipe in Snipe History and choose Add to favorites. Favorites get a star, have their own filter, and stay when you clear the history." },
+                { "type": "Improved", "text": "Some settings moved: Ignore messages with these words and Match whole words only are under Reading messages, Hide the inactive dot and History timing number are under Interface, Private server link is under Join behavior, and Check for updates is under Other" },
                 { "type": "Improved", "text": "Forward on match is now one choice: Off, After joining, or As soon as possible" },
                 { "type": "Improved", "text": "The verified status only shows for triggers with biome detection set up" },
                 { "type": "Fixed", "text": "The type filter in the trigger list and the filter in Snipe History now show what you picked, and close after you pick one" }
@@ -17,7 +18,7 @@
         {
             "version": "1.8.0",
             "entries": [
-                { "type": "Added", "text": "Ignore messages with these words", "description": "In Settings, under Monitoring, add words that stop every trigger from matching. It is empty by default and best left that way unless you know what you are doing. It matches whole words only, so \"hunt\" does not block \"hunting\"; turn off Match whole words only to change that." },
+                { "type": "Added", "text": "Ignore messages with these words", "description": "In Settings, under Reading messages, add words that stop every trigger from matching. It is empty by default and best left that way unless you know what you are doing. It matches whole words only, so \"hunt\" does not block \"hunting\"; turn off Match whole words only to change that." },
                 { "type": "Added", "text": "Bypass global excluded words", "description": "A trigger can skip the global list. Turn it on in the trigger's Bypasses section." },
                 { "type": "Added", "text": "History timing number", "description": "In Settings, under Other, pick what the ⚡ next to each snipe in Snipe History adds up: a preset like Reaction time or Until server slot request, or any steps you choose." },
                 { "type": "Improved", "text": "Timing no longer counts Windows starting Roblox as Sol Radar's own time" },

@@ -440,10 +440,10 @@ type BlockDef = {
 const isCustom = (e: Entry): e is CustomEntry => "node" in e;
 
 const DEFAULT_OPEN: Record<BlockId, boolean> = {
-    join: true,
-    biome: true,
-    verification: true,
-    macro: true,
+    join: false,
+    biome: false,
+    verification: false,
+    macro: false,
     monitoring: false,
     reading: false,
     forwarding: false,
@@ -553,6 +553,50 @@ export function SettingsTab() {
                     tech: true,
                 },
                 ...(launchMethod === "direct" ? [{ key: "robloxProgram", search: "roblox program exe file launcher path windows", node: <RobloxProgramCard /> }] : []),
+                { id: "privateServerLink", label: "Private server link", description: "Your own private server. Needed by any action set to join it." },
+            ],
+        },
+        {
+            id: "monitoring",
+            title: "Monitoring",
+            subtitle: "Which servers, channels and users to listen to",
+            entries: [
+                { id: "monitoredGuilds", label: "Only monitor these servers", chipKind: "guild", description: "Leave empty to monitor all of your servers.", tooltip: "Adding even one server means every other server is silently ignored." },
+                { id: "monitoredChannels", label: "Only monitor these channels", chipKind: "channel", description: "Leave empty to monitor every channel.", tooltip: "Adding even one channel means every other channel is silently ignored." },
+                { id: "ignoredGuilds", label: "Always ignore these servers", chipKind: "guild", description: "Overrides every trigger. Good for servers with no-sniper rules." },
+                { id: "ignoredChannels", label: "Always ignore these channels", chipKind: "channel", description: "Overrides every trigger." },
+                { id: "ignoredUsers", label: "Always ignore these users", chipKind: "user", description: "Overrides every trigger." },
+            ],
+        },
+        {
+            id: "reading",
+            title: "Reading messages",
+            subtitle: "How embeds and links are read",
+            entries: [
+                { id: "flattenEmbeds", label: "Read embeds", description: "Also match triggers against embed titles and descriptions. Needed for macro servers that post biomes inside embeds." },
+                { id: "advancedEmbedFlattening", label: "Deep embed reading", description: "Also read embed fields and message component URLs when reading embeds.", tech: true },
+                { id: "globalExcludeKeywords", label: "Ignore messages with these words", keywords: "exclude", description: "A message with any of these words matches no trigger. Not recommended unless you know exactly what you are doing: leave it empty. A trigger can skip this list with \"Bypass global excluded words\"." },
+                { id: "globalExcludeStrict", label: "Match whole words only", description: "On: \"hunt\" only blocks the word \"hunt\". Off: it also blocks \"hunting\"." },
+                { id: "deduplicateLinks", label: "Skip repeated links", description: "Ignore a link already seen in the last 10 minutes for the same trigger." },
+                { id: "resolveAmbiguousLinks", label: "Use the first link when there are several", description: "A message with different link types, like a share link next to a private server link, is skipped by default. Turn this on to use the first one." },
+                { id: "interpretJoinguardLinks", label: "Accept Joinguard links", description: "Handle Sol's Stat Tracker Joinguard links. They open your browser for Cloudflare verification, so the place cannot be checked." },
+                { id: "ignoreWebhookForwards", label: "Ignore SolRadar's own forwards", description: "Skip any message whose embed footer is \"solradar\", or whose last line ends with \"SolRadar\" (the mark of a card), so the plugin never reacts to its own webhooks.", tech: true },
+                { id: "watchMessageEdits", label: "Check edited messages", description: "Experimental. Also check a message when it is edited, for people who post the link first and add the biome later.", tooltip: "Only edits made in the first minute count. An edit that keeps the same biome never makes a second snipe.", tech: true },
+                { id: "editEndedKeywords", label: "Biome ended words", keywords: true, description: "An edit that contains one of these words is ignored, since people add them when the biome is over. Leave empty to check every edit.", tooltip: "Only used by \"Check edited messages\". Matches whole words and ignores case, so \"over\" matches \"(OVER)\" but not \"overcast\".", tech: true },
+            ],
+        },
+        {
+            id: "verification",
+            title: "Link verification",
+            subtitle: "Check that a server link is real",
+            master: master("verification", verificationEnabled, v => { settings.store.linkVerification = v ? "before" : "disabled"; }),
+            note: robloxToken
+                ? <Note variant="warning">Your Roblox token is sensitive. Treat it like a password, never share it, and use an alt account when you can.</Note>
+                : <Note variant="warning">Link verification needs your Roblox token. Add it on the plugin page in Vencord's plugin menu.</Note>,
+            entries: [
+                { id: "linkVerification", label: "Verification mode", description: "When to check that a server link is real." },
+                { id: "allowedPlaceIds", label: "Allowed place IDs", description: "Comma-separated. Only links to these places are accepted. Leave empty to allow any place.", tech: true },
+                { id: "onBadLink", label: "When a link is bad", description: "What to do when verification fails." },
             ],
         },
         {
@@ -569,22 +613,7 @@ export function SettingsTab() {
                 ...(onBiomeEnd !== "nothing" ? [{ id: "biomeEndActionTimeout" as const, label: "Wait before acting (ms)", description: DELAY_DESCRIPTION }] : []),
                 { id: "onBiomeTimeout", label: "When detection times out", description: "No biome was detected in time." },
                 ...(onBiomeTimeout !== "nothing" ? [{ id: "biomeTimeoutActionTimeout" as const, label: "Wait before acting (ms)", description: DELAY_DESCRIPTION }] : []),
-                { id: "privateServerLink", label: "Private server link", description: "Your own private server. Needed by any action set to join it." },
                 ...(anyBiomeAction ? [{ id: "skipActionConfirmation" as const, label: "Act without asking", description: "Run these actions immediately, with no cancel prompt." }] : []),
-            ],
-        },
-        {
-            id: "verification",
-            title: "Link verification",
-            subtitle: "Check that a server link is real",
-            master: master("verification", verificationEnabled, v => { settings.store.linkVerification = v ? "before" : "disabled"; }),
-            note: robloxToken
-                ? <Note variant="warning">Your Roblox token is sensitive. Treat it like a password, never share it, and use an alt account when you can.</Note>
-                : <Note variant="warning">Link verification needs your Roblox token. Add it on the plugin page in Vencord's plugin menu.</Note>,
-            entries: [
-                { id: "linkVerification", label: "Verification mode", description: "When to check that a server link is real." },
-                { id: "allowedPlaceIds", label: "Allowed place IDs", description: "Comma-separated. Only links to these places are accepted. Leave empty to allow any place.", tech: true },
-                { id: "onBadLink", label: "When a link is bad", description: "What to do when verification fails." },
             ],
         },
         {
@@ -608,35 +637,6 @@ export function SettingsTab() {
             ],
         },
         {
-            id: "monitoring",
-            title: "Monitoring",
-            subtitle: "Which servers, channels and users to listen to",
-            entries: [
-                { id: "monitoredGuilds", label: "Only monitor these servers", chipKind: "guild", description: "Leave empty to monitor all of your servers.", tooltip: "Adding even one server means every other server is silently ignored." },
-                { id: "monitoredChannels", label: "Only monitor these channels", chipKind: "channel", description: "Leave empty to monitor every channel.", tooltip: "Adding even one channel means every other channel is silently ignored." },
-                { id: "ignoredGuilds", label: "Always ignore these servers", chipKind: "guild", description: "Overrides every trigger. Good for servers with no-sniper rules." },
-                { id: "ignoredChannels", label: "Always ignore these channels", chipKind: "channel", description: "Overrides every trigger." },
-                { id: "ignoredUsers", label: "Always ignore these users", chipKind: "user", description: "Overrides every trigger." },
-                { id: "globalExcludeKeywords", label: "Ignore messages with these words", keywords: "exclude", description: "A message with any of these words matches no trigger. Not recommended unless you know exactly what you are doing: leave it empty. A trigger can skip this list with \"Bypass global excluded words\"." },
-                { id: "globalExcludeStrict", label: "Match whole words only", description: "On: \"hunt\" only blocks the word \"hunt\". Off: it also blocks \"hunting\"." },
-            ],
-        },
-        {
-            id: "reading",
-            title: "Reading messages",
-            subtitle: "How embeds and links are read",
-            entries: [
-                { id: "flattenEmbeds", label: "Read embeds", description: "Also match triggers against embed titles and descriptions. Needed for macro servers that post biomes inside embeds." },
-                { id: "advancedEmbedFlattening", label: "Deep embed reading", description: "Also read embed fields and message component URLs when reading embeds.", tech: true },
-                { id: "deduplicateLinks", label: "Skip repeated links", description: "Ignore a link already seen in the last 10 minutes for the same trigger." },
-                { id: "resolveAmbiguousLinks", label: "Use the first link when there are several", description: "A message with different link types, like a share link next to a private server link, is skipped by default. Turn this on to use the first one." },
-                { id: "interpretJoinguardLinks", label: "Accept Joinguard links", description: "Handle Sol's Stat Tracker Joinguard links. They open your browser for Cloudflare verification, so the place cannot be checked." },
-                { id: "ignoreWebhookForwards", label: "Ignore SolRadar's own forwards", description: "Skip any message whose embed footer contains \"solradar\", so the plugin never reacts to its own webhooks.", tech: true },
-                { id: "watchMessageEdits", label: "Check edited messages", description: "Experimental. Also check a message when it is edited, for people who post the link first and add the biome later.", tooltip: "Only edits made in the first minute count. An edit that keeps the same biome never makes a second snipe.", tech: true },
-                { id: "editEndedKeywords", label: "Biome ended words", keywords: true, description: "An edit that contains one of these words is ignored, since people add them when the biome is over. Leave empty to check every edit.", tooltip: "Only used by \"Check edited messages\". Matches whole words and ignores case, so \"over\" matches \"(OVER)\" but not \"overcast\".", tech: true },
-            ],
-        },
-        {
             id: "forwarding",
             title: "Forwarding",
             subtitle: "Send matches to a Discord webhook",
@@ -653,20 +653,11 @@ export function SettingsTab() {
             subtitle: "Privacy and menus",
             entries: [
                 { id: "anonymizeEverything", label: "Anonymize snipes", description: "Hides the author, server, channel, message and logs of each snipe in History. Turn it on before sharing screenshots.", tooltip: "Click an entry in Snipe History to reveal it on its own." },
-                { id: "shouldCheckForUpdates", label: "Check for updates", description: "Look for a new SolRadar version on startup.", tooltip: "Runs at most once a day and shows a notification when an update is available." },
+                { id: "hideInactiveIndicator", label: "Hide the inactive dot", description: "Hide the red dot on the menu button while auto-join is off." },
                 { id: "useButtonsForOrderingTriggers", label: "Reorder triggers with buttons", description: "Use the ▲▼ buttons instead of drag and drop." },
                 { id: "useTriggerTabContextMenu", label: "Trigger context menu", description: "Right-click a trigger for enable, edit, duplicate, export and remove. When off, right-click only toggles it." },
                 { id: "showTours", label: "Show guided tours", description: "Walk through a tab the first time you open it.", tooltip: "You can always replay a tour from the ? button at the top of this window." },
                 { id: "showDefaultsNudge", label: "Show default trigger updates", description: "Let you know when default triggers are added or updated.", tooltip: "When off, check for new ones yourself in ⋯, Import default triggers." },
-            ],
-        },
-        {
-            id: "other",
-            title: "Other",
-            subtitle: "Small extras",
-            entries: [
-                { id: "hideInactiveIndicator", label: "Hide the inactive dot", description: "Hide the red dot on the menu button while auto-join is off." },
-                { id: "customNotificationSoundDelay", label: "Notification sound delay (ms)", description: "Delay before a trigger's custom sound plays.", tech: true },
                 { key: "historyBolt", search: "history timing number lightning bolt snipe sum reaction", node: <BoltSetting /> },
             ],
         },
@@ -686,6 +677,15 @@ export function SettingsTab() {
                 { id: "ldpAdbPackageName", label: "Package name", description: "App to force-stop on the device. Default: com.roblox.client" },
                 { id: "adbCloseDelayMs", label: "Close signal delay (ms)", description: "Wait before closing Roblox on the emulator, so the emulator does not compete with the join for CPU. 0 sends it right away.", tech: true },
                 { id: "omitAdbErrorNotifications", label: "Silence ADB error notifications", description: "The error is still logged to the console.", tech: true },
+            ],
+        },
+        {
+            id: "other",
+            title: "Other",
+            subtitle: "Small extras",
+            entries: [
+                { id: "shouldCheckForUpdates", label: "Check for updates", description: "Look for a new SolRadar version on startup.", tooltip: "Runs at most once a day and shows a notification when an update is available." },
+                { id: "customNotificationSoundDelay", label: "Notification sound delay (ms)", description: "Delay before a trigger's custom sound plays.", tech: true },
             ],
         },
     ];
