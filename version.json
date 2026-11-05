@@ -1,6 +1,13 @@
 {
-    "currentVersion": "1.9.0",
+    "currentVersion": "1.9.1",
     "changelog": [
+        {
+            "version": "1.9.1",
+            "entries": [
+                { "type": "Improved", "text": "Settings sections are in a new order, from the ones most people use to the ones few do, and they all start closed" },
+                { "type": "Improved", "text": "Some settings moved: Ignore messages with these words and Match whole words only are under Reading messages, Hide the inactive dot and History timing number are under Interface, Private server link is under Join behavior, and Check for updates is under Other" }
+            ]
+        },
         {
             "version": "1.9.0",
             "entries": [
@@ -9,7 +16,6 @@
                 { "type": "Added", "text": "Forwarding preview", "description": "While a trigger forwards, a preview of the message floats beside the editor and follows your changes." },
                 { "type": "Added", "text": "Hide triggers from the list", "description": "Right-click a trigger and choose Hide from list. Show hidden ones again with the hidden:yes filter, or from the type filter menu." },
                 { "type": "Added", "text": "Favorite snipes", "description": "Right-click a snipe in Snipe History and choose Add to favorites. Favorites get a star, have their own filter, and stay when you clear the history." },
-                { "type": "Improved", "text": "Some settings moved: Ignore messages with these words and Match whole words only are under Reading messages, Hide the inactive dot and History timing number are under Interface, Private server link is under Join behavior, and Check for updates is under Other" },
                 { "type": "Improved", "text": "Forward on match is now one choice: Off, After joining, or As soon as possible" },
                 { "type": "Improved", "text": "The verified status only shows for triggers with biome detection set up" },
                 { "type": "Fixed", "text": "The type filter in the trigger list and the filter in Snipe History now show what you picked, and close after you pick one" }
