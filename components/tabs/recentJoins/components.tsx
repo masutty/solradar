@@ -9,6 +9,7 @@ import "../../ui/scrollbar.css";
 import { React, useState } from "@webpack/common";
 
 import { Logger } from "../../../logger";
+import { resolveIcon } from "../../../stores/IconStore";
 import { SnipeEntry, TAG_CONFIGS } from "../../../stores/SnipeStore";
 import { SnipeTag } from "../../../types";
 import { Pill, PillVariant } from "../../ui/Pill";
@@ -84,8 +85,9 @@ export function TagBadge({ tag }: { tag?: SnipeTag; }) {
 }
 
 export function FallbackImage({ src, style }: { src?: string; style?: React.CSSProperties; }) {
-    const [imgSrc, setImgSrc] = useState(src || AVATAR_FALLBACK);
-    React.useEffect(() => setImgSrc(src || AVATAR_FALLBACK), [src]);
+    const resolved = resolveIcon(src);
+    const [imgSrc, setImgSrc] = useState(resolved || AVATAR_FALLBACK);
+    React.useEffect(() => setImgSrc(resolved || AVATAR_FALLBACK), [resolved]);
     return <img src={imgSrc} alt="" onError={() => setImgSrc(AVATAR_FALLBACK)} style={style} />;
 }
 

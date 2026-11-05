@@ -8,6 +8,7 @@ import { showNotification } from "@api/Notifications";
 
 import { Snipe } from "../models/Snipe";
 import { settings } from "../settings";
+import { resolveIcon } from "../stores/IconStore";
 import { SnipeStore } from "../stores/SnipeStore";
 import { playAudio } from "../utils";
 import { joinUri } from "./RobloxService";
@@ -47,7 +48,7 @@ export function notify(snipe: Snipe): void {
         showNotification({
             title: `⚠️ SoRa :: ${snipe.trigger.name} :: Unsafe link!`,
             body: `In: "${snipe.channel.name}" ("${snipe.guild.name}")`,
-            icon: snipe.trigger.iconUrl,
+            icon: resolveIcon(snipe.trigger.iconUrl),
             onClick,
         });
         snipe.logWarn("Notification sent - unsafe link.");
@@ -58,7 +59,7 @@ export function notify(snipe: Snipe): void {
         showNotification({
             title: `❌ SoRa :: Failed - ${snipe.trigger.name}`,
             body: `In: "${snipe.channel.name}" ("${snipe.guild.name}")`,
-            icon: snipe.trigger.iconUrl,
+            icon: resolveIcon(snipe.trigger.iconUrl),
         });
         snipe.logWarn("Notification sent - join failed.");
         return;
@@ -69,7 +70,7 @@ export function notify(snipe: Snipe): void {
             ? `🎯 SoRa :: Sniped ${snipe.trigger.name}!`
             : `✅ SoRa :: Matched ${snipe.trigger.name}!`,
         body: `In: "${snipe.channel.name}" ("${snipe.guild.name}")`,
-        icon: snipe.trigger.iconUrl,
+        icon: resolveIcon(snipe.trigger.iconUrl),
         onClick,
     });
     snipe.logInfo("Notification sent.");

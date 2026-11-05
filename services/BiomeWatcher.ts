@@ -8,6 +8,7 @@ import { showNotification } from "@api/Notifications";
 
 import { Snipe } from "../models/Snipe";
 import { settings } from "../settings";
+import { resolveIcon } from "../stores/IconStore";
 import { JoinLockStore } from "../stores/JoinLockStore";
 import { SnipeStore } from "../stores/SnipeStore";
 import { hasBiomeCheck } from "../stores/TriggerStore";
@@ -126,7 +127,7 @@ export function startBiomeDetection(snipe: Snipe): void {
                     joinMs != null && `Join took ${formatElapsedTime(joinMs)}`,
                     `Detection took ${formatElapsedTime(elapsed)}`,
                 ].filter(Boolean).join(" · "),
-                icon: snipe.trigger.iconUrl,
+                icon: resolveIcon(snipe.trigger.iconUrl),
             });
             if (snipe.trigger.forwarding.onDetection.enabled) {
                 snipe.logInfo("Forwarding on detection...");
@@ -156,7 +157,7 @@ export function startBiomeDetection(snipe: Snipe): void {
                 showNotification({
                     title: `❌ SoRa :: ${snipe.trigger.name}: fake biome`,
                     body: `Got "${detected}" instead of "${expected}" (${elapsed}ms)`,
-                    icon: snipe.trigger.iconUrl,
+                    icon: resolveIcon(snipe.trigger.iconUrl),
                 });
             }
         }
@@ -181,7 +182,7 @@ export function startBiomeDetection(snipe: Snipe): void {
             showNotification({
                 title: `⌛ SoRa :: Timeout - ${snipe.trigger.name}`,
                 body: "Biome detection timed out.",
-                icon: snipe.trigger.iconUrl,
+                icon: resolveIcon(snipe.trigger.iconUrl),
             });
         }
     }, (settings.store.detectorTimeoutMs ?? 30_000) + startDelayMs);

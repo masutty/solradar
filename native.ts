@@ -66,6 +66,18 @@ export async function sendWebhook(_: IpcMainInvokeEvent, url: string, body: stri
     if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
 }
 
+/** Same as sendWebhook, with a picture attached. The embed can show it as attachment://icon.webp */
+export async function sendWebhookWithIcon(_: IpcMainInvokeEvent, url: string, body: string, iconDataUrl: string): Promise<void> {
+    const [header, base64] = iconDataUrl.split(",");
+    const type = /^data:([^;]+)/.exec(header)?.[1] ?? "image/webp";
+    const form = new FormData();
+    form.append("payload_json", body);
+    form.append("files[0]", new Blob([Buffer.from(base64, "base64")], { type }), "icon.webp");
+
+    const res = await fetch(url, { method: "POST", body: form });
+    if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+}
+
 // --- Roblox: open URI ---
 
 export type LaunchMethod = "direct" | "shell";

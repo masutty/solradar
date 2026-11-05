@@ -8,6 +8,7 @@ import {
     CloudUploadIcon,
     CopyIcon,
     DeleteIcon,
+    EyeIcon,
     FolderIcon,
     PencilIcon,
     PlusIcon,
@@ -18,10 +19,21 @@ import {
 import { Paragraph } from "@components/Paragraph";
 import { Alerts, ContextMenuApi, Menu, React, showToast } from "@webpack/common";
 
-import { deleteTrigger, downloadTriggerJson, duplicateTrigger, toggleTrigger,Trigger } from "../../../stores/TriggerStore";
+import { deleteTrigger, downloadTriggerJson, duplicateTrigger, toggleTrigger, Trigger, updateTrigger } from "../../../stores/TriggerStore";
 import { isDeveloper } from "../../../utils";
 import { confirmWebhookThenRun, copyTriggerToClipboard, openSafeExportDialogForTrigger } from "./exportActions";
 import { openEditTriggerModal } from "./TriggerModal";
+
+// Same shape as the built-in icons: the menu passes props such as color to the svg, and the strokes follow currentColor
+function EyeOffIcon({ width = 24, height = 24, ...svgProps }: React.SVGProps<SVGSVGElement>) {
+    return (
+        <svg {...svgProps} width={width} height={height} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M10.7 5.1A10.4 10.4 0 0 1 12 5c7 0 10 7 10 7a13.2 13.2 0 0 1-1.7 2.7M6.6 6.6C3.7 8.5 2 12 2 12s3 7 10 7a9.7 9.7 0 0 0 5.4-1.6" />
+            <path d="M14.1 14.2a3 3 0 1 1-4.2-4.2" />
+            <path d="m2 2 20 20" />
+        </svg>
+    );
+}
 
 function confirmRemoveTrigger(trigger: Trigger): void {
     Alerts.show({
@@ -54,6 +66,12 @@ function TriggerContextMenu({ trigger }: { trigger: Trigger; }) {
                 label={trigger.state.enabled ? "Disable" : "Enable"}
                 leadingAccessory={{ type: "icon", icon: toggleIcon }}
                 action={() => toggleTrigger(trigger.id)}
+            />
+            <Menu.MenuItem
+                id="vc-sora-trigger-hide"
+                label={trigger.hidden ? "Unhide" : "Hide from list"}
+                leadingAccessory={{ type: "icon", icon: trigger.hidden ? EyeIcon : EyeOffIcon }}
+                action={() => updateTrigger(trigger.id, { hidden: !trigger.hidden })}
             />
             <Menu.MenuItem
                 id="vc-sora-trigger-edit"

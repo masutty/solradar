@@ -14,7 +14,7 @@ import { CopyIcon, DeleteIcon } from "@components/Icons";
 import { React, ScrollerThin, Tooltip, useEffect, useState } from "@webpack/common";
 
 import { emitTourSignal, useTourAction } from "../../../../stores/TourStore";
-import { addTrigger, deleteTrigger, makeDefaultTrigger, safeExportDraft, Trigger, updateTrigger } from "../../../../stores/TriggerStore";
+import { addTrigger, deleteTrigger, makeDefaultTrigger, safeExportDraft, Trigger, updateTrigger, withInlineIcon } from "../../../../stores/TriggerStore";
 import { showToast } from "../../../../utils";
 import { HeaderActions } from "../../../tour/ReplayTourButton";
 import { TourAnchor } from "../../../tour/TourAnchor";
@@ -23,6 +23,7 @@ import { ModalContent, ModalFooter, ModalHeader, ModalProps, ModalRoot, ModalSiz
 import { COLORS } from "../../../ui/styles";
 import { TechBadge } from "../../settings/Setting";
 import { confirmWebhookThenRun } from "../exportActions";
+import { setEditorClosing } from "./forwardEditor";
 import { Draft, EditorSection, hasBiomeCheck, missingEssentials, SECTIONS, TriggerIcon, TriggerIdLine, TYPE_META } from "./sections";
 
 function DownloadIcon() {
@@ -76,6 +77,9 @@ function TriggerEditor({ modalProps, trigger }: { modalProps: ModalProps; trigge
     const [draft, setDraft] = useState<Draft>(trigger ? (({ id, ...rest }) => rest)(trigger) : makeDefaultTrigger("BIOME"));
     const [activeId, setActiveId] = useState("essentials");
     useTourAction("editor.showSection", (id: string) => setActiveId(id));
+    // The preview beside the modal plays its own exit when the modal starts closing (transition states: 2 and up)
+    useEffect(() => { setEditorClosing(modalProps.transitionState >= 2); }, [modalProps.transitionState]);
+    useEffect(() => () => setEditorClosing(false), []);
     useTourAction("editor.hasBiomeCheck", () => hasBiomeCheck(draft.type));
     useEffect(() => {
         emitTourSignal("editor:opened");
@@ -118,7 +122,7 @@ function TriggerEditor({ modalProps, trigger }: { modalProps: ModalProps; trigge
         confirmWebhookThenRun([trigger], () => {
             try {
                 const { id, ...rest } = trigger;
-                navigator.clipboard.writeText(JSON.stringify([rest], null, 2));
+                navigator.clipboard.writeText(JSON.stringify([withInlineIcon(rest)], null, 2));
                 showToast({ text: "Trigger copied to clipboard!", variant: "success" });
             } catch (e) {
                 showToast({ text: `Failed to copy trigger: ${e}`, variant: "critical" });

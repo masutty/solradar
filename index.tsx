@@ -29,6 +29,9 @@ import { redactUserPath } from "./services/paths";
 import { isDuplicateLink, markAsSeen } from "./services/SnipeDeduplicator";
 import { settings } from "./settings";
 import { ActiveChannelStore } from "./stores/ActiveChannelStore";
+import { pruneIcons } from "./stores/IconStore";
+import { SnipeStore } from "./stores/SnipeStore";
+import { getTriggers, triggerStoreReady } from "./stores/TriggerStore";
 import { SnipeMetrics } from "./types";
 import { ensureDailyVersionCheck, getCurrentVersion, Native } from "./utils";
 
@@ -159,6 +162,9 @@ export default definePlugin({
         logger.info("Starting");
 
         void ensureDailyVersionCheck();
+        Promise.all([triggerStoreReady, SnipeStore.ready])
+            .then(() => pruneIcons([...getTriggers().map(t => t.iconUrl), ...SnipeStore.all.map(e => e.iconUrl)]))
+            .catch(err => logger.error("Failed to prune icons:", err));
         pruneKnownNames().catch(err => logger.error("Failed to prune known names:", err));
 
         // Join speed: read the Roblox handler now so the first snipe does not pay for it

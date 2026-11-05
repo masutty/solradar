@@ -6,17 +6,20 @@
 
 import "../../../ui/choice.css";
 
+import { Button } from "@components/Button";
 import { copyToClipboard } from "@utils/clipboard";
 import { React, showToast, TextInput, Tooltip, useEffect, useState } from "@webpack/common";
 
 import { settings } from "../../../../settings";
-import { DEFAULT_BIOME, hasBiomeCheck, Trigger, TriggerType } from "../../../../stores/TriggerStore";
+import { isLocalIcon, resolveIcon, saveIconFile } from "../../../../stores/IconStore";
+import { DEFAULT_BIOME, hasBiomeCheck, Trigger, TriggerType, TYPE_COLORS } from "../../../../stores/TriggerStore";
 import { TourAnchor, tourAnchor } from "../../../tour/TourAnchor";
 import { IdChipInput } from "../../../ui/IdChipInput";
 import { KeywordsInput } from "../../../ui/KeywordsInput";
 import { Note } from "../../../ui/Note";
 import { descriptionText, labelText } from "../../../ui/styles";
 import { AudioField, NumberField, RoleChipInput, rowStacked, sectionHeading, SwitchRow, TextAreaField, TextField } from "./fields";
+import { AccentField, FloatingPreview, FormatFields, MatchTimingField, ShowFields } from "./forwardEditor";
 import { MatchPreview } from "./MatchPreview";
 
 export type Draft = Omit<Trigger, "id">;
@@ -25,12 +28,12 @@ export type Patch = (p: Partial<Draft>) => void;
 // --- Trigger types ---
 
 export const TYPE_META: Record<TriggerType, { label: string; color: string; }> = {
-    RARE_BIOME: { label: "Rare biome", color: "#f23f43" },
-    EVENT_BIOME: { label: "Event biome", color: "#3ba55d" },
-    BIOME: { label: "Biome", color: "#eb459e" },
-    WEATHER: { label: "Weather", color: "#00a8fc" },
-    MERCHANT: { label: "Merchant", color: "#f0b132" },
-    CUSTOM: { label: "Custom", color: "#949ba4" },
+    RARE_BIOME: { label: "Rare biome", color: TYPE_COLORS.RARE_BIOME },
+    EVENT_BIOME: { label: "Event biome", color: TYPE_COLORS.EVENT_BIOME },
+    BIOME: { label: "Biome", color: TYPE_COLORS.BIOME },
+    WEATHER: { label: "Weather", color: TYPE_COLORS.WEATHER },
+    MERCHANT: { label: "Merchant", color: TYPE_COLORS.MERCHANT },
+    CUSTOM: { label: "Custom", color: TYPE_COLORS.CUSTOM },
 };
 
 export { hasBiomeCheck };
@@ -42,7 +45,7 @@ const ALWAYS_ALLOWED_DOMAINS = ["github.io", "githubusercontent.com", "cdn.disco
 function useIconAllowed(iconUrl: string) {
     const [allowed, setAllowed] = useState<boolean | null>(null);
     useEffect(() => {
-        if (!iconUrl) return void setAllowed(null);
+        if (!iconUrl || isLocalIcon(iconUrl)) return void setAllowed(null);
         try {
             const { origin, hostname } = new URL(iconUrl);
             if (ALWAYS_ALLOWED_DOMAINS.some(d => hostname === d || hostname.endsWith(`.${d}`))) return void setAllowed(true);
@@ -58,10 +61,11 @@ export function TriggerIcon({ draft, size }: { draft: Draft; size: number; }) {
     const [broken, setBroken] = useState(false);
     useEffect(() => setBroken(false), [draft.iconUrl]);
     const meta = TYPE_META[draft.type];
-    if (draft.iconUrl && !broken) {
+    const src = resolveIcon(draft.iconUrl);
+    if (src && !broken) {
         return (
             <span style={{ width: size, height: size, borderRadius: size / 4.5, overflow: "hidden", flexShrink: 0, display: "block" }}>
-                <img src={draft.iconUrl} alt="" onError={() => setBroken(true)} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                <img src={src} alt="" onError={() => setBroken(true)} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
             </span>
         );
     }
@@ -76,6 +80,8 @@ function TypePicker({ draft, patch }: { draft: Draft; patch: Patch; }) {
     const choose = (type: TriggerType) => patch({
         type,
         biome: hasBiomeCheck(type) ? (draft.biome ?? { ...DEFAULT_BIOME }) : undefined,
+        // Without a biome there is nothing to confirm, so a forward on detection set earlier must not stay on
+        forwarding: hasBiomeCheck(type) ? draft.forwarding : { ...draft.forwarding, onDetection: { enabled: false } },
     });
 
     return (
@@ -131,10 +137,23 @@ function PencilIcon() {
 // Name, icon and description together. Clicking the icon shows the field for its link.
 function IdentityCard({ draft, patch, iconAllowed }: { draft: Draft; patch: Patch; iconAllowed: boolean | null; }) {
     const [editingIcon, setEditingIcon] = useState(false);
+    const fileInput = React.useRef<HTMLInputElement>(null);
+
+    const onFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        e.target.value = "";
+        if (!file) return;
+        try {
+            patch({ iconUrl: await saveIconFile(file) });
+        } catch (err) {
+            showToast({ text: err instanceof Error ? err.message : "Could not read that image.", variant: "critical" });
+        }
+    };
+
     return (
         <div style={rowStacked} {...tourAnchor("editor.name")}>
             <span style={labelText}>Name, icon and description</span>
-            <span style={descriptionText}>Click the icon to change it. The description is only for you</span>
+            <span style={descriptionText}>Click the icon to set a link or pick an image from your computer. The description is only for you</span>
             <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 4 }}>
                 <Tooltip text={editingIcon ? "Hide the icon link" : "Change the icon"}>
                     {props => (
@@ -149,7 +168,19 @@ function IdentityCard({ draft, patch, iconAllowed }: { draft: Draft; patch: Patc
                 </div>
             </div>
             {editingIcon && (
-                <TextInput value={draft.iconUrl} placeholder="Link to an image, e.g. https://cdn.discordapp.com/..." onChange={(v: string) => patch({ iconUrl: v })} autoFocus />
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                        <TextInput
+                            value={isLocalIcon(draft.iconUrl) ? "" : draft.iconUrl}
+                            placeholder={isLocalIcon(draft.iconUrl) ? "Using an image from your computer" : "Link to an image, e.g. https://cdn.discordapp.com/..."}
+                            onChange={(v: string) => patch({ iconUrl: v })}
+                            autoFocus
+                        />
+                    </div>
+                    <Button size="small" variant="secondary" onClick={() => fileInput.current?.click()}>Choose file</Button>
+                    {draft.iconUrl && <Button size="small" variant="secondary" onClick={() => patch({ iconUrl: "" })}>Remove</Button>}
+                    <input ref={fileInput} type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden onChange={onFile} />
+                </div>
             )}
             {iconAllowed === false && (
                 <Note variant="warning">
@@ -306,10 +337,11 @@ function ForwardingSection({ draft, patch }: { draft: Draft; patch: Patch; }) {
     const f = draft.forwarding;
     const patchF = (p: Partial<typeof f>) => patch({ forwarding: { ...f, ...p } });
     const hasWebhook = Boolean(f.webhookUrl.trim() || globalWebhookUrl?.trim());
+    const card = f.format === "card";
 
     return (
         <>
-            <Note variant="warning">Optional, and most people don't need it. Sending a webhook on every match can hit Discord's rate limits and get the webhook disabled.</Note>
+            <Note variant="warning">Optional, and most people don't need it. Sending too many webhooks in a short time can hit Discord's rate limits and get the webhook disabled. Normal use is fine.</Note>
             <TextField
                 label="Webhook URL"
                 hint={globalWebhookUrl ? "Leave empty to use the global webhook from Settings." : "No global webhook is set in Settings, so add one here to forward."}
@@ -318,13 +350,16 @@ function ForwardingSection({ draft, patch }: { draft: Draft; patch: Patch; }) {
                 onChange={v => patchF({ webhookUrl: v })}
             />
             {!hasWebhook && <Note variant="warning">No webhook is set, so nothing will be forwarded.</Note>}
-            <SwitchRow label="Forward on match" hint="Send to the webhook when the trigger matches." value={f.onMatch.enabled} onChange={v => patchF({ onMatch: { ...f.onMatch, enabled: v } })} />
-            {f.onMatch.enabled && <SwitchRow label="Forward early" hint="As soon as possible. Can slightly slow the join." value={f.onMatch.early} onChange={v => patchF({ onMatch: { ...f.onMatch, early: v } })} />}
+            <MatchTimingField draft={draft} patch={patch} />
             {hasBiomeCheck(draft.type) && (
                 <SwitchRow label="Forward on detection" hint="Send when the biome is confirmed. Needs biome detection set up." value={f.onDetection.enabled} onChange={v => patchF({ onDetection: { enabled: v } })} />
             )}
-            <TextAreaField label="Message text" hint="Sent outside the embed. Max 2000 characters." value={f.webhookContent} placeholder="Optional" onChange={v => patchF({ webhookContent: v })} maxLength={2000} />
-            <TextAreaField label="Embed text" hint="Added before the embed description. Max 2000 characters." value={f.webhookEmbedDescription} placeholder="Optional" onChange={v => patchF({ webhookEmbedDescription: v })} maxLength={2000} />
+            <FormatFields draft={draft} patch={patch} />
+            <TextAreaField label="Message text" hint={card ? "Sent above the card, outside it. Max 2000 characters." : "Sent outside the embed. Max 2000 characters."} value={f.webhookContent} placeholder="Optional" onChange={v => patchF({ webhookContent: v })} maxLength={2000} />
+            <TextAreaField label={card ? "Card text" : "Embed text"} hint={card ? "Shown under the title, inside the card. Max 2000 characters." : "Added before the embed description. Max 2000 characters."} value={f.webhookEmbedDescription} placeholder="Optional" onChange={v => patchF({ webhookEmbedDescription: v })} maxLength={2000} />
+            <AccentField draft={draft} patch={patch} />
+            <ShowFields draft={draft} patch={patch} />
+            <FloatingPreview draft={draft} />
             <IdChipInput kind="guild" label="Don't forward from these servers" ids={f.excludedGuilds ?? []} onChange={ids => patchF({ excludedGuilds: ids })} />
             <IdChipInput kind="channel" label="Don't forward from these channels" ids={f.excludedChannels ?? []} onChange={ids => patchF({ excludedChannels: ids })} />
         </>

@@ -122,6 +122,14 @@ export function sanitizeContent(message: Message): void {
 
 // --- Message filters ---
 
+/** A SolRadar card has no embed footer, so its mark is the last line of its last text: "-# ... SolRadar" */
+function endsWithSolRadarMark(message: Message): boolean {
+    const components = (message.components ?? []) as any[];
+    if (!components.length) return false;
+    const last = extractComponentContent(components).texts.at(-1)?.trim().split("\n").pop();
+    return last?.toLowerCase().endsWith("solradar") === true;
+}
+
 export function isValidMessage(message: Message): boolean {
     // @ts-ignore webhook_id is missing from the Message type
     const webhook_id = message.webhook_id ?? message.author.id ?? undefined;
@@ -137,7 +145,7 @@ export function isValidMessage(message: Message): boolean {
 
     const isReforward = message.embeds.some(e =>
         e.type === "rich" && (e as any).footer?.text?.toLowerCase() === "solradar"
-    );
+    ) || endsWithSolRadarMark(message);
 
     if (isReforward && settings.store.ignoreWebhookForwards) {
         logger.warn("This message is a re-forward! Protection against forward loops is enabled.");

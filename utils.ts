@@ -44,7 +44,8 @@ export function getEffectiveKillTargets(): KillTargets {
     };
 }
 
-export async function sendWebhook(url: string, body: string): Promise<void> {
+export async function sendWebhook(url: string, body: string, iconDataUrl?: string): Promise<void> {
+    if (iconDataUrl) return await Native.sendWebhookWithIcon(url, body, iconDataUrl);
     return await Native.sendWebhook(url, body);
 }
 

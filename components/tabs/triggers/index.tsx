@@ -58,6 +58,7 @@ interface ParsedQuery {
     notify: boolean | null;
     lock: boolean | null;
     priority: { op: "eq" | "gt" | "lt"; value: number; } | null;
+    hidden: boolean | null;
 }
 
 function parseBool(v: string): boolean | null {
@@ -68,13 +69,13 @@ function parseBool(v: string): boolean | null {
 
 /**
  * Parses a query string into structured filters.
- * Supported tokens: enabled: join: notify: lock: priority: (=/>/<)
+ * Supported tokens: enabled: join: notify: lock: hidden: priority: (=/>/<)
  * Everything else is treated as free-text search.
  */
 function parseQuery(raw: string): ParsedQuery {
     const result: ParsedQuery = {
         text: "", enabled: null, autojoin: null,
-        notify: null, lock: null, priority: null,
+        notify: null, lock: null, priority: null, hidden: null,
     };
 
     const TOKEN_RE = /(\w+):([^\s]+)/g;
@@ -94,6 +95,8 @@ function parseQuery(raw: string): ParsedQuery {
                 result.notify = parseBool(val); break;
             case "lock":
                 result.lock = parseBool(val); break;
+            case "hidden":
+                result.hidden = parseBool(val); break;
             case "priority": {
                 const gtMatch = /^>(\d+)$/.exec(val);
                 const ltMatch = /^<(\d+)$/.exec(val);
@@ -113,6 +116,9 @@ function parseQuery(raw: string): ParsedQuery {
 function applyQuery(triggers: Trigger[], q: ParsedQuery, typeFilter: TriggerType | "all"): Trigger[] {
     return triggers.filter(t => {
         if (typeFilter !== "all" && t.type !== typeFilter) return false;
+
+        // Hidden triggers only show up when the filter asks for them
+        if (Boolean(t.hidden) !== (q.hidden ?? false)) return false;
 
         if (q.enabled !== null && t.state.enabled !== q.enabled) return false;
         if (q.autojoin !== null && t.state.autojoin !== q.autojoin) return false;
@@ -173,12 +179,24 @@ function confirmDeleteAll(count: number) {
 
 type TypeFilter = TriggerType | "all";
 
-function openTypeFilterMenu(e: React.MouseEvent, triggers: Trigger[], current: TypeFilter, onChange: (f: TypeFilter) => void) {
+function openTypeFilterMenu(e: React.MouseEvent, triggers: Trigger[], current: TypeFilter, onChange: (f: TypeFilter) => void, onShowHidden: () => void) {
     const options: TypeFilter[] = ["all", ...(Object.keys(TYPE_META) as TriggerType[])];
+
+    // The menu is placed once, where it was opened, so a resize would leave it floating in the wrong spot
+    const onResize = () => ContextMenuApi.closeContextMenu();
+    window.addEventListener("resize", onResize);
+
+    // The menu does not redraw after a pick, so it closes instead of showing a stale selection
+    const pick = (fn: () => void) => () => { fn(); ContextMenuApi.closeContextMenu(); };
+
     ContextMenuApi.openContextMenu(e, () => (
-        <Menu.Menu navId="vc-sora-triggers-filter" onClose={ContextMenuApi.closeContextMenu} aria-label="Filter triggers">
+        <Menu.Menu
+            navId="vc-sora-triggers-filter"
+            onClose={() => { window.removeEventListener("resize", onResize); ContextMenuApi.closeContextMenu(); }}
+            aria-label="Filter triggers"
+        >
             {options.map(type => {
-                const count = type === "all" ? triggers.length : triggers.filter(t => t.type === type).length;
+                const count = triggers.filter(t => !t.hidden && (type === "all" || t.type === type)).length;
                 return (
                     <Menu.MenuRadioItem
                         key={type}
@@ -186,10 +204,17 @@ function openTypeFilterMenu(e: React.MouseEvent, triggers: Trigger[], current: T
                         group="vc-sora-triggers-filter"
                         label={`${type === "all" ? "All types" : TYPE_META[type].label} (${count})`}
                         checked={current === type}
-                        action={() => onChange(type)}
+                        action={pick(() => onChange(type))}
                     />
                 );
             })}
+            <Menu.MenuSeparator />
+            <Menu.MenuItem
+                id="vc-sora-triggers-filter-hidden"
+                label={`Hidden triggers (${triggers.filter(t => t.hidden).length})`}
+                disabled={!triggers.some(t => t.hidden)}
+                action={pick(onShowHidden)}
+            />
         </Menu.Menu>
     ));
 }
@@ -280,7 +305,7 @@ function TriggerCard({
             ref={cardRef}
             {...tourAnchor(position === 0 ? "triggers.firstCard" : undefined)}
             data-trigger-index={index}
-            className={`vc-sora-trigger-card${enabled ? "" : " off"}${isDragging ? " dragging" : ""}`}
+            className={`vc-sora-trigger-card${enabled ? "" : " off"}${trigger.hidden ? " hidden" : ""}${isDragging ? " dragging" : ""}`}
             style={{ animationDelay: `${Math.min(position * 30, MAX_STAGGER_MS)}ms` }}
             onPointerDown={e => {
                 draggedRef.current = false;
@@ -335,6 +360,11 @@ function TriggerCard({
                 <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
                     <span className="vc-sora-trigger-name">{trigger.name}</span>
                     <span className="vc-sora-trigger-type" style={{ "--sora-c": meta.color } as React.CSSProperties}>{meta.label}</span>
+                    {trigger.hidden && (
+                        <Tooltip text="Hidden from the list. Right-click and choose Unhide to bring it back.">
+                            {props => <span {...props} className="vc-sora-trigger-offtag">Hidden</span>}
+                        </Tooltip>
+                    )}
                     {!enabled && (
                         <Tooltip text="This trigger is off. Click its icon to enable it.">
                             {props => <span {...props} className="vc-sora-trigger-offtag">Disabled</span>}
@@ -471,8 +501,11 @@ export function TriggersTab() {
         return applyQuery(triggers, q, typeFilter);
     }, [triggers, search, typeFilter]);
 
+    // Hidden triggers stay out of the ordering. Their places in the full list are kept.
+    const visible = React.useMemo(() => triggers.filter(t => !t.hidden), [triggers]);
+
     // Reordering is off while a filter or search narrows the list
-    const orderingDisabled = filtered.length !== triggers.length;
+    const orderingDisabled = filtered.length !== visible.length || filtered.some(t => t.hidden);
 
     const importDefaults = async () => {
         if (importingRef.current) return;
@@ -532,10 +565,11 @@ export function TriggersTab() {
     };
 
     const move = (fromIndex: number, toIndex: number) => {
-        if (toIndex < 0 || toIndex >= triggers.length) return;
-        const newOrder = [...triggers];
+        if (toIndex < 0 || toIndex >= visible.length) return;
+        const newOrder = [...visible];
         const [moved] = newOrder.splice(fromIndex, 1);
         newOrder.splice(toIndex, 0, moved);
+        triggers.forEach((t, i) => { if (t.hidden) newOrder.splice(i, 0, t); });
         reorderTriggers(newOrder);
     };
 
@@ -703,7 +737,7 @@ export function TriggersTab() {
                         type="button"
                         className={`vc-sora-triggers-sbtn${activeType ? " active" : ""}`}
                         style={activeType ? { "--sora-c": activeType.color } as React.CSSProperties : undefined}
-                        onClick={e => openTypeFilterMenu(e, triggers, typeFilter, handleTypeFilterChange)}
+                        onClick={e => openTypeFilterMenu(e, triggers, typeFilter, handleTypeFilterChange, () => handleSearchChange("hidden:yes"))}
                     >
                         <FilterIcon />
                         {activeType?.label ?? "All types"}
@@ -724,8 +758,8 @@ export function TriggersTab() {
                     <TourAnchor id="triggers.new"><Button size="medium" variant="positive" onClick={openAddTriggerModal}>+ New</Button></TourAnchor>
                 </div>
                 <span className="vc-sora-triggers-hint" {...tourAnchor("triggers.hint")}>
-                    Filter with <code>enabled:</code> <code>join:</code> <code>notify:</code> <code>lock:</code> <code>priority:&gt;5</code>
-                    {filtered.length !== triggers.length && <> · showing {filtered.length} of {triggers.length}</>}
+                    Filter with <code>enabled:</code> <code>join:</code> <code>notify:</code> <code>lock:</code> <code>hidden:</code> <code>priority:&gt;5</code>
+                    {filtered.length !== visible.length && <> · showing {filtered.length} of {triggers.length}</>}
                 </span>
                 <JoinLockBanner />
             </div>
@@ -746,7 +780,7 @@ export function TriggersTab() {
                         <div style={{ display: "flex", flexDirection: "column", gap: 6, paddingBottom: 8 }}>
                             {filtered.map((t, i) => {
                                 // order buttons need the index in the full list, not the filtered one
-                                const realIdx = triggers.indexOf(t);
+                                const realIdx = visible.indexOf(t);
                                 return (
                                     <TriggerCard
                                         key={t.id}
@@ -754,7 +788,7 @@ export function TriggersTab() {
                                         index={realIdx}
                                         position={i}
                                         isFirst={realIdx === 0}
-                                        isLast={realIdx === triggers.length - 1}
+                                        isLast={realIdx === visible.length - 1}
                                         orderingDisabled={orderingDisabled}
                                         useButtonsForOrdering={useButtonsForOrdering}
                                         useContextMenu={useContextMenu}
@@ -800,7 +834,7 @@ export function TriggersTab() {
                 pointerEvents: "none",
                 zIndex: 9999,
             }}>
-                <DragGhost trigger={triggers[drag.fromIndex]} />
+                <DragGhost trigger={visible[drag.fromIndex]} />
             </div>,
             document.body
             )}

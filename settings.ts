@@ -192,7 +192,7 @@ export const settings = definePluginSettings({
     ignoreWebhookForwards: {
         // Extra safety on top of the existing self-forward loop protection
         type: OptionType.BOOLEAN,
-        description: "With this enabled, if an embed footer contains the text 'solradar', it will be ignored. Only disable this if you know what you're doing!",
+        description: "With this enabled, a message is ignored if its embed footer is 'solradar', or if its last line ends with 'SolRadar' (the mark of a card). Only disable this if you know what you're doing!",
         default: true,
         hidden: true,
     },

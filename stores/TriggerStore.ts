@@ -11,6 +11,7 @@ import { React } from "@webpack/common";
 
 import { Logger } from "../logger";
 import { applyDefaultUpdate, DEFAULT_TRIGGERS, getDefault, isDefaultId, isUpdatable } from "./defaultTriggers";
+import { adoptIcon, inlineIcon } from "./IconStore";
 
 const logger = new Logger("SolRadar");
 
@@ -20,6 +21,10 @@ export type TriggerType = "RARE_BIOME" | "EVENT_BIOME" | "BIOME" | "WEATHER" | "
 
 /** Types whose biome can be checked after joining. The editor and the biome watcher both use this. */
 export const hasBiomeCheck = (type: TriggerType) => type !== "MERCHANT";
+
+/** Whether a trigger can show a verified / not verified status: a biome type with detection set up */
+export const hasBiomeStatus = (t: { type: TriggerType; biome?: { detectionEnabled: boolean; }; }) =>
+    hasBiomeCheck(t.type) && Boolean(t.biome?.detectionEnabled);
 
 export interface TriggerState {
     enabled: boolean;
@@ -69,10 +74,43 @@ export interface TriggerBiome {
     skipRedundantJoin: boolean;
 }
 
+/** Message formats a forward can use: a classic embed, or a Components V2 card */
+export type ForwardFormat = "embed" | "card";
+export type CardLayout = "compact" | "quote" | "terminal" | "timeline" | "actions";
+const CARD_LAYOUT_IDS: CardLayout[] = ["compact", "quote", "terminal", "timeline", "actions"];
+
+/** Parts of a forwarded message the user can leave out. Each layout uses only some of them. */
+export interface ForwardShow {
+    icon: boolean;
+    time: boolean;
+    sender: boolean;
+    where: boolean;
+    biome: boolean;
+    message: boolean;
+    join: boolean;
+    jump: boolean;
+}
+
+/** Stripe color of a trigger's forwards, by type. Also used by the editor's type picker. */
+export const TYPE_COLORS: Record<TriggerType, string> = {
+    RARE_BIOME: "#f23f43",
+    EVENT_BIOME: "#3ba55d",
+    BIOME: "#eb459e",
+    WEATHER: "#00a8fc",
+    MERCHANT: "#f0b232",
+    CUSTOM: "#949ba4",
+};
+
 export interface TriggerForwarding {
     webhookUrl: string;
     webhookContent: string;
+    /** The text under the title of a card or embed */
     webhookEmbedDescription: string;
+    format: ForwardFormat;
+    layout: CardLayout;
+    /** "#rrggbb", or empty for the color of the trigger's type */
+    accentColor: string;
+    show: ForwardShow;
     excludedGuilds: string[];
     excludedChannels: string[];
     onMatch: {
@@ -90,6 +128,8 @@ export interface Trigger {
     name: string;
     description: string;
     iconUrl: string;
+    /** Kept out of the trigger list unless the list is filtered with hidden:yes */
+    hidden?: boolean;
     state: TriggerState;
     conditions: TriggerConditions;
     forwarding: TriggerForwarding;
@@ -138,10 +178,25 @@ export const DEFAULT_BIOME: TriggerBiome = {
     skipRedundantJoin: true,
 };
 
+export const DEFAULT_FORWARD_SHOW: ForwardShow = {
+    icon: true,
+    time: true,
+    sender: true,
+    where: true,
+    biome: true,
+    message: true,
+    join: true,
+    jump: true,
+};
+
 export const DEFAULT_FORWARDING: TriggerForwarding = {
     webhookUrl: "",
     webhookContent: "",
     webhookEmbedDescription: "",
+    format: "embed",
+    layout: "compact",
+    accentColor: "",
+    show: { ...DEFAULT_FORWARD_SHOW },
     excludedGuilds: [],
     excludedChannels: [],
     onMatch: {
@@ -183,7 +238,7 @@ function migrateTrigger(raw: any): Trigger {
         type: raw.type ?? "CUSTOM",
         name: raw.name ?? "",
         description: raw.description ?? "",
-        iconUrl: raw.iconUrl ?? "",
+        iconUrl: adoptIcon(raw.iconUrl ?? ""),
         biome: {
             detectionEnabled: raw.biome?.detectionEnabled ?? DEFAULT_BIOME.detectionEnabled,
             detectionKeyword: raw.biome?.detectionKeyword ?? DEFAULT_BIOME.detectionKeyword,
@@ -223,6 +278,10 @@ function migrateTrigger(raw: any): Trigger {
             webhookUrl: raw.forwarding?.webhookUrl ?? DEFAULT_FORWARDING.webhookUrl,
             webhookContent: raw.forwarding?.webhookContent ?? DEFAULT_FORWARDING.webhookContent,
             webhookEmbedDescription: raw.forwarding?.webhookEmbedDescription ?? DEFAULT_FORWARDING.webhookEmbedDescription,
+            format: raw.forwarding?.format === "card" ? "card" : "embed",
+            layout: CARD_LAYOUT_IDS.includes(raw.forwarding?.layout) ? raw.forwarding.layout : DEFAULT_FORWARDING.layout,
+            accentColor: raw.forwarding?.accentColor ?? DEFAULT_FORWARDING.accentColor,
+            show: { ...DEFAULT_FORWARD_SHOW, ...raw.forwarding?.show },
             excludedGuilds: raw.forwarding?.excludedGuilds ?? DEFAULT_FORWARDING.excludedGuilds,
             excludedChannels: raw.forwarding?.excludedChannels ?? DEFAULT_FORWARDING.excludedChannels,
             onMatch: {
@@ -235,6 +294,8 @@ function migrateTrigger(raw: any): Trigger {
         },
     };
 
+    if (!hasBiomeCheck(trigger.type)) trigger.forwarding.onDetection.enabled = false;
+    if (raw.hidden === true) trigger.hidden = true;
     if (Number.isFinite(raw.defaultRev)) trigger.defaultRev = raw.defaultRev;
     return trigger;
 }
@@ -418,7 +479,7 @@ export type ExportOptions = {
 };
 
 export function exportTriggersJson(): string {
-    return JSON.stringify(_triggers, null, 2);
+    return JSON.stringify(_triggers.map(withInlineIcon), null, 2);
 }
 
 export function downloadTriggersJson(): void {
@@ -430,18 +491,23 @@ function _triggerSlug(trigger: Trigger): string {
 }
 
 export function exportTriggerJson(trigger: Trigger): string {
-    return JSON.stringify([trigger], null, 2);
+    return JSON.stringify([withInlineIcon(trigger)], null, 2);
 }
 
 export function downloadTriggerJson(trigger: Trigger): void {
     _downloadJson(exportTriggerJson(trigger), `solsradar-trigger-${_triggerSlug(trigger)}-${Date.now()}.json`);
 }
 
+/** Exports carry the picture itself, since a local icon means nothing on another machine */
+export function withInlineIcon<T extends { iconUrl: string; }>(trigger: T): T {
+    return { ...trigger, iconUrl: inlineIcon(trigger.iconUrl) };
+}
+
 function redactTrigger(trigger: Trigger, redact: Set<RedactField>): Trigger | null {
     if (redact.has("customTriggers") && trigger.type === "CUSTOM") return null;
 
     return {
-        ...trigger,
+        ...withInlineIcon(trigger),
         conditions: {
             ...trigger.conditions,
             ...(redact.has("conditions") && { fromUser: [], inChannel: [], ignoredChannels: [], ignoredGuilds: [], mentionRoles: [] }),

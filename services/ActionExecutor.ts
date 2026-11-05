@@ -8,6 +8,7 @@ import { showNotification } from "@api/Notifications";
 
 import { Logger } from "../logger";
 import { settings } from "../settings";
+import { resolveIcon } from "../stores/IconStore";
 import { closeGame, goToHome, joinLink, joinSolsPublicServer, prepareAdb } from "./RobloxService";
 
 const logger = new Logger("SolRadar:Action");
@@ -131,7 +132,7 @@ export function scheduleCancelableAction({ action, timeoutMs, title, iconUrl, de
         body: description
             ? `${description}\nIn ${seconds}s: ${label}. Tap to cancel.`
             : `In ${seconds}s: ${label}. Tap to cancel.`,
-        icon: iconUrl,
+        icon: resolveIcon(iconUrl),
         onClick: () => PendingActionStore.cancel(),
     });
 }
