@@ -11,7 +11,7 @@
                 { "type": "Added", "text": "Favorite snipes", "description": "Right-click a snipe in Snipe History and choose Add to favorites. Favorites get a star, have their own filter, and stay when you clear the history." },
                 { "type": "Improved", "text": "Forward on match is now one choice: Off, After joining, or As soon as possible" },
                 { "type": "Improved", "text": "The verified status only shows for triggers with biome detection set up" },
-                { "type": "Fixed", "text": "The type filter in the trigger list now shows the type you picked, and closes after you pick one" }
+                { "type": "Fixed", "text": "The type filter in the trigger list and the filter in Snipe History now show what you picked, and close after you pick one" }
             ]
         },
         {

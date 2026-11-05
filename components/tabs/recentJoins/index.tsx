@@ -110,8 +110,17 @@ function confirmClearHistory() {
 }
 
 function openFilterMenu(e: React.MouseEvent, entries: SnipeEntry[], current: Filter, onChange: (f: Filter) => void) {
+    // The menu is placed once and does not redraw after a pick, so it closes on a pick or a resize
+    // instead of showing a stale selection or floating in the wrong spot
+    const onResize = () => ContextMenuApi.closeContextMenu();
+    window.addEventListener("resize", onResize);
+
     ContextMenuApi.openContextMenu(e, () => (
-        <Menu.Menu navId="vc-sora-history-filter" onClose={ContextMenuApi.closeContextMenu} aria-label="Filter snipes">
+        <Menu.Menu
+            navId="vc-sora-history-filter"
+            onClose={() => { window.removeEventListener("resize", onResize); ContextMenuApi.closeContextMenu(); }}
+            aria-label="Filter snipes"
+        >
             {FILTERS.map(f => (
                 <Menu.MenuRadioItem
                     key={f.tag}
@@ -119,7 +128,7 @@ function openFilterMenu(e: React.MouseEvent, entries: SnipeEntry[], current: Fil
                     group="vc-sora-history-filter"
                     label={`${f.label} (${countFor(entries, f.tag)})`}
                     checked={current === f.tag}
-                    action={() => onChange(f.tag)}
+                    action={() => { onChange(f.tag); ContextMenuApi.closeContextMenu(); }}
                 />
             ))}
         </Menu.Menu>
