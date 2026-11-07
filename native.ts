@@ -871,7 +871,7 @@ export type RobloxProcess = { pid: number; commandLine: string; startedAt: numbe
 export async function findRobloxProcesses(): Promise<{ ok: true; processes: RobloxProcess[]; } | { ok: false; error: string; }> {
     if (process.platform !== "win32") return { ok: false, error: "Windows only." };
 
-    const script = `Get-CimInstance Win32_Process -Filter "Name='RobloxPlayerBeta.exe'" | ForEach-Object { [pscustomobject]@{ pid = $_.ProcessId; commandLine = $_.CommandLine; startedAt = ([DateTimeOffset]$_.CreationDate).ToUnixTimeMilliseconds() } } | ConvertTo-Json -Compress`;
+    const script = "Get-CimInstance Win32_Process -Filter \"Name='RobloxPlayerBeta.exe'\" | ForEach-Object { [pscustomobject]@{ pid = $_.ProcessId; commandLine = $_.CommandLine; startedAt = ([DateTimeOffset]$_.CreationDate).ToUnixTimeMilliseconds() } } | ConvertTo-Json -Compress";
     try {
         const { stdout } = await execFile("powershell.exe", ["-NoProfile", "-NonInteractive", "-EncodedCommand", encodePs(script)], { timeout: 15000 });
         const text = stdout.trim();

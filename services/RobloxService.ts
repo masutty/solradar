@@ -14,8 +14,8 @@ import { settings } from "../settings";
 import { SnipableLink } from "../types";
 import { BiomeDetector } from "./BiomeDetector";
 import { startAutoPlay } from "./EmulatorAutoPlay";
-import { stopWindowsAutoPlay } from "./WindowsAutoPlay";
 import { getSnipableLink } from "./MessageProcessor";
+import { stopWindowsAutoPlay } from "./WindowsAutoPlay";
 
 const logger = new Logger("SolRadar.RobloxService");
 

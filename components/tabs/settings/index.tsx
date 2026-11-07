@@ -791,7 +791,8 @@ export function SettingsTab() {
             title: "Input automation",
             subtitle: "Click Play for you when nobody is at the PC",
             tech: true,
-            master: master("inputAutomation", inputAutomationEnabled, v => { settings.store.inputAutomationEnabled = v; }),            note: <Note variant="warning">This is an early prototype, so it's best left off unless you know what you're doing: while it's on Sol Radar moves your mouse and clicks for you.</Note>,
+            master: master("inputAutomation", inputAutomationEnabled, v => { settings.store.inputAutomationEnabled = v; }),
+            note:<Note variant="warning">This is an early prototype, so it's best left off unless you know what you're doing: while it's on Sol Radar moves your mouse and clicks for you.</Note>,
             entries: [
                 { id: "adbAutoPlay", label: "Emulator: tap Play after Prepare ADB", description: "Taps Play on the emulator's title screen after Prepare ADB opens Roblox, and stops on the next snipe." },
                 ...(adbAutoPlay ? [
@@ -860,7 +861,8 @@ export function SettingsTab() {
                     tooltip={b.tooltip}
                     tech={b.tech}
                     master={b.master}
-                    keepBodyVisible={b.keepBodyVisible}                    open={!!q || openBlocks[b.id]}
+                    keepBodyVisible={b.keepBodyVisible}
+                    open={!!q || openBlocks[b.id]}
                     onToggle={() => setOpen(b.id, !openBlocks[b.id])}
                 >
                     {b.note}
