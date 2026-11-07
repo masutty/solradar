@@ -12,7 +12,7 @@ import { React, showToast, TextInput, Tooltip, useEffect, useState } from "@webp
 
 import { settings } from "../../../../settings";
 import { isLocalIcon, resolveIcon, saveIconFile } from "../../../../stores/IconStore";
-import { DEFAULT_BIOME, hasBiomeCheck, Trigger, TriggerType, TYPE_COLORS } from "../../../../stores/TriggerStore";
+import { DEFAULT_BIOME, hasBiomeCheck, hasBiomeStatus, locksUntilBiomeEnds, Trigger, TriggerType, TYPE_COLORS } from "../../../../stores/TriggerStore";
 import { TourAnchor, tourAnchor } from "../../../tour/TourAnchor";
 import { IdChipInput } from "../../../ui/IdChipInput";
 import { KeywordsInput } from "../../../ui/KeywordsInput";
@@ -263,6 +263,8 @@ export function EssentialsSection({ draft, patch }: { draft: Draft; patch: Patch
 
 function JoinLockSection({ draft, patch }: { draft: Draft; patch: Patch; }) {
     const patchState = (p: Partial<Draft["state"]>) => patch({ state: { ...draft.state, ...p } });
+    const { detectorEnabled, detectorAccounts } = settings.use(["detectorEnabled", "detectorAccounts"]);
+    const untilBiomeEnds = locksUntilBiomeEnds(draft, { enabled: detectorEnabled, accounts: detectorAccounts });
     return (
         <>
             <SwitchRow
@@ -284,6 +286,7 @@ function JoinLockSection({ draft, patch }: { draft: Draft; patch: Patch; }) {
                     label="Lock for"
                     hint="How long other triggers stay blocked after this one joins"
                     unit="seconds"
+                    disabledReason={untilBiomeEnds ?'Not used while "Lock until biome ends" is on. Change it in the Biome check section.' : undefined}
                     value={draft.state.joinlockDuration}
                     onChange={v => patchState({ joinlockDuration: v })}
                 />
@@ -327,6 +330,25 @@ function BiomeSection({ draft, patch }: { draft: Draft; patch: Patch; }) {
                     <Note variant="warning">Custom triggers are often named after something that isn't a biome, like a boss. Type the biome it shows up in, or every join will look fake.</Note>
                 )}
                 <SwitchRow label="Skip if already there" hint="If you're already in this biome, don't join again. Still notifies." value={biome.skipRedundantJoin} onChange={v => patchBiome({ skipRedundantJoin: v })} />
+                <SwitchRow
+                    label="Lock until biome ends"
+                    hint="Keep the join lock until the biome is over, instead of a fixed time."
+                    tooltip="The lock lasts until the biome changes, you disconnect, or the Roblox log goes quiet for 5 minutes, and it replaces the lock duration. It needs biome detection with a Roblox account set up in the plugin settings, otherwise the lock lasts the fixed time."
+                    disabledReason={!draft.state.joinlock ? "Turn on Join lock first." : undefined}
+                    value={biome.lockUntilEnd}
+                    onChange={v => patchBiome({ lockUntilEnd: v })}
+                />
+                {biome.lockUntilEnd && draft.state.joinlock && (
+                    !detectorEnabled || !detectorAccounts.trim() ? (
+                        <Note variant="warning">
+                            {!detectorEnabled ? "Biome detection is off" : "No Roblox account is set up for biome detection"}, so "Lock until biome ends" won't be used. The lock lasts the fixed time from the Join lock section instead.
+                        </Note>
+                    ) : (
+                        <Note variant="warning">
+                            Make sure the Roblox account in the plugin settings is the one that actually joins. With the wrong account the biome is never detected, so the lock is released after the detection timeout instead of lasting the whole biome.
+                        </Note>
+                    )
+                )}
             </>}
         </TourAnchor>
     );
@@ -424,7 +446,7 @@ export const SECTIONS: EditorSection[] = [
     { id: "essentials", label: "Essentials", group: "required", visible: () => true, summary: () => null, Component: EssentialsSection },
     {
         id: "lock", label: "Join lock", group: "optional", visible: () => true,
-        summary: d => d.state.joinlock ? `Priority ${d.state.priority}, locks for ${d.state.joinlockDuration}s` : null,
+        summary: d => d.state.joinlock ? `Priority ${d.state.priority}, locks ${hasBiomeStatus(d) && d.biome?.lockUntilEnd ? "until the biome ends" : `for ${d.state.joinlockDuration}s`}` : null,
         Component: JoinLockSection,
     },
     { id: "sound", label: "Sound", group: "optional", visible: d => d.state.notify, summary: d => d.state.notificationSound ? "Plays a custom sound" : null, Component: SoundSection },

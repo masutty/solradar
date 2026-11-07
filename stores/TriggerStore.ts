@@ -26,6 +26,12 @@ export const hasBiomeCheck = (type: TriggerType) => type !== "MERCHANT";
 export const hasBiomeStatus = (t: { type: TriggerType; biome?: { detectionEnabled: boolean; }; }) =>
     hasBiomeCheck(t.type) && Boolean(t.biome?.detectionEnabled);
 
+/** Whether the join lock for this trigger lasts until its biome ends. Needs a working detector, since nothing else could release it. */
+export const locksUntilBiomeEnds = (
+    t: { type: TriggerType; biome?: { detectionEnabled: boolean; lockUntilEnd: boolean; }; },
+    detector: { enabled: boolean; accounts: string; },
+) => detector.enabled && Boolean(detector.accounts.trim()) && hasBiomeStatus(t) && Boolean(t.biome?.lockUntilEnd);
+
 export interface TriggerState {
     enabled: boolean;
     autojoin: boolean;
@@ -72,6 +78,8 @@ export interface TriggerBiome {
     detectionEnabled: boolean;
     detectionKeyword: string;
     skipRedundantJoin: boolean;
+    /** Keeps the join lock until the biome ends, instead of for joinlockDuration */
+    lockUntilEnd: boolean;
 }
 
 /** Message formats a forward can use: a classic embed, or a Components V2 card */
@@ -176,6 +184,7 @@ export const DEFAULT_BIOME: TriggerBiome = {
     detectionEnabled: true,
     detectionKeyword: "",
     skipRedundantJoin: true,
+    lockUntilEnd: false,
 };
 
 export const DEFAULT_FORWARD_SHOW: ForwardShow = {
@@ -243,6 +252,7 @@ function migrateTrigger(raw: any): Trigger {
             detectionEnabled: raw.biome?.detectionEnabled ?? DEFAULT_BIOME.detectionEnabled,
             detectionKeyword: raw.biome?.detectionKeyword ?? DEFAULT_BIOME.detectionKeyword,
             skipRedundantJoin: raw.biome?.skipRedundantJoin ?? DEFAULT_BIOME.skipRedundantJoin,
+            lockUntilEnd: raw.biome?.lockUntilEnd ?? DEFAULT_BIOME.lockUntilEnd,
         },
         conditions: {
             keywords: {

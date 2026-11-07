@@ -18,6 +18,7 @@ import { pruneKnownNames } from "./components/ui/idFilter/pruneKnownNames";
 import { openMessageDebugModal } from "./components/ui/MessageDebugModal";
 import { Logger } from "./logger";
 import { Snipe } from "./models/Snipe";
+import { PendingActionStore } from "./services/ActionExecutor";
 import { BiomeDetector } from "./services/BiomeDetector";
 import { cancelBiomeDetection } from "./services/BiomeWatcher";
 import { forwardSnipe } from "./services/ForwardingService";
@@ -85,6 +86,9 @@ async function handleMessage(message: Message, channel: Channel, guild: Guild, t
     }
 
     if (isDuplicateLink(snipe)) return;
+
+    // The pending action reacted to the old game, and it must not touch this snipe
+    if (PendingActionStore.cancel()) snipe.logInfo("Cancelled the pending action because of this snipe.");
 
     if (snipe.trigger.forwarding.onMatch.enabled && snipe.trigger.forwarding.onMatch.early) {
         snipe.logInfo("Forwarding early...");

@@ -13,6 +13,7 @@ import { settings } from "../../../settings";
 import { JoinLockStore } from "../../../stores/JoinLockStore";
 import { isDeveloper } from "../../../utils";
 import { openActiveChannelsModal } from "../../modals/ActiveChannelsModal";
+import { AutoPlayControls } from "../../ui/AutoPlayControls";
 import { Note } from "../../ui/Note";
 import { labelText, rowCard, sectionTitle, tabColumn } from "../../ui/styles";
 import { HelpTip, TechBadge } from "../settings/Setting";
@@ -133,6 +134,11 @@ export function UtilsTab() {
                     onClick={async () => toastResult(await Native.killAdbServer(settings.store.ldpAdbPath), "ADB server killed", "Couldn't kill the ADB server")}
                 />
             )}
+
+            <p style={{ ...sectionTitle, display: "flex", alignItems: "center", gap: 6 }}>
+                Input automation <TechBadge />
+            </p>
+            <AutoPlayControls />
 
             <p style={sectionTitle}>Monitoring</p>
             <ActionRow

@@ -40,6 +40,7 @@ export interface BiomeChangedEvent {
 export interface BiomeClearedEvent {
     username: string;
     from: string;
+    reason?: "disconnect" | "idle";
 }
 
 type BiomeEventMap = {
@@ -58,9 +59,12 @@ interface AccountState {
     lastKnownBiome: string | undefined;
     lastSeenRpcTs: string | undefined;
     lastBiomeUpdatedAt: number;
+    logModifiedAt: number;
 }
 
 const STALE_THRESHOLD_MS = 60_000;
+// Roblox keeps writing to its log while the game runs, so a log this quiet means it hung or closed
+const IDLE_LOG_MS = 5 * 60_000;
 
 function _parseBiomeFromRpc(rpcLine: string): string | null {
     try {
@@ -103,6 +107,7 @@ class BiomeDetectorService {
                 lastKnownBiome: undefined,
                 lastSeenRpcTs: undefined,
                 lastBiomeUpdatedAt: 0,
+                logModifiedAt: 0,
             });
         }
 
@@ -198,6 +203,7 @@ class BiomeDetectorService {
 
         for (const [userid, state] of this._accounts) {
             const found = newest[userid];
+            if (found) state.logModifiedAt = found.mtime;
             if (found && found.path !== state.logPath) {
                 logger.debug(`Log path for ${state.username}: ${found.path.split(/[\\/]/).pop()}`);
                 const previousBiome = state.lastKnownBiome;
@@ -230,8 +236,17 @@ class BiomeDetectorService {
                 logger.info(`${state.username} disconnected, clearing biome.`);
                 state.lastKnownBiome = undefined;
                 state.lastBiomeUpdatedAt = Date.now();
-                this._emit("biomeCleared", { username: state.username, from });
+                this._emit("biomeCleared", { username: state.username, from, reason: "disconnect" });
             }
+            return;
+        }
+
+        if (state.lastKnownBiome !== undefined && state.logModifiedAt > 0 && Date.now() - state.logModifiedAt > IDLE_LOG_MS) {
+            const from = state.lastKnownBiome;
+            logger.info(`${state.username}'s log has been quiet for ${IDLE_LOG_MS / 60_000} minutes, clearing biome.`);
+            state.lastKnownBiome = undefined;
+            state.lastBiomeUpdatedAt = Date.now();
+            this._emit("biomeCleared", { username: state.username, from, reason: "idle" });
             return;
         }
 

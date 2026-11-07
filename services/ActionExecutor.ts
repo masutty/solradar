@@ -10,6 +10,7 @@ import { Logger } from "../logger";
 import { settings } from "../settings";
 import { resolveIcon } from "../stores/IconStore";
 import { closeGame, goToHome, joinLink, joinSolsPublicServer, prepareAdb } from "./RobloxService";
+import { stopWindowsAutoPlay } from "./WindowsAutoPlay";
 
 const logger = new Logger("SolRadar:Action");
 
@@ -21,6 +22,7 @@ export interface PendingActionState {
     title: string;
     description?: string;
     endsAt: number;
+    durationMs: number;
 }
 
 let _pending: PendingActionState | null = null;
@@ -61,8 +63,11 @@ const ACTION_LABELS: Record<string, string> = {
 };
 
 export async function executeAction(action: UserAction | string): Promise<void> {
-    if (action !== "nothing")
+    if (action !== "nothing") {
         logger.info(`Executing: ${ACTION_LABELS[action] ?? action}`);
+        // An action means the snipe is over or replaced, so its Play clicking must not carry on into the next game
+        stopWindowsAutoPlay(`action: ${ACTION_LABELS[action] ?? action}`);
+    }
     switch (action) {
         case "nothing": return;
         case "public": await joinSolsPublicServer(); return;
@@ -106,13 +111,22 @@ export function scheduleCancelableAction({ action, timeoutMs, title, iconUrl, de
 
     const label = ACTION_LABELS[action] ?? action;
 
-    if (settings.store.skipActionConfirmation) {
-        logger.info(`Executing immediately (confirmation skipped): ${label}: ${title}`);
+    // Two actions must never run side by side, so the newer one replaces any pending one
+    PendingActionStore.cancel();
+
+    // With no wait there is no time to cancel, so the notification only informs
+    if (timeoutMs <= 0) {
+        logger.info(`Executing immediately (no delay): ${label}: ${title}`);
+        if (settings.store.notifyInstantActions) {
+            showNotification({
+                title: `⚡ SoRa :: ${title}`,
+                body: description ? `${description}\nRunning now: ${label}.` : `Running now: ${label}.`,
+                icon: resolveIcon(iconUrl),
+            });
+        }
         executeAction(action);
         return;
     }
-
-    PendingActionStore.cancel();
 
     let cancelled = false;
     const seconds = Math.round(timeoutMs / 1000);
@@ -125,7 +139,7 @@ export function scheduleCancelableAction({ action, timeoutMs, title, iconUrl, de
     }, timeoutMs);
 
     _cancelFn = () => { cancelled = true; clearTimeout(timer); };
-    _setPending({ title, description, endsAt: Date.now() + timeoutMs });
+    _setPending({ title, description, endsAt: Date.now() + timeoutMs, durationMs: timeoutMs });
 
     showNotification({
         title: `⏳ SoRa :: ${title}`,

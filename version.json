@@ -1,6 +1,18 @@
 {
-    "currentVersion": "1.9.1",
+    "currentVersion": "1.10.0",
     "changelog": [
+        {
+            "version": "1.10.0",
+            "entries": [
+                { "type": "Added", "text": "A join lock that lasts until the biome ends", "description": "Turn on Lock until biome ends in a trigger's Biome check section, and the join lock holds for as long as the biome lasts, instead of a fixed time. It needs biome detection set up." },
+                { "type": "Added", "text": "Input automation: click Play for you (prototype)", "description": "Sol Radar can click the Play button for you, on this PC or on the emulator, so you keep sniping when nobody is around. It's an early prototype, so leave it off unless you know what you're doing. Find it in Settings, under Input automation." },
+                { "type": "Improved", "text": "Easier biome actions in Settings", "description": "Each event is now one block: a ? that explains it, the action to run, and a − / + to set the wait." },
+                { "type": "Improved", "text": "Biome actions with no wait run instantly", "description": "With the wait set to No Delay, the action runs right away with no cancel prompt, and a notification tells you. Turn that notification off with Notify on instant actions, in Settings under Biome actions." },
+                { "type": "Improved", "text": "New look for the join lock and pending action banners", "description": "The background shrinks as the time runs out, and clicking anywhere on the banner cancels it." },
+                { "type": "Improved", "text": "Only one action at a time", "description": "A new snipe cancels a pending action, and a new action replaces the one waiting, so two never run together." },
+                { "type": "Removed", "text": "The Act without asking switch for biome actions", "description": "It ran biome actions with no cancel prompt. To get the same, set an action's wait to No Delay in Settings, under Biome actions. If you had it on, set your waits to No Delay." }
+            ]
+        },
         {
             "version": "1.9.1",
             "entries": [

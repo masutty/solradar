@@ -13,7 +13,7 @@ import { parseCsv } from "../../../utils";
 import { tourAnchor } from "../../tour/TourAnchor";
 import { COLORS, descriptionText, labelText, rowCard, sectionTitle } from "../../ui/styles";
 
-export type BlockId = "join" | "biome" | "verification" | "macro" | "monitoring" | "reading" | "forwarding" | "interface" | "other" | "adb";
+export type BlockId = "join" | "biome" | "verification" | "macro" | "monitoring" | "reading" | "forwarding" | "interface" | "other" | "adb" | "inputAutomation";
 
 type Check = {
     kind: "warn" | "info" | "ok";
@@ -24,7 +24,7 @@ type Check = {
 const OVERVIEW_KEYS = [
     "autoJoinEnabled", "privateServerLink", "onBadLink", "onBiomeFalse", "onBiomeEnd", "onBiomeTimeout",
     "sendKillProcessSignal", "macroType", "killProcessNames", "sendAdbSignal", "ldpAdbPath",
-    "monitoredGuilds", "anonymizeEverything", "linkVerification", "robloxToken", "joinMode",
+    "monitoredGuilds", "anonymizeEverything", "linkVerification", "robloxToken", "joinMode", "inputAutomationEnabled",
 ] as const;
 
 const VERIFICATION_LABELS: Record<string, string> = { disabled: "Disabled", before: "Before joining", after: "After joining" };
@@ -54,6 +54,10 @@ function getChecks(s: Pick<typeof settings.store, typeof OVERVIEW_KEYS[number]>)
 
     if (!checks.some(c => c.kind === "warn"))
         checks.unshift({ kind: "ok", text: "Everything SolRadar needs is configured." });
+
+    // Always first, since it is the one setting that takes over the mouse
+    if (s.inputAutomationEnabled)
+        checks.unshift({ kind: "warn", text: "Input automation is on, so Sol Radar can move your mouse and click on its own" });
 
     return checks;
 }

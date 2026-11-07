@@ -19,6 +19,7 @@ import { TourAnchor } from "../../tour/TourAnchor";
 import { useAutoTour } from "../../tour/useAutoTour";
 import { ChipKind } from "../../ui/IdChipInput";
 import { Note } from "../../ui/Note";
+import { BiomeActionRule } from "./BiomeActionRule";
 import { Block, BlockMaster } from "./Block";
 import { BoltSetting } from "./BoltPicker";
 import { DebugReport } from "./DebugReport";
@@ -346,7 +347,7 @@ function MacroProcessNameEntry() {
                     onBlur={() => commit(raw)}
                     placeholder={isTitle ? "FishSol*" : "AutoHotkeyU64.exe, MacroTool.exe"}
                 />
-                <Button size="medium" variant="primary" onClick={check} disabled={checking}>
+                <Button size="medium" variant="secondary" onClick={check} disabled={checking}>
                     {checking ? "Checking…" : "Check"}
                 </Button>
             </div>
@@ -381,7 +382,7 @@ function AdbSerialEntry() {
                     onChange={v => { settings.store.ldpAdbDeviceSerial = v; }}
                     placeholder="emulator-5554"
                 />
-                <Button size="medium" variant="primary" onClick={handleCheck} disabled={checking}>
+                <Button size="medium" variant="secondary" onClick={handleCheck} disabled={checking}>
                     {checking ? "Checking…" : "Check devices"}
                 </Button>
             </div>
@@ -401,6 +402,98 @@ function AdbSerialEntry() {
                 </pre>
             )}
         </div>
+    );
+}
+
+function PlayPositionRow({ id, title, description, position, capturing, error, onCapture, onCancel }: {
+    id: string; title: string; description: string; position: string;
+    capturing: boolean; error: string | null; onCapture: () => void; onCancel: () => void;
+}) {
+    return (
+        <div data-sora-setting={id} style={customRow}>
+            <span style={customLabel}>{title}</span>
+            <span style={customDescription}>{description}</span>
+            <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 6 }}>
+                <TextInput style={{ flex: 1 }} readOnly value={capturing ? "Waiting for a click…" : position} />
+                <Button size="medium" variant="secondary" onClick={capturing ? onCancel : onCapture}>
+                    {capturing ? "Cancel" : "Capture"}
+                </Button>
+            </div>
+            {error && <span style={{ ...customDescription, color: "var(--status-danger)", marginTop: 6 }}>{error}</span>}
+        </div>
+    );
+}
+
+function AdbPlayPositionEntry() {
+    const { adbPlayX, adbPlayY } = settings.use(["adbPlayX", "adbPlayY"]);
+    const [capturing, setCapturing] = React.useState(false);
+    const [error, setError] = React.useState<string | null>(null);
+
+    const capture = async () => {
+        setCapturing(true);
+        setError(null);
+        const res = await Native.captureEmulatorTap(settings.store.ldpAdbPath, settings.store.ldpAdbDeviceSerial);
+        if (res.ok) {
+            settings.store.adbPlayX = res.x;
+            settings.store.adbPlayY = res.y;
+        } else {
+            setError(res.error);
+        }
+        setCapturing(false);
+    };
+
+    return (
+        <PlayPositionRow
+            id="adbPlayX"
+            title="Play button position"
+            description="Press Capture, then click the Play button inside the emulator. Reads the screen position of that click."
+            position={`X ${adbPlayX}, Y ${adbPlayY}`}
+            capturing={capturing}
+            error={error}
+            onCapture={capture}
+            onCancel={() => Native.cancelEmulatorCapture()}
+        />
+    );
+}
+
+function WinPlayPositionEntry() {
+    const { winPlayX, winPlayY } = settings.use(["winPlayX", "winPlayY"]);
+    const [capturing, setCapturing] = React.useState(false);
+    const [error, setError] = React.useState<string | null>(null);
+
+    const capture = async () => {
+        setCapturing(true);
+        setError(null);
+        try {
+            const found = await Native.findRobloxProcesses();
+            if (!found.ok) return setError(found.error);
+
+            const pid = found.processes.sort((a, b) => b.startedAt - a.startedAt)[0]?.pid;
+            if (pid === undefined) return setError("Roblox is not running.");
+
+            const res = await Native.winInput({ op: "capture", pid, timeoutMs: 30000 });
+            if (res.ok) {
+                settings.store.winPlayX = res.fx;
+                settings.store.winPlayY = res.fy;
+            } else {
+                setError(res.error);
+            }
+        } finally {
+            setCapturing(false);
+        }
+    };
+
+    return (
+        <PlayPositionRow
+            id="winPlayX"
+            title="Windows: Play button position"
+            description="Open the game maximized on its title screen, press Capture, then click the Play button. Saved as a percent of the window, so it survives a different size."
+            position={`X ${winPlayX}%, Y ${winPlayY}%`}
+            capturing={capturing}
+            error={error}
+            onCapture={capture}
+            onCancel={() => Native.stopWinInput()}
+        />
     );
 }
 
@@ -450,9 +543,8 @@ const DEFAULT_OPEN: Record<BlockId, boolean> = {
     interface: false,
     other: false,
     adb: false,
+    inputAutomation: false,
 };
-
-const DELAY_DESCRIPTION = "Time to wait before acting. A cancel prompt shows during this delay.";
 
 // --- SettingsTab ---
 
@@ -466,6 +558,9 @@ export function SettingsTab() {
         onBiomeEnd,
         onBiomeTimeout,
         sendAdbSignal,
+        inputAutomationEnabled,
+        adbAutoPlay,
+        winAutoPlay,
         sendKillProcessSignal,
         forwardingEnabled,
         macroType,
@@ -480,6 +575,9 @@ export function SettingsTab() {
         "onBiomeEnd",
         "onBiomeTimeout",
         "sendAdbSignal",
+        "inputAutomationEnabled",
+        "adbAutoPlay",
+        "winAutoPlay",
         "sendKillProcessSignal",
         "forwardingEnabled",
         "macroType",
@@ -607,13 +705,22 @@ export function SettingsTab() {
                 ? <Note variant="warning">Biome detection is managed on the plugin page in Vencord's plugin menu. Changes there need a Discord restart.</Note>
                 : <Note variant="warning">Biome detection is off, so these actions never run. Turn it on from the plugin page in Vencord's plugin menu, then restart Discord.</Note>,
             entries: [
-                { id: "onBiomeFalse", label: "When the biome is fake", description: "The biome you joined does not match the announcement." },
-                ...(onBiomeFalse !== "nothing" ? [{ id: "biomeFalseActionTimeout" as const, label: "Wait before acting (ms)", description: DELAY_DESCRIPTION }] : []),
-                { id: "onBiomeEnd", label: "When a biome ends", description: "A confirmed biome has ended." },
-                ...(onBiomeEnd !== "nothing" ? [{ id: "biomeEndActionTimeout" as const, label: "Wait before acting (ms)", description: DELAY_DESCRIPTION }] : []),
-                { id: "onBiomeTimeout", label: "When detection times out", description: "No biome was detected in time." },
-                ...(onBiomeTimeout !== "nothing" ? [{ id: "biomeTimeoutActionTimeout" as const, label: "Wait before acting (ms)", description: DELAY_DESCRIPTION }] : []),
-                ...(anyBiomeAction ? [{ id: "skipActionConfirmation" as const, label: "Act without asking", description: "Run these actions immediately, with no cancel prompt." }] : []),
+                {
+                    key: "onBiomeFalse",
+                    search: "When the biome is fake The biome you joined does not match the announcement. Wait before acting",
+                    node: <BiomeActionRule actionKey="onBiomeFalse" delayKey="biomeFalseActionTimeout" event="the biome is fake" tooltip="The biome you joined isn't the one announced. The server was probably fake." />,
+                },
+                {
+                    key: "onBiomeEnd",
+                    search: "When a biome ends A confirmed biome has ended. Wait before acting",
+                    node: <BiomeActionRule actionKey="onBiomeEnd" delayKey="biomeEndActionTimeout" event="a biome ends" tooltip="The biome you confirmed is over: it changed, you disconnected, or the log went quiet." />,
+                },
+                {
+                    key: "onBiomeTimeout",
+                    search: "When detection times out No biome was detected in time. Wait before acting",
+                    node: <BiomeActionRule actionKey="onBiomeTimeout" delayKey="biomeTimeoutActionTimeout" event="detection fails" tooltip="No biome showed up in the Roblox log in time, so the join couldn't be confirmed." />,
+                },
+                ...(anyBiomeAction ? [{ id: "notifyInstantActions" as const, label: "Notify on instant actions", description: "Show a notification when an action with no delay runs." }] : []),
             ],
         },
         {
@@ -680,6 +787,30 @@ export function SettingsTab() {
             ],
         },
         {
+            id: "inputAutomation" as const,
+            title: "Input automation",
+            subtitle: "Click Play for you when nobody is at the PC",
+            tech: true,
+            master: master("inputAutomation", inputAutomationEnabled, v => { settings.store.inputAutomationEnabled = v; }),            note: <Note variant="warning">This is an early prototype, so it's best left off unless you know what you're doing: while it's on Sol Radar moves your mouse and clicks for you.</Note>,
+            entries: [
+                { id: "adbAutoPlay", label: "Emulator: tap Play after Prepare ADB", description: "Taps Play on the emulator's title screen after Prepare ADB opens Roblox, and stops on the next snipe." },
+                ...(adbAutoPlay ? [
+                    { key: "adbPlayPosition", search: "emulator play button position capture tap", node: <AdbPlayPositionEntry /> },
+                    { id: "adbPlayDelayMs" as const, label: "Emulator: first tap delay (ms)", description: "Wait after opening Roblox before the first tap, for the game to load.", tech: true },
+                    { id: "adbPlayIntervalMs" as const, label: "Emulator: tap interval (ms)", description: "Time between taps.", tech: true },
+                    { id: "adbPlayDurationMs" as const, label: "Emulator: tap duration (ms)", description: "Stop tapping after this long, so it does not keep tapping inside the game.", tech: true },
+                ] : []),
+                { id: "winAutoPlay", label: "Windows: click Play after a snipe connects", description: "Waits for Roblox to connect, maximizes the window and clicks Play. It stops by itself if you move the mouse or the next snipe starts." },
+                ...(winAutoPlay ? [
+                    { id: "winMaximize" as const, label: "Windows: maximize the window", description: "Maximizes the Roblox window before clicking, so Play is always in the same place." },
+                    { key: "winPlayPosition", search: "windows play button position capture click", node: <WinPlayPositionEntry /> },
+                    { id: "winPlayDelayMs" as const, label: "Windows: first click delay (ms)", description: "Wait after Roblox connects before the first click, for the title screen to load.", tech: true },
+                    { id: "winPlayIntervalMs" as const, label: "Windows: click interval (ms)", description: "Time between clicks.", tech: true },
+                    { id: "winPlayDurationMs" as const, label: "Windows: click duration (ms)", description: "Stop clicking after this long, so it does not keep clicking inside the game.", tech: true },
+                ] : []),
+            ] as Entry[],
+        },
+        {
             id: "other",
             title: "Other",
             subtitle: "Small extras",
@@ -729,8 +860,7 @@ export function SettingsTab() {
                     tooltip={b.tooltip}
                     tech={b.tech}
                     master={b.master}
-                    keepBodyVisible={b.keepBodyVisible}
-                    open={!!q || openBlocks[b.id]}
+                    keepBodyVisible={b.keepBodyVisible}                    open={!!q || openBlocks[b.id]}
                     onToggle={() => setOpen(b.id, !openBlocks[b.id])}
                 >
                     {b.note}

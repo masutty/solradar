@@ -221,13 +221,14 @@ export function analyzeMessage(original: Message, channel: Channel, guild: Guild
 
     const lock = JoinLockStore.current;
     if (lock && JoinLockStore.isBlocked(trigger.state.priority)) {
-        const left = formatElapsedTime(JoinLockStore.msRemaining());
+        const openEnded = lock.lockedUntil === Infinity;
+        const left = openEnded ? "until its biome ends" : `for ${formatElapsedTime(JoinLockStore.msRemaining())} more`;
         add({
             group: "match", name: "Join lock", status: "fail",
-            detail: `${lock.triggerName} (priority ${lock.priority}) holds the lock, and ${trigger.name} (priority ${trigger.state.priority}) isn't more important. ${left} left.`,
+            detail: `${lock.triggerName} (priority ${lock.priority}) holds the lock, and ${trigger.name} (priority ${trigger.state.priority}) isn't more important. The lock stays ${left}.`,
             fixes: [{ label: "Release join lock", run: () => JoinLockStore.release() }],
         });
-        return ignored(`${lock.triggerName} holds the join lock for ${left} more.`);
+        return ignored(`${lock.triggerName} holds the join lock ${left}.`);
     }
     add({ group: "match", name: "Join lock", status: "pass", detail: lock ? `${lock.triggerName} holds a lock, but ${trigger.name} is more important.` : "No lock is active." });
 

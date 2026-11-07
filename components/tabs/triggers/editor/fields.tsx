@@ -8,7 +8,7 @@ import "../../../ui/scrollbar.css";
 
 import { Button } from "@components/Button";
 import { Switch } from "@components/Switch";
-import { React, Slider, TextInput } from "@webpack/common";
+import { React, Slider, TextInput, Tooltip } from "@webpack/common";
 
 import { playAudio } from "../../../../utils";
 import { IdChipInput } from "../../../ui/IdChipInput";
@@ -55,6 +55,16 @@ function Label({ label, tooltip }: { label: string; tooltip?: string; }) {
     );
 }
 
+// A greyed-out row that explains itself in a Discord tooltip anywhere you hover it
+function FieldRow({ disabledReason, children }: { disabledReason?: string; children: React.ReactNode; }) {
+    if (!disabledReason) return <div style={row}>{children}</div>;
+    return (
+        <Tooltip text={disabledReason}>
+            {props => <div {...props} style={{ ...row, opacity: 0.5, cursor: "not-allowed" }}>{children}</div>}
+        </Tooltip>
+    );
+}
+
 // --- Fields ---
 
 export function TextField({ label, hint, tooltip, value, placeholder, onChange, maxLength }: {
@@ -70,22 +80,25 @@ export function TextField({ label, hint, tooltip, value, placeholder, onChange, 
     );
 }
 
-export function NumberField({ label, hint, tooltip, value, unit, onChange }: {
-    label: string; hint?: string; tooltip?: string; value: number; unit?: string; onChange: (v: number) => void;
+export function NumberField({ label, hint, tooltip, value, unit, disabledReason, onChange }: {
+    label: string; hint?: string; tooltip?: string; value: number; unit?: string;
+    /** Greys the field out and shows this on hover */
+    disabledReason?: string;
+    onChange: (v: number) => void;
 }) {
     return (
-        <div style={row}>
+        <FieldRow disabledReason={disabledReason}>
             <span style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
-                <Label label={label} tooltip={tooltip} />
+                <Label label={label} tooltip={disabledReason ? undefined : tooltip} />
                 {hint && <span style={descriptionText}>{hint}</span>}
             </span>
             <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <div style={{ width: 90 }}>
-                    <TextInput value={String(value)} onChange={v => onChange(Number(v) || 0)} />
+                <div style={{ width: 90, pointerEvents: disabledReason ? "none" : undefined }}>
+                    <TextInput value={String(value)} disabled={Boolean(disabledReason)} onChange={v => onChange(Number(v) || 0)} />
                 </div>
                 {unit && <span style={descriptionText}>{unit}</span>}
             </span>
-        </div>
+        </FieldRow>
     );
 }
 
@@ -121,17 +134,22 @@ export function TextAreaField({ label, hint, value, placeholder, onChange, maxLe
 
 const TEXTAREA_MAX_PX = 220;
 
-export function SwitchRow({ label, hint, tooltip, value, onChange }: {
-    label: string; hint?: string; tooltip?: string; value: boolean; onChange: (v: boolean) => void;
+export function SwitchRow({ label, hint, tooltip, value, disabledReason, onChange }: {
+    label: string; hint?: string; tooltip?: string; value: boolean;
+    /** Greys the switch out and shows this on hover */
+    disabledReason?: string;
+    onChange: (v: boolean) => void;
 }) {
     return (
-        <div style={row}>
+        <FieldRow disabledReason={disabledReason}>
             <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
-                <Label label={label} tooltip={tooltip} />
+                <Label label={label} tooltip={disabledReason ? undefined : tooltip} />
                 {hint && <span style={descriptionText}>{hint}</span>}
             </div>
-            <Switch checked={value} onChange={onChange} />
-        </div>
+            <div style={{ pointerEvents: disabledReason ? "none" : undefined }}>
+                <Switch checked={value} disabled={Boolean(disabledReason)} onChange={onChange} />
+            </div>
+        </FieldRow>
     );
 }
 

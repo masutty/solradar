@@ -10,14 +10,17 @@ import { Logger } from "../logger";
 import { Snipe } from "../models/Snipe";
 import { settings } from "../settings";
 import { JoinLockStore } from "../stores/JoinLockStore";
+import { locksUntilBiomeEnds } from "../stores/TriggerStore";
 import { SnipableLink, SnipeMetrics, Trigger } from "../types";
 import { getEffectiveKillTargets, Native, parseCsv } from "../utils";
 import { executeAction } from "./ActionExecutor";
 import { BiomeDetector } from "./BiomeDetector";
 import { startBiomeDetection } from "./BiomeWatcher";
+import { stopAllAutoPlay } from "./InputAutomation";
 import { scheduleTimelineCapture } from "./JoinTimeline";
 import { redactUserPath, redactUserPaths } from "./paths";
 import { closeGame, getPlaceId } from "./RobloxService";
+import { startWindowsAutoPlay, stopWindowsAutoPlay } from "./WindowsAutoPlay";
 
 const logger = new Logger("SolRadar:Join");
 
@@ -39,16 +42,19 @@ export function isJoinLocked(trigger: Trigger): boolean {
 
 function activateJoinLock(snipe: Snipe): void {
     const { trigger } = snipe;
-    if (!trigger.state.joinlock || trigger.state.joinlockDuration <= 0) return;
+    if (!trigger.state.joinlock) return;
+
+    const untilBiomeEnds = locksUntilBiomeEnds(trigger, { enabled: settings.store.detectorEnabled, accounts: settings.store.detectorAccounts });
+    if (!untilBiomeEnds && trigger.state.joinlockDuration <= 0) return;
 
     const activated = JoinLockStore.activate(
         trigger.state.priority,
-        trigger.state.joinlockDuration,
+        untilBiomeEnds ? Infinity : trigger.state.joinlockDuration,
         trigger.name,
     );
 
     if (activated) {
-        snipe.logInfo(`Join lock activated: priority ${trigger.state.priority}, duration ${trigger.state.joinlockDuration}s.`);
+        snipe.logInfo(`Join lock activated: priority ${trigger.state.priority}, ${untilBiomeEnds ? "until the biome ends" : `duration ${trigger.state.joinlockDuration}s`}.`);
     } else {
         snipe.logInfo("Join lock not updated: existing lock has higher priority.");
     }
@@ -141,6 +147,9 @@ async function verifySnipeSafety(snipe: Snipe): Promise<void> {
 
     snipe.logInfo("Verifying link...");
     const result = await verifyLink(snipe.link);
+
+    // Never click Play in a server whose link could not be trusted, whatever the bad link action is
+    if (!result.ok) stopWindowsAutoPlay("the link failed verification");
 
     if (result.ok) {
         snipe.markAsLinkSafe();
@@ -245,6 +254,8 @@ const toWall = (t: number) => Math.round(Date.now() - (performance.now() - t));
 async function joinServer(uri: string, snipe: Snipe): Promise<JoinServerResult> {
     const tJoinStart = performance.now();
 
+    stopAllAutoPlay("a snipe started");
+
     const tKillStart = performance.now();
     let killDurationMs: number | null = null;
     try {
@@ -277,6 +288,13 @@ async function joinServer(uri: string, snipe: Snipe): Promise<JoinServerResult> 
     if (settings.store.sendAdbSignal) {
         sendAdbCloseSignal(snipe).catch(err =>
             logger.error("ADB close signal crashed unexpectedly:", err)
+        );
+    }
+
+    // Not awaited: it waits for Roblox's log to show a connection, then clicks Play
+    if (settings.store.inputAutomationEnabled && settings.store.winAutoPlay) {
+        startWindowsAutoPlay({ launchedAt: toWall(tOpenStart), uri, say: snipe }).catch(err =>
+            logger.error("Windows auto play crashed unexpectedly:", err)
         );
     }
 

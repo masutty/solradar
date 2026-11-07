@@ -13,6 +13,8 @@ import { Logger } from "../logger";
 import { settings } from "../settings";
 import { SnipableLink } from "../types";
 import { BiomeDetector } from "./BiomeDetector";
+import { startAutoPlay } from "./EmulatorAutoPlay";
+import { stopWindowsAutoPlay } from "./WindowsAutoPlay";
 import { getSnipableLink } from "./MessageProcessor";
 
 const logger = new Logger("SolRadar.RobloxService");
@@ -198,6 +200,7 @@ export async function prepareAdb(data?: string): Promise<{ ok: true; } | { ok: f
                 ? data
                 : buildJoinUri(data);
 
+        stopWindowsAutoPlay("Prepare ADB restarted Roblox");
         await goToHome({ graceful: false });
         const adbResult = await Native.emulatorOpenUri(settings.store.ldpAdbPath, settings.store.ldpAdbDeviceSerial, uri);
 
@@ -211,6 +214,10 @@ export async function prepareAdb(data?: string): Promise<{ ok: true; } | { ok: f
             }
             logger.error("Failed to launch Roblox on emulator via adb:", adbResult.error);
             return { ok: false, error };
+        }
+
+        if (settings.store.adbAutoPlay) {
+            startAutoPlay().catch(err => logger.error("Auto play crashed unexpectedly:", err));
         }
 
         return { ok: true };

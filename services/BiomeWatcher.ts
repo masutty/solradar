@@ -26,6 +26,13 @@ export function cancelBiomeDetection(): void {
     _closeBiomeEndWatch?.("cancelled");
 }
 
+// A lock that lasts until the biome ends has no timer, so whoever stops watching must release it
+function releaseOpenEndedLock(snipe: Snipe, reason: string): void {
+    if (!JoinLockStore.isOpenEndedFor(snipe.trigger.name)) return;
+    JoinLockStore.release();
+    snipe.logInfo(`Released the join lock (${reason}).`);
+}
+
 function _watchForBiomeEnd(snipe: Snipe): void {
     _closeBiomeEndWatch?.("superseded by a new snipe");
 
@@ -40,10 +47,11 @@ function _watchForBiomeEnd(snipe: Snipe): void {
         if (_closeBiomeEndWatch === close) _closeBiomeEndWatch = null;
     };
 
-    // closes the watch without the end action or releasing the lock, since the end was never observed
+    // closes the watch without the end action, since the end was never observed
     const close = (reason: string) => {
         unsubscribeAll();
         snipe.logInfo(`Stopped watching biome "${activeBiome}" (${reason}). End not observed.`);
+        releaseOpenEndedLock(snipe, reason);
     };
     _closeBiomeEndWatch = close;
 
@@ -70,9 +78,9 @@ function _watchForBiomeEnd(snipe: Snipe): void {
         finish("biome changed", to);
     });
 
-    const unsubClear = BiomeDetector.on("biomeCleared", ({ from }) => {
+    const unsubClear = BiomeDetector.on("biomeCleared", ({ from, reason }) => {
         if (from.toUpperCase() !== activeBiome) return;
-        finish("disconnected");
+        finish(reason === "idle" ? "log went quiet" : "disconnected");
     });
 
     const unsubReset = BiomeDetector.on("sessionReset", ({ from }) => {
@@ -192,5 +200,6 @@ export function startBiomeDetection(snipe: Snipe): void {
         detecting = false;
         clearTimeout(timer);
         unsubChange();
+        releaseOpenEndedLock(snipe, "detection cancelled");
     };
 }

@@ -17,7 +17,7 @@
  */
 
 import { Logger } from "@utils/Logger";
-import { exec as execCb, execFile as execFileCb, spawn } from "child_process";
+import { ChildProcessWithoutNullStreams, exec as execCb, execFile as execFileCb, spawn } from "child_process";
 import { BrowserWindow, dialog, IpcMainInvokeEvent } from "electron";
 import * as fs from "fs";
 import * as os from "os";
@@ -747,6 +747,222 @@ export async function emulatorOpenUri(
     }
 }
 
+export async function emulatorTap(
+    _: IpcMainInvokeEvent,
+    adbPath: string,
+    deviceSerial: string,
+    x: number,
+    y: number
+): Promise<{ ok: boolean; error?: string }> {
+    if (process.platform !== "win32") {
+        return { ok: false, error: "Windows only." };
+    }
+
+    if (!adbPath || !fs.existsSync(adbPath)) {
+        return { ok: false, error: `adb.exe not found at: ${adbPath}` };
+    }
+
+    try {
+        await execFile(adbPath, ["-s", deviceSerial, "shell", "input", "tap", String(Math.round(x)), String(Math.round(y))], { timeout: 10000 });
+        return { ok: true };
+    } catch (err: any) {
+        return { ok: false, error: err.message };
+    }
+}
+
+let cancelCapture: (() => void) | null = null;
+
+/** Stops a running captureEmulatorTap, which then answers with an error. */
+export async function cancelEmulatorCapture(): Promise<void> {
+    cancelCapture?.();
+}
+
+/** Waits for one click on the emulator and returns where it was released. The raw coordinates match the screen when it is not rotated. */
+export async function captureEmulatorTap(
+    _: IpcMainInvokeEvent,
+    adbPath: string,
+    deviceSerial: string,
+    timeoutMs = 30000
+): Promise<{ ok: true; x: number; y: number; } | { ok: false; error: string; }> {
+    if (process.platform !== "win32") {
+        return { ok: false, error: "Windows only." };
+    }
+
+    if (!adbPath || !fs.existsSync(adbPath)) {
+        return { ok: false, error: `adb.exe not found at: ${adbPath}` };
+    }
+
+    // -tt forces a terminal: without it getevent buffers its output in 4 KB blocks and a single click never shows up
+    cancelCapture?.();
+    const proc = spawn(adbPath, ["-s", deviceSerial, "shell", "-tt", "getevent", "-l"], { shell: false });
+
+    return await new Promise(resolve => {
+        let x: number | null = null;
+        let y: number | null = null;
+        let buffer = "";
+        let done = false;
+
+        const finish = (result: { ok: true; x: number; y: number; } | { ok: false; error: string; }) => {
+            if (done) return;
+            done = true;
+            clearTimeout(timer);
+            cancelCapture = null;
+            proc.kill();
+            resolve(result);
+        };
+
+        cancelCapture = () => finish({ ok: false, error: "Cancelled." });
+
+        const timer = setTimeout(() => finish({ ok: false, error: "No tap detected in time." }), timeoutMs);
+
+        proc.stdout.on("data", (chunk: Buffer) => {
+            buffer += chunk.toString();
+            const lines = buffer.split(/\r?\n/);
+            buffer = lines.pop() ?? "";
+
+            for (const line of lines) {
+                // LDPlayer sends the mouse as REL_X/REL_Y holding absolute screen positions; real touch devices use ABS_MT_POSITION
+                const m = line.match(/(ABS_MT_POSITION_[XY]|REL_[XY]|BTN_TOUCH|BTN_MOUSE)\s+(\S+)/);
+                if (!m) continue;
+
+                if (m[1].endsWith("_X")) x = parseInt(m[2], 16);
+                else if (m[1].endsWith("_Y")) y = parseInt(m[2], 16);
+                else if (m[2] === "UP" && x !== null && y !== null) finish({ ok: true, x, y });
+            }
+        });
+
+        proc.on("error", err => finish({ ok: false, error: err.message }));
+        proc.on("exit", code => finish({ ok: false, error: `getevent exited with code ${code}` }));
+    });
+}
+
+/** Last resort: drops any capture, stops the window input helper, the adb server and every adb.exe, so nothing keeps clicking. */
+export async function forceKillAdb(
+    _: IpcMainInvokeEvent,
+    adbPath: string
+): Promise<{ ok: boolean; error?: string }> {
+    if (process.platform !== "win32") {
+        return { ok: false, error: "Windows only." };
+    }
+
+    cancelCapture?.();
+    stopInputHost("Force killed.");
+
+    if (adbPath && fs.existsSync(adbPath)) {
+        await execFile(adbPath, ["kill-server"], { timeout: 5000 }).catch(() => { });
+    }
+
+    try {
+        await exec("taskkill /F /T /IM adb.exe");
+    } catch (err: any) {
+        // taskkill exits with 128 when there is no adb.exe left, which is what we want
+        if (err.code !== 128) return { ok: false, error: err.message };
+    }
+    return { ok: true };
+}
+
+// --- Roblox on this PC: window input ---
+
+const encodePs = (script: string) => Buffer.from(script, "utf16le").toString("base64");
+
+export type RobloxProcess = { pid: number; commandLine: string; startedAt: number; };
+
+/** Every RobloxPlayerBeta.exe with the command line it was started with. */
+export async function findRobloxProcesses(): Promise<{ ok: true; processes: RobloxProcess[]; } | { ok: false; error: string; }> {
+    if (process.platform !== "win32") return { ok: false, error: "Windows only." };
+
+    const script = `Get-CimInstance Win32_Process -Filter "Name='RobloxPlayerBeta.exe'" | ForEach-Object { [pscustomobject]@{ pid = $_.ProcessId; commandLine = $_.CommandLine; startedAt = ([DateTimeOffset]$_.CreationDate).ToUnixTimeMilliseconds() } } | ConvertTo-Json -Compress`;
+    try {
+        const { stdout } = await execFile("powershell.exe", ["-NoProfile", "-NonInteractive", "-EncodedCommand", encodePs(script)], { timeout: 15000 });
+        const text = stdout.trim();
+        if (!text) return { ok: true, processes: [] };
+        const parsed = JSON.parse(text);
+        const list: RobloxProcess[] = (Array.isArray(parsed) ? parsed : [parsed]).map(p => ({ pid: p.pid, commandLine: p.commandLine ?? "", startedAt: p.startedAt }));
+        return { ok: true, processes: list };
+    } catch (err: any) {
+        return { ok: false, error: err.message };
+    }
+}
+
+export type WinInputCommand =
+    | { op: "reset"; }
+    | { op: "info" | "focus" | "maximize"; pid: number; }
+    | { op: "click"; pid: number; fx: number; fy: number; }
+    | { op: "capture"; pid: number; timeoutMs: number; };
+
+let inputHost: ChildProcessWithoutNullStreams | null = null;
+let hostReady: Promise<void> | null = null;
+let hostWaiter: { resolve: (line: string) => void; reject: (err: Error) => void; } | null = null;
+let hostQueue: Promise<unknown> = Promise.resolve();
+
+/** Stops the PowerShell that sends the clicks, so nothing keeps clicking. Whatever waits on it fails with `reason`. */
+function stopInputHost(reason: string) {
+    inputHost?.kill();
+    inputHost = null;
+    hostReady = null;
+    hostWaiter?.reject(new Error(reason));
+    hostWaiter = null;
+}
+
+function ensureInputHost(): Promise<void> {
+    if (hostReady) return hostReady;
+
+    const host = spawn("powershell.exe", ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-EncodedCommand", encodePs(INPUT_HOST_SCRIPT)], { shell: false });
+    inputHost = host;
+
+    hostReady = new Promise<void>((resolve, reject) => {
+        let buffer = "";
+        let stderr = "";
+        host.stderr.on("data", (d: Buffer) => { stderr += d.toString(); });
+        host.stdout.on("data", (chunk: Buffer) => {
+            buffer += chunk.toString();
+            const lines = buffer.split(/\r?\n/);
+            buffer = lines.pop() ?? "";
+            for (const line of lines) {
+                if (line === "ready") resolve();
+                else if (line.trim()) hostWaiter?.resolve(line);
+            }
+        });
+        host.on("exit", () => {
+            if (inputHost === host) stopInputHost("The input helper stopped.");
+            reject(new Error(stderr.trim().slice(0, 300) || "The input helper stopped."));
+        });
+        host.on("error", err => reject(err));
+    });
+    hostReady.catch(() => { });
+    return hostReady;
+}
+
+/** Looks at, focuses, maximizes or clicks the Roblox window of a process, or waits for the user to click it. Runs one at a time. */
+export async function winInput(_: IpcMainInvokeEvent, cmd: WinInputCommand): Promise<any> {
+    if (process.platform !== "win32") return { ok: false, error: "Windows only." };
+
+    const run = async () => {
+        await ensureInputHost();
+        const timeoutMs = cmd.op === "capture" ? cmd.timeoutMs + 5000 : 20000;
+        return await new Promise<string>((resolve, reject) => {
+            const timer = setTimeout(() => stopInputHost("The input helper took too long."), timeoutMs);
+            hostWaiter = {
+                resolve: line => { clearTimeout(timer); hostWaiter = null; resolve(line); },
+                reject: err => { clearTimeout(timer); reject(err); },
+            };
+            inputHost!.stdin.write(JSON.stringify(cmd) + "\n");
+        });
+    };
+
+    const next = hostQueue.then(run, run);
+    hostQueue = next.catch(() => { });
+    try {
+        return JSON.parse(await next as string);
+    } catch (err: any) {
+        return { ok: false, error: err.message };
+    }
+}
+
+export async function stopWinInput(): Promise<void> {
+    stopInputHost("Cancelled.");
+}
+
 export async function listAdbDevices(
     _: IpcMainInvokeEvent,
     adbPath: string
@@ -1049,3 +1265,155 @@ export async function getGitLog(_: IpcMainInvokeEvent, limit = 300): Promise<Git
         return [];
     }
 }
+
+// Runs once and answers one JSON line per command. Compiling the Win32 helper takes about a second, so it stays alive between clicks.
+const INPUT_HOST_SCRIPT = `
+$ErrorActionPreference = 'Stop'
+Add-Type -TypeDefinition @'
+using System;
+using System.Text;
+using System.Runtime.InteropServices;
+public static class W {
+  public delegate bool EnumProc(IntPtr h, IntPtr l);
+  [StructLayout(LayoutKind.Sequential)] public struct RECT { public int L, T, R, B; }
+  [StructLayout(LayoutKind.Sequential)] public struct POINT { public int X, Y; }
+  [DllImport("user32.dll")] public static extern bool SetProcessDPIAware();
+  [DllImport("user32.dll")] public static extern bool EnumWindows(EnumProc p, IntPtr l);
+  [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr h, out uint pid);
+  [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr h);
+  [DllImport("user32.dll", CharSet = CharSet.Unicode)] public static extern int GetWindowText(IntPtr h, StringBuilder s, int n);
+  [DllImport("user32.dll")] public static extern bool GetClientRect(IntPtr h, out RECT r);
+  [DllImport("user32.dll")] public static extern bool ClientToScreen(IntPtr h, ref POINT p);
+  [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr h);
+  [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+  [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr h, int c);
+  [DllImport("user32.dll")] public static extern bool IsIconic(IntPtr h);
+  [DllImport("user32.dll")] public static extern bool IsZoomed(IntPtr h);
+  [DllImport("user32.dll")] public static extern bool SetCursorPos(int x, int y);
+  [DllImport("user32.dll")] public static extern bool GetCursorPos(out POINT p);
+  [DllImport("user32.dll")] public static extern short GetAsyncKeyState(int k);
+  [DllImport("user32.dll")] public static extern void mouse_event(uint f, uint dx, uint dy, uint d, UIntPtr e);
+  [DllImport("user32.dll")] public static extern void keybd_event(byte vk, byte scan, uint flags, UIntPtr e);
+  public static IntPtr FindRobloxWindow(uint pid) {
+    IntPtr found = IntPtr.Zero;
+    EnumWindows(delegate(IntPtr h, IntPtr l) {
+      uint p; GetWindowThreadProcessId(h, out p);
+      if (p != pid || !IsWindowVisible(h)) return true;
+      StringBuilder sb = new StringBuilder(64); GetWindowText(h, sb, 64);
+      if (sb.ToString() == "Roblox") { found = h; return false; }
+      return true;
+    }, IntPtr.Zero);
+    return found;
+  }
+}
+'@
+[W]::SetProcessDPIAware() | Out-Null
+
+function Info($procId) {
+  $h = [W]::FindRobloxWindow([uint32]$procId)
+  if ($h -eq [IntPtr]::Zero) { return @{ ok = $true; found = $false } }
+  $c = New-Object W+RECT
+  [W]::GetClientRect($h, [ref]$c) | Out-Null
+  $p = New-Object W+POINT
+  [W]::ClientToScreen($h, [ref]$p) | Out-Null
+  $w = $c.R - $c.L
+  $ht = $c.B - $c.T
+  return @{ ok = $true; found = $true; handle = $h.ToInt64(); x = $p.X; y = $p.Y; w = $w; h = $ht; maximized = [W]::IsZoomed($h); minimized = [W]::IsIconic($h); foreground = ([W]::GetForegroundWindow() -eq $h) }
+}
+
+function Focus($info) {
+  $h = [IntPtr]::new([long]$info.handle)
+  if ([W]::IsIconic($h)) { [W]::ShowWindow($h, 9) | Out-Null; Start-Sleep -Milliseconds 300 }
+  [W]::keybd_event(0x12, 0, 0, [UIntPtr]::Zero)
+  [W]::keybd_event(0x12, 0, 2, [UIntPtr]::Zero)
+  [W]::SetForegroundWindow($h) | Out-Null
+  Start-Sleep -Milliseconds 200
+  return ([W]::GetForegroundWindow() -eq $h)
+}
+
+function Run($c) {
+  $info = Info $c.pid
+  if (-not $info.found) { return @{ ok = $false; error = 'No Roblox window found for that process.' } }
+  switch ($c.op) {
+    'info' { return $info }
+    'focus' { return @{ ok = $true; foreground = (Focus $info) } }
+    'maximize' {
+      if ($info.maximized) { return @{ ok = $true; changed = $false; maximized = $true } }
+      [W]::ShowWindow([IntPtr]::new([long]$info.handle), 3) | Out-Null
+      Start-Sleep -Milliseconds 700
+      $after = Info $c.pid
+      return @{ ok = $true; changed = $true; maximized = $after.maximized }
+    }
+    'click' {
+      $fg = Focus $info
+      if (-not $fg) { return @{ ok = $true; clicked = $false; foreground = $false } }
+      $info = Info $c.pid
+      $x = $info.x + [int]($info.w * $c.fx / 100)
+      $y = $info.y + [int]($info.h * $c.fy / 100)
+      [W]::SetCursorPos($x, $y) | Out-Null
+      Start-Sleep -Milliseconds 40
+      # Roblox ignores a click from a mouse that has not moved, and SetCursorPos alone sends no movement event
+      [W]::mouse_event(1, 2, 1, 0, [UIntPtr]::Zero)
+      Start-Sleep -Milliseconds 40
+      [W]::mouse_event(1, [uint32]4294967294, [uint32]4294967295, 0, [UIntPtr]::Zero)
+      Start-Sleep -Milliseconds 40
+      [W]::mouse_event(2, 0, 0, 0, [UIntPtr]::Zero)
+      Start-Sleep -Milliseconds 40
+      [W]::mouse_event(4, 0, 0, 0, [UIntPtr]::Zero)
+      return @{ ok = $true; clicked = $true; x = $x; y = $y; foreground = $true }
+    }
+    'capture' {
+      $end = [DateTime]::UtcNow.AddMilliseconds($c.timeoutMs)
+      while ([DateTime]::UtcNow -lt $end -and ([W]::GetAsyncKeyState(1) -band 0x8000)) { Start-Sleep -Milliseconds 15 }
+      $down = $false
+      while ([DateTime]::UtcNow -lt $end) {
+        $pressed = ([W]::GetAsyncKeyState(1) -band 0x8000) -ne 0
+        if ($pressed) { $down = $true }
+        elseif ($down) {
+          $pt = New-Object W+POINT
+          [W]::GetCursorPos([ref]$pt) | Out-Null
+          $now = Info $c.pid
+          $fx = ($pt.X - $now.x) * 100 / $now.w
+          $fy = ($pt.Y - $now.y) * 100 / $now.h
+          if ($fx -ge 0 -and $fx -le 100 -and $fy -ge 0 -and $fy -le 100) { return @{ ok = $true; fx = [Math]::Round($fx, 2); fy = [Math]::Round($fy, 2) } }
+          $down = $false
+        }
+        Start-Sleep -Milliseconds 15
+      }
+      return @{ ok = $false; error = 'No click inside the Roblox window in time.' }
+    }
+  }
+  return @{ ok = $false; error = 'Unknown command.' }
+}
+
+function CursorNow() {
+  $pt = New-Object W+POINT
+  [W]::GetCursorPos([ref]$pt) | Out-Null
+  return $pt
+}
+
+# Where we left the cursor. If it is somewhere else next time, the user moved it and we must stop.
+$script:last = $null
+
+function UserMoved() {
+  if ($null -eq $script:last) { return $false }
+  $pt = CursorNow
+  return ([Math]::Abs($pt.X - $script:last.X) -gt 4) -or ([Math]::Abs($pt.Y - $script:last.Y) -gt 4)
+}
+
+function Handle($c) {
+  if ($c.op -eq 'reset') { $script:last = $null; return @{ ok = $true } }
+  if ($c.op -ne 'capture' -and $c.op -ne 'info' -and (UserMoved)) { return @{ ok = $true; userMoved = $true } }
+  $res = Run $c
+  if ($c.op -ne 'capture' -and ($c.op -ne 'info' -or $null -eq $script:last)) { $pt = CursorNow; $script:last = @{ X = $pt.X; Y = $pt.Y } }
+  return $res
+}
+
+[Console]::Out.WriteLine('ready')
+[Console]::Out.Flush()
+while (($line = [Console]::In.ReadLine()) -ne $null) {
+  try { $res = Handle ($line | ConvertFrom-Json) } catch { $res = @{ ok = $false; error = $_.Exception.Message } }
+  [Console]::Out.WriteLine(($res | ConvertTo-Json -Compress))
+  [Console]::Out.Flush()
+}
+`;

@@ -285,6 +285,45 @@ function StatusCard({ updateAvailable, latestVersion, checkState, lastCheck, onC
 
 // --- Changelog ---
 
+const entryCard: React.CSSProperties = { display: "flex", flexDirection: "column", gap: 3, padding: "10px 12px", borderRadius: 8, background: "var(--background-mod-subtle)" };
+
+// An entry with a description folds it away, and a click on the row shows it
+function ChangelogRow({ entry }: { entry: ChangelogEntry; }) {
+    const [expanded, setExpanded] = React.useState(false);
+
+    if (!entry.description) {
+        return <div style={entryCard}><span style={{ fontSize: 13, color: "var(--text-default)" }}>{entry.text}</span></div>;
+    }
+
+    return (
+        <div
+            role="button"
+            tabIndex={0}
+            aria-expanded={expanded}
+            onClick={() => setExpanded(v => !v)}
+            onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setExpanded(v => !v); } }}
+            style={{ ...entryCard, cursor: "pointer" }}
+        >
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                <span style={{ fontSize: 13, color: "var(--text-default)" }}>{entry.text}</span>
+                <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                    aria-hidden="true"
+                    style={{ flexShrink: 0, color: "var(--text-muted)", transition: "transform 0.15s", transform: expanded ? "rotate(180deg)" : "none" }}
+                >
+                    <path d="M5.3 9.3a1 1 0 0 1 1.4 0L12 14.6l5.3-5.3a1 1 0 1 1 1.4 1.4l-6 6a1 1 0 0 1-1.4 0l-6-6a1 1 0 0 1 0-1.4Z" />
+                </svg>
+            </div>
+            {expanded && (
+                <span style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.4, whiteSpace: "pre-line" }}>{entry.description}</span>
+            )}
+        </div>
+    );
+}
+
 function GroupedEntries({ entries }: { entries: ChangelogEntry[]; }) {
     return (
         <>
@@ -296,14 +335,7 @@ function GroupedEntries({ entries }: { entries: ChangelogEntry[]; }) {
                         <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: TYPE_COLOR[type], padding: "0 2px" }}>
                             {type}
                         </span>
-                        {group.map((e, i) => (
-                            <div key={i} style={{ display: "flex", flexDirection: "column", gap: 3, padding: "10px 12px", borderRadius: 8, background: "var(--background-mod-subtle)" }}>
-                                <span style={{ fontSize: 13, color: "var(--text-default)" }}>{e.text}</span>
-                                {e.description && (
-                                    <span style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.4, whiteSpace: "pre-line" }}>{e.description}</span>
-                                )}
-                            </div>
-                        ))}
+                        {group.map((e, i) => <ChangelogRow key={i} entry={e} />)}
                     </div>
                 );
             })}

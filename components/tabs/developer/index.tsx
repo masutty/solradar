@@ -11,6 +11,7 @@ import { React, RunningGameStore, showToast, TextInput, Tooltip } from "@webpack
 
 import { Logger } from "../../../logger";
 import { getRobloxProcess, joinUri, prepareAdb, rejoinUntilBiome, RejoinUntilBiomeHandle } from "../../../services/RobloxService";
+import { startWindowsAutoPlay } from "../../../services/WindowsAutoPlay";
 import { settings } from "../../../settings";
 import { clearFakeDefaultChanges, fakeDefaultChanges } from "../../../stores/defaultTriggers";
 import { JoinLockStore } from "../../../stores/JoinLockStore";
@@ -18,6 +19,7 @@ import { SnipeStore } from "../../../stores/SnipeStore";
 import { resetToursSeen } from "../../../stores/TourStore";
 import { getTriggers } from "../../../stores/TriggerStore";
 import { checkForUpdates, isDeveloper } from "../../../utils";
+import { AutoPlayControls } from "../../ui/AutoPlayControls";
 import { EditableActionButton } from "../../ui/EditableActionButton";
 import { Note } from "../../ui/Note";
 import { Pill } from "../../ui/Pill";
@@ -96,6 +98,27 @@ function BiomeFarmer() {
     );
 }
 
+const FARM_URI = "roblox://experiences/start?placeId=15532962292";
+
+/** Joins a public Sol's RNG server and runs the Windows auto play on it, like a snipe would. */
+async function testWindowsAutoPlay() {
+    const launchedAt = Date.now();
+    await joinUri(FARM_URI);
+    startWindowsAutoPlay({ launchedAt, uri: FARM_URI, say: { logInfo: m => logger.info(m), logWarn: m => logger.warn(m) } })
+        .catch(err => logger.error("Windows auto play crashed:", err));
+}
+
+/** Maximizes the open Roblox window if it is not already. */
+async function testMaximize() {
+    const found = await Native.findRobloxProcesses();
+    const pid = found.ok ? [...found.processes].sort((a, b) => b.startedAt - a.startedAt)[0]?.pid : undefined;
+    if (pid === undefined) return showToast({ text: found.ok ? "Roblox is not running" : found.error, variant: "critical" });
+
+    const res = await Native.winInput({ op: "maximize", pid });
+    logger.debug("Maximize test:", res);
+    showToast({ text: res.ok ? `Maximized: ${res.maximized} (changed: ${res.changed})` : res.error, variant: res.ok && res.maximized ? "success" : "critical" });
+}
+
 // --- DeveloperTab ---
 
 export function DeveloperTab() {
@@ -150,6 +173,9 @@ export function DeveloperTab() {
                     Kill emulator
                 </Button>
             </div>
+            <AutoPlayControls />
+            <DebugRow name="testWindowsAutoPlay()" hint="Joins a public Sol's RNG server, then runs the Windows auto play on it. Needs the master switch and Windows auto play on." onRun={testWindowsAutoPlay} />
+            <DebugRow name="testMaximize()" hint="Maximizes the open Roblox window if it is not already." onRun={testMaximize} />
             <span style={{ ...descriptionText, padding: "0 4px" }}>Right-click a function button to edit its label and value.</span>
             <BiomeFarmer />
 

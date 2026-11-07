@@ -13,7 +13,7 @@ import { React } from "@webpack/common";
 export interface JoinLock {
     /** Priority of the trigger that set the lock. Lower number = more important. */
     priority: number;
-    /** When the lock expires (ms timestamp). */
+    /** When the lock expires (ms timestamp). Infinity means it only ends when released. */
     lockedUntil: number;
     /** For display only. */
     triggerName: string;
@@ -51,6 +51,12 @@ class JoinLockManager {
         return triggerPriority >= lock.priority;
     }
 
+    /** The lock held by this trigger when it lasts until released, not for a set time */
+    isOpenEndedFor(triggerName: string): boolean {
+        const lock = this.current;
+        return lock !== null && lock.lockedUntil === Infinity && lock.triggerName === triggerName;
+    }
+
     msRemaining(): number {
         if (!this._lock) return 0;
         return Math.max(0, this._lock.lockedUntil - Date.now());
@@ -58,7 +64,7 @@ class JoinLockManager {
 
     // --- Mutations ---
 
-    /** Sets the lock, or replaces it if the new trigger is more important. Returns whether it changed. */
+    /** Sets the lock, or replaces it if the new trigger is more important. Pass Infinity to hold it until released. Returns whether it changed. */
     activate(priority: number, durationSeconds: number, triggerName: string): boolean {
         const existing = this.current;
         if (existing && priority >= existing.priority) return false;
@@ -84,10 +90,12 @@ class JoinLockManager {
     private _setLock(lock: JoinLock): void {
         if (this._timer !== null) clearTimeout(this._timer);
         this._lock = lock;
-        this._timer = setTimeout(() => {
-            this._clearInternal();
-            this._notify();
-        }, lock.lockedUntil - Date.now());
+        this._timer = Number.isFinite(lock.lockedUntil)
+            ? setTimeout(() => {
+                this._clearInternal();
+                this._notify();
+            }, lock.lockedUntil - Date.now())
+            : null;
         this._notify();
     }
 
