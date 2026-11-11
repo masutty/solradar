@@ -1,6 +1,17 @@
 {
-    "currentVersion": "1.10.0",
+    "currentVersion": "1.10.1",
     "changelog": [
+        {
+            "version": "1.10.1",
+            "entries": [
+                { "type": "Added", "text": "Choose which biome action notifications you get", "description": "In Settings, under Biome actions, Notify before delayed actions turns off the notification that lets you cancel an action while it waits. The wait still applies, and the banner in the plugin still cancels it. Notify on instant actions stays its own switch." },
+                { "type": "Improved", "text": "A new Stats page", "description": "Click a trigger or a server to open its details, and pick any period from the new dropdown." },
+                { "type": "Improved", "text": "Stats count snipes without a biome check", "description": "They show in gray next to Real, Bait and Timed out, and stay out of the real rate." },
+                { "type": "Added", "text": "Timing in Stats follows the ⚡ in Snipe History", "description": "Open it to see where the time goes in each step of the join, or pick another measure from the dropdown." },
+                { "type": "Improved", "text": "Snipe History keeps up to 99,999 snipes", "description": "It used to stop at 100." },
+                { "type": "Fixed", "text": "The join lock now starts right after the launch", "description": "With link verification set to after, another snipe could join while the check ran. A snipe whose verification the trigger skips no longer counts as unsafe." }
+            ]
+        },
         {
             "version": "1.10.0",
             "entries": [
