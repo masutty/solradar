@@ -40,12 +40,12 @@ export function isJoinLocked(trigger: Trigger): boolean {
     return JoinLockStore.isBlocked(trigger.state.priority);
 }
 
-function activateJoinLock(snipe: Snipe): void {
+function activateJoinLock(snipe: Snipe): boolean {
     const { trigger } = snipe;
-    if (!trigger.state.joinlock) return;
+    if (!trigger.state.joinlock) return false;
 
     const untilBiomeEnds = locksUntilBiomeEnds(trigger, { enabled: settings.store.detectorEnabled, accounts: settings.store.detectorAccounts });
-    if (!untilBiomeEnds && trigger.state.joinlockDuration <= 0) return;
+    if (!untilBiomeEnds && trigger.state.joinlockDuration <= 0) return false;
 
     const activated = JoinLockStore.activate(
         trigger.state.priority,
@@ -58,6 +58,7 @@ function activateJoinLock(snipe: Snipe): void {
     } else {
         snipe.logInfo("Join lock not updated: existing lock has higher priority.");
     }
+    return activated;
 }
 
 // --- Redundancy ---
@@ -329,7 +330,7 @@ async function joinServer(uri: string, snipe: Snipe): Promise<JoinServerResult> 
 export async function join(snipe: Snipe): Promise<void> {
     if (settings.store.linkVerification === "before") {
         await verifySnipeSafety(snipe);
-        if (!snipe.isSafe()) {
+        if (snipe.isUnsafe()) {
             snipe.logWarn("Join aborted: link failed verification (before).");
             return;
         }
@@ -357,14 +358,17 @@ export async function join(snipe: Snipe): Promise<void> {
     const discordPart = m.discordDelayMs != null ? `, Discord delivery: ${m.discordDelayMs}ms` : "";
     snipe.logInfo(`Joined in ${m.joinDurationMs.toFixed(1)}ms (overhead: ${m.overheadMs.toFixed(1)}ms, launch: ${m.openUriDurationMs.toFixed(1)}ms ${m.launchMethod ?? "?"}${discordPart})`);
 
+    // The lock starts right after the launch, so verification time cannot let another snipe through
+    const lockActivated = activateJoinLock(snipe);
+
     if (settings.store.linkVerification === "after") {
         await verifySnipeSafety(snipe);
-        if (!snipe.isSafe()) {
+        if (snipe.isUnsafe()) {
             snipe.logWarn("Link failed verification (after join).");
+            if (lockActivated) JoinLockStore.release();
             return;
         }
     }
 
-    activateJoinLock(snipe);
     startBiomeDetection(snipe);
 }

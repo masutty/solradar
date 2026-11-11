@@ -83,9 +83,10 @@ export class Snipe {
     markAsLinkNotVerified() { this._tag("link-not-verified"); }
     markAsIgnored() { this._tag("link-ignored"); }
 
-    isSafe(): boolean {
+    // A skipped verification (bypassed by the trigger) leaves no tag, so it is not unsafe
+    isUnsafe(): boolean {
         const tags = SnipeStore.getById(this.id)?.tags ?? [];
-        return tags.includes("link-verified-safe");
+        return tags.includes("link-verified-unsafe") || tags.includes("link-not-verified");
     }
 
     // --- Biome ---
