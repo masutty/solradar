@@ -720,7 +720,10 @@ export function SettingsTab() {
                     search: "When detection times out No biome was detected in time. Wait before acting",
                     node: <BiomeActionRule actionKey="onBiomeTimeout" delayKey="biomeTimeoutActionTimeout" event="detection fails" tooltip="No biome showed up in the Roblox log in time, so the join couldn't be confirmed." />,
                 },
-                ...(anyBiomeAction ? [{ id: "notifyInstantActions" as const, label: "Notify on instant actions", description: "Show a notification when an action with no delay runs." }] : []),
+                ...(anyBiomeAction ? [
+                    { id: "notifyDelayedActions" as const, label: "Notify before delayed actions", description: "Show a notification while an action waits, so you can cancel it. The wait still applies when it is off." },
+                    { id: "notifyInstantActions" as const, label: "Notify on instant actions", description: "Show a notification when an action with no delay runs." },
+                ] : []),
             ],
         },
         {

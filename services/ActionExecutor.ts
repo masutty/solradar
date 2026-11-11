@@ -141,6 +141,9 @@ export function scheduleCancelableAction({ action, timeoutMs, title, iconUrl, de
     _cancelFn = () => { cancelled = true; clearTimeout(timer); };
     _setPending({ title, description, endsAt: Date.now() + timeoutMs, durationMs: timeoutMs });
 
+    // Without the notification the wait still applies, and the pending banner in the plugin still cancels it
+    if (!settings.store.notifyDelayedActions) return;
+
     showNotification({
         title: `⏳ SoRa :: ${title}`,
         body: description

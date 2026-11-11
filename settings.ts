@@ -555,6 +555,12 @@ export const settings = definePluginSettings({
         default: true,
         hidden: true,
     },
+    notifyDelayedActions: {
+        type: OptionType.BOOLEAN,
+        description: "Show a notification when a biome action with a delay is about to run, so you can cancel it. The wait still applies when it is off.",
+        default: true,
+        hidden: true,
+    },
     allowedPlaceIds: {
         type: OptionType.STRING,
         description: "Comma-separated list of place IDs that are allowed to be joined. If empty, all place IDs are allowed. Example: `123456789012345678, 987654321098765432`",
