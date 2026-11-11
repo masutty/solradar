@@ -303,7 +303,7 @@ export function RecentJoinsTab() {
                         <TextInput
                             value={search}
                             onChange={handleSearch}
-                            placeholder={`Search ${entries.length} ${entries.length === 1 ? "snipe" : "snipes"} by trigger, author, channel...`}
+                            placeholder="Search snipes by trigger, author, channel..."
                         />
                     </div>
                     <Tooltip text="Filter by result">

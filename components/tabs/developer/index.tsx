@@ -15,7 +15,7 @@ import { startWindowsAutoPlay } from "../../../services/WindowsAutoPlay";
 import { settings } from "../../../settings";
 import { clearFakeDefaultChanges, fakeDefaultChanges } from "../../../stores/defaultTriggers";
 import { JoinLockStore } from "../../../stores/JoinLockStore";
-import { SnipeStore } from "../../../stores/SnipeStore";
+import { persistStats, SnipeStore } from "../../../stores/SnipeStore";
 import { resetToursSeen } from "../../../stores/TourStore";
 import { getTriggers } from "../../../stores/TriggerStore";
 import { checkForUpdates, isDeveloper } from "../../../utils";
@@ -48,6 +48,39 @@ function DebugRow({ name, hint, onRun }: { name: string; hint: string; onRun: ()
                 )}
             </Tooltip>
             <Button size="small" variant="secondary" onClick={() => onRun()}>Run</Button>
+        </div>
+    );
+}
+
+const fmtMs = (ms: number) => ms < 10 ? `${ms.toFixed(1)} ms` : `${Math.round(ms)} ms`;
+
+/** What the snipe history costs. Measured on click, so it never slows the tab by itself. */
+function HistoryCost() {
+    const [report, setReport] = React.useState<string[] | null>(null);
+
+    const measure = () => {
+        const entries = SnipeStore.all;
+        const json = JSON.stringify(entries);
+        const t = performance.now();
+        structuredClone(entries);
+        const cloneMs = performance.now() - t;
+        const { count, lastMs, maxMs, totalMs } = persistStats;
+        setReport([
+            `${entries.length} snipes, ${(json.length / 1024 / 1024).toFixed(2)} MB as JSON (${entries.length ? Math.round(json.length / entries.length / 1024 * 10) / 10 : 0} KB each)`,
+            `Cloning the whole history takes ${fmtMs(cloneMs)}. Each save blocks the page about that long.`,
+            `Saves since reload: ${count}. Last ${fmtMs(lastMs)}, slowest ${fmtMs(maxMs)}, average ${count ? fmtMs(totalMs / count) : "-"}`,
+        ]);
+    };
+
+    return (
+        <div style={{ ...card, display: "flex", flexDirection: "column", gap: 8 }}>
+            <span style={descriptionText}>
+                Every change to a snipe saves the whole history again, and one snipe makes many changes. If "Cloning" grows past a few tens of ms, saves can delay joins and Snipe History gets laggy.
+            </span>
+            <div style={wrapRow}>
+                <Button size="small" variant="secondary" onClick={measure}>Measure history cost</Button>
+            </div>
+            {report?.map(line => <span key={line} style={{ ...labelText, fontFamily: "var(--font-code)", fontSize: 13 }}>{line}</span>)}
         </div>
     );
 }
@@ -178,6 +211,9 @@ export function DeveloperTab() {
             <DebugRow name="testMaximize()" hint="Maximizes the open Roblox window if it is not already." onRun={testMaximize} />
             <span style={{ ...descriptionText, padding: "0 4px" }}>Right-click a function button to edit its label and value.</span>
             <BiomeFarmer />
+
+            <p style={sectionTitle}>History cost</p>
+            <HistoryCost />
 
             <p style={sectionTitle}>Debug</p>
             <DebugRow name="getRobloxProcess()" hint="Logs the Roblox process from RunningGameStore" onRun={() => logger.debug(getRobloxProcess())} />

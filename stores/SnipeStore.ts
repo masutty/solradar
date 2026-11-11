@@ -11,7 +11,10 @@ import { React } from "@webpack/common";
 
 const STORAGE_KEY = "solsRadar_snipeHistory";
 const LEGACY_LS_KEY = "solsRadar_snipeHistory";
-const MAX_ENTRIES = 100; // about 5 KB each
+const MAX_ENTRIES = 99999;
+
+/** How long the history takes to save. Read by the Developer tab. */
+export const persistStats = { count: 0, lastMs: 0, maxMs: 0, totalMs: 0 };
 
 // --- Tags ---
 
@@ -333,11 +336,17 @@ class SnipeHistoryStore {
     }
 
     private async _persist(): Promise<void> {
+        const start = performance.now();
         try {
             await DataStore.set(STORAGE_KEY, this._entries);
         } catch (e) {
             console.error("[SnipeStore] Failed to persist:", e);
         }
+        const ms = performance.now() - start;
+        persistStats.count++;
+        persistStats.lastMs = ms;
+        persistStats.maxMs = Math.max(persistStats.maxMs, ms);
+        persistStats.totalMs += ms;
     }
 
     private async _load(): Promise<void> {
