@@ -1,15 +1,18 @@
 {
-    "currentVersion": "1.10.1",
+    "currentVersion": "1.11.0",
     "changelog": [
         {
-            "version": "1.10.1",
+            "version": "1.11.0",
             "entries": [
+                { "type": "Added", "text": "Trigger folders", "description": "Group triggers into folders with a name, a description and a color. Drag cards in and out of them, or right-click a trigger and pick Move to folder. You can also pause a folder to stop every trigger inside, or hide it from the list." },
                 { "type": "Added", "text": "Choose which biome action notifications you get", "description": "In Settings, under Biome actions, Notify before delayed actions turns off the notification that lets you cancel an action while it waits. The wait still applies, and the banner in the plugin still cancels it. Notify on instant actions stays its own switch." },
+                { "type": "Improved", "text": "Clearer search filters", "description": "In Triggers and Snipe History, filters like enabled: or !word are highlighted, and hovering one explains what it does. Triggers adds name:, description: and keyword:, and Snipe History adds trigger:, channel:, author: and server:." },
                 { "type": "Improved", "text": "A new Stats page", "description": "Click a trigger or a server to open its details, and pick any period from the new dropdown." },
                 { "type": "Improved", "text": "Stats count snipes without a biome check", "description": "They show in gray next to Real, Bait and Timed out, and stay out of the real rate." },
-                { "type": "Added", "text": "Timing in Stats follows the ⚡ in Snipe History", "description": "Open it to see where the time goes in each step of the join, or pick another measure from the dropdown." },
-                { "type": "Improved", "text": "Snipe History keeps up to 99,999 snipes", "description": "It used to stop at 100." },
-                { "type": "Fixed", "text": "The join lock now starts right after the launch", "description": "With link verification set to after, another snipe could join while the check ran. A snipe whose verification the trigger skips no longer counts as unsafe." }
+                { "type": "Improved", "text": "Snipe History keeps up to 99,999 snipes", "description": "It used to stop at 100. A long history can make the list slow, so if Sol Radar starts to lag, clear old snipes." },
+                { "type": "Improved", "text": "Cards say what a trigger matches on", "description": "A trigger with no description and no keywords now shows what it watches, such as a channel or a role ping, instead of No keywords yet." },
+                { "type": "Fixed", "text": "The join lock now starts right after the launch", "description": "With link verification set to after, another snipe could join while the check ran. A snipe whose verification the trigger skips no longer counts as unsafe." },
+                { "type": "Fixed", "text": "The Triggers tutorial no longer closes when you click Next with the ⋯ menu open" }
             ]
         },
         {
