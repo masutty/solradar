@@ -12,10 +12,11 @@ import { React, showToast, useMemo, useState } from "@webpack/common";
 
 import { countChanges, DEFAULT_TRIGGERS, DefaultChanges, DefaultTrigger, describeUpdate, isUpdatable, markDefaultsSeen, pendingChanges } from "../../../stores/defaultTriggers";
 import { emitTourSignal } from "../../../stores/TourStore";
-import { getTriggers, importTriggers, Trigger, updateFromDefaults, useTriggers } from "../../../stores/TriggerStore";
+import { getFolder, getTriggers, ImportedTrigger, importTriggers, Trigger, updateFromDefaults, useTriggers } from "../../../stores/TriggerStore";
 import { HeaderActions } from "../../tour/ReplayTourButton";
 import { ModalContent, ModalFooter, ModalHeader, ModalProps, ModalRoot, ModalSize, openModal } from "../../ui/LegacyModal";
 import { TriggerIcon, TYPE_META } from "./editor/sections";
+import { FolderTag } from "./folders";
 
 // --- Copy ---
 
@@ -35,7 +36,7 @@ export function importSummary(added: number, updated: number): string {
 type Tag = "new" | "updated" | null;
 
 interface Item {
-    trigger: Trigger & { rev?: number; };
+    trigger: ImportedTrigger;
     /** The user already has this id */
     have: boolean;
     updatable: boolean;
@@ -48,7 +49,7 @@ interface Item {
 
 const isImportable = (i: Item) => !i.have || i.updatable;
 
-function buildItems(source: "defaults" | "file", triggers: Trigger[], mine: Trigger[], changes?: DefaultChanges): Item[] {
+function buildItems(source: "defaults" | "file", triggers: ImportedTrigger[], mine: Trigger[], changes?: DefaultChanges): Item[] {
     const byId = new Map(mine.map(t => [t.id, t]));
     const newIds = new Set(changes?.added.map(d => d.id));
     const updatedIds = new Set(changes?.updated.map(d => d.id));
@@ -117,6 +118,7 @@ function PickerRow({ item, checked, onToggle }: { item: Item; checked: boolean; 
                 <span className="vc-sora-ip-top">
                     <span className="vc-sora-ip-name">{trigger.name}</span>
                     <span className="vc-sora-trigger-type vc-sora-ip-type" style={{ "--sora-c": meta.color } as React.CSSProperties}>{meta.label}</span>
+                    {folderTag(trigger)}
                 </span>
                 <span className="vc-sora-ip-desc">
                     <span className="vc-sora-ip-desc-text">{desc}</span>
@@ -132,12 +134,22 @@ function PickerRow({ item, checked, onToggle }: { item: Item; checked: boolean; 
     );
 }
 
+// Where an imported trigger will go: the user's folder with that id, or a new one
+function folderTag(trigger: ImportedTrigger) {
+    const { folder } = trigger;
+    if (!folder) return null;
+    const mine = getFolder(folder.id);
+    return mine
+        ? <FolderTag name={mine.name} color={mine.color} tooltip={`Goes into your ${mine.name} folder`} />
+        : <FolderTag name={folder.name} color={folder.color} tooltip={`Creates the ${folder.name} folder`} />;
+}
+
 // --- Picker ---
 
 interface PickerProps {
     modalProps: ModalProps;
     source: "defaults" | "file";
-    triggers: (Trigger & { rev?: number; })[];
+    triggers: ImportedTrigger[];
     fileName?: string;
     /** Change list captured when the picker opened (defaults only) */
     changes?: DefaultChanges;
@@ -265,6 +277,6 @@ export function openDefaultsPicker() {
     markDefaultsSeen();
 }
 
-export function openFilePicker(triggers: Trigger[], fileName: string) {
+export function openFilePicker(triggers: ImportedTrigger[], fileName: string) {
     openModal(p => <ImportPicker modalProps={p} source="file" triggers={triggers} fileName={fileName} />);
 }

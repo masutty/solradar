@@ -72,3 +72,13 @@ export const SetUpDot = () => (
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4.5 12.5l5 5 10-11" /></svg>
     </span>
 );
+
+/** The yellow mark a paused folder keeps on its header. */
+export const PauseMark = () => (
+    <span className="vc-sora-folder-pausebtn paused" style={{ display: "inline-grid", width: 20, height: 20, verticalAlign: -5, opacity: 1 }}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <rect x="6" y="5" width="4" height="14" rx="1" />
+            <rect x="14" y="5" width="4" height="14" rx="1" />
+        </svg>
+    </span>
+);

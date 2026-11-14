@@ -144,11 +144,34 @@ export interface Trigger {
     biome?: TriggerBiome;
     /** Rev of the default this trigger was imported or last updated from. Absent on user-made triggers. */
     defaultRev?: number;
+    folderId?: string;
 }
+
+export interface TriggerFolder {
+    id: string;
+    name: string;
+    description: string;
+    color: string;
+    /** Kept out of the list with its triggers, like a hidden trigger. Still runs. */
+    hidden?: boolean;
+    /** Stops every trigger inside, without touching their own on/off */
+    paused?: boolean;
+    collapsed?: boolean;
+}
+
+/** What an exported trigger carries about its folder, so an import can put it back in one */
+export type ExportedFolder = Pick<TriggerFolder, "id" | "name" | "description" | "color" | "hidden" | "paused">;
+
+export type ImportedTrigger = Trigger & { rev?: number; folder?: ExportedFolder; };
+
+export const FOLDER_NAME_MAX = 32;
+export const FOLDER_DESC_MAX = 100;
+export const FOLDER_COLORS = ["#5865f2", "#00a8fc", "#3ba55c", "#f0b232", "#e67e22", "#f23f43", "#eb459e", "#9b59b6", "#949ba4"];
 
 // --- Defaults ---
 
 const DATASTORE_KEY = "SolsRadar_Triggers";
+const FOLDERS_KEY = "SolsRadar_TriggerFolders";
 
 export const DEFAULT_TRIGGER_STATE: TriggerState = {
     enabled: true,
@@ -307,7 +330,25 @@ function migrateTrigger(raw: any): Trigger {
     if (!hasBiomeCheck(trigger.type)) trigger.forwarding.onDetection.enabled = false;
     if (raw.hidden === true) trigger.hidden = true;
     if (Number.isFinite(raw.defaultRev)) trigger.defaultRev = raw.defaultRev;
+    if (typeof raw.folderId === "string" && raw.folderId) trigger.folderId = raw.folderId;
     return trigger;
+}
+
+const isColor = (v: unknown): v is string => typeof v === "string" && /^#[0-9a-f]{6}$/i.test(v);
+
+/** Cleans a stored or imported folder. Returns null when it has no usable id. */
+function migrateFolder(raw: any): TriggerFolder | null {
+    if (!raw || typeof raw !== "object" || typeof raw.id !== "string" || !raw.id) return null;
+    const folder: TriggerFolder = {
+        id: raw.id,
+        name: String(raw.name ?? "").slice(0, FOLDER_NAME_MAX).trim() || "Untitled folder",
+        description: String(raw.description ?? "").slice(0, FOLDER_DESC_MAX),
+        color: isColor(raw.color) ? raw.color : FOLDER_COLORS[0],
+    };
+    if (raw.hidden === true) folder.hidden = true;
+    if (raw.paused === true) folder.paused = true;
+    if (raw.collapsed === true) folder.collapsed = true;
+    return folder;
 }
 
 // --- Default ids ---
@@ -352,6 +393,9 @@ function adoptDefaultIds(list: Trigger[]): number {
 // --- Internal store ---
 
 let _triggers: Trigger[] = [];
+let _folders: TriggerFolder[] = [];
+/** Saved top-level order. Read it through getLayout(), which drops stale ids and adds new ones. */
+let _layout: string[] = [];
 const _listeners = new Set<() => void>();
 
 function notifyListeners(): void {
@@ -382,6 +426,16 @@ function persist(): void {
     });
 }
 
+function persistFolders(): void {
+    _writeQueue = _writeQueue.then(async () => {
+        try {
+            await DataStore.set(FOLDERS_KEY, { folders: _folders, layout: getLayout() });
+        } catch (e) {
+            logger.error("Failed to persist trigger folders:", e);
+        }
+    });
+}
+
 // --- Reading ---
 
 export function getTriggers(): Trigger[] {
@@ -392,16 +446,34 @@ export function getTriggerById(id: string): Trigger | undefined {
     return _triggers.find(t => t.id === id);
 }
 
+export function getFolders(): TriggerFolder[] {
+    return _folders;
+}
+
+export function getFolder(id: string | undefined): TriggerFolder | undefined {
+    return id ? _folders.find(f => f.id === id) : undefined;
+}
+
+/** On and not inside a paused folder */
+export function isTriggerRunning(t: Trigger): boolean {
+    return t.state.enabled && !getFolder(t.folderId)?.paused;
+}
+
+/** Hidden itself, or inside a hidden folder */
+export function isTriggerHidden(t: Trigger): boolean {
+    return !!t.hidden || !!getFolder(t.folderId)?.hidden;
+}
+
 export function getActiveTriggers(): Trigger[] {
-    return _triggers.filter(t => t.state.enabled);
+    return _triggers.filter(isTriggerRunning);
 }
 
 export function getTriggersWithOnMatchForwarding(): Trigger[] {
-    return _triggers.filter(t => t.state.enabled && t.forwarding.onMatch.enabled);
+    return _triggers.filter(t => isTriggerRunning(t) && t.forwarding.onMatch.enabled);
 }
 
 export function getTriggersWithOnDetectionForwarding(): Trigger[] {
-    return _triggers.filter(t => t.state.enabled && t.forwarding.onDetection.enabled);
+    return _triggers.filter(t => isTriggerRunning(t) && t.forwarding.onDetection.enabled);
 }
 
 // --- CRUD ---
@@ -446,11 +518,114 @@ export async function toggleTrigger(id: string): Promise<void> {
     persist();
 }
 
-export async function reorderTriggers(ordered: Trigger[]): Promise<void> {
+// --- Top-level order ---
+// Folders and triggers outside folders share one list, in any order. Triggers inside a folder keep the order of _triggers.
+
+/** Ids of folders and of triggers outside folders, in display order */
+export function getLayout(): string[] {
+    const folderIds = new Set(_folders.map(f => f.id));
+    const loose = _triggers.filter(t => !t.folderId || !folderIds.has(t.folderId)).map(t => t.id);
+    const looseIds = new Set(loose);
+    const seen = new Set<string>();
+    const out = _layout.filter(id => (folderIds.has(id) || looseIds.has(id)) && !seen.has(id) && !!seen.add(id));
+    // Anything new goes last: triggers first, so a list saved before folders existed keeps its look
+    for (const id of loose) if (!seen.has(id)) out.push(id);
+    for (const f of _folders) if (!seen.has(f.id)) out.push(f.id);
+    return out;
+}
+
+/** Puts `key` (a folder or a trigger outside folders) right before `beforeKey`, or last without it */
+function placeInLayout(layout: string[], key: string, beforeKey: string | null): string[] {
+    const out = layout.filter(k => k !== key);
+    const at = beforeKey ? out.indexOf(beforeKey) : -1;
+    out.splice(at === -1 ? out.length : at, 0, key);
+    return out;
+}
+
+/**
+ * Moves a trigger into a folder, right before the trigger `beforeKey`, or last in it without one.
+ * With `folderId` null it goes outside folders, right before `beforeKey` (a trigger or a folder), or last.
+ */
+export async function moveTrigger(id: string, folderId: string | null, beforeKey: string | null = null): Promise<void> {
     await triggerStoreReady;
-    _triggers = ordered;
+    const from = _triggers.findIndex(t => t.id === id);
+    if (from === -1 || beforeKey === id) return;
+
+    const layout = getLayout();
+    const list = [..._triggers];
+    const [moved] = list.splice(from, 1);
+    const t: Trigger = { ...moved };
+
+    if (folderId) {
+        t.folderId = folderId;
+        let at = beforeKey ? list.findIndex(x => x.id === beforeKey) : -1;
+        if (at === -1) {
+            let last = -1;
+            list.forEach((x, i) => { if (x.folderId === folderId) last = i; });
+            at = last === -1 ? list.length : last + 1;
+        }
+        list.splice(at, 0, t);
+        _layout = layout.filter(k => k !== id);
+    } else {
+        delete t.folderId;
+        list.splice(from, 0, t);
+        _layout = placeInLayout(layout, id, beforeKey);
+    }
+
+    _triggers = list;
     notifyListeners();
     persist();
+    persistFolders();
+}
+
+/** Creates a folder, right before `beforeKey` in the list or last without it */
+export async function createFolder(data: Omit<TriggerFolder, "id">, beforeKey: string | null = null): Promise<TriggerFolder> {
+    await triggerStoreReady;
+    const folder: TriggerFolder = { id: crypto.randomUUID(), ...data };
+    const layout = getLayout();
+    _folders = [..._folders, folder];
+    _layout = placeInLayout(layout, folder.id, beforeKey);
+    notifyListeners();
+    persistFolders();
+    return folder;
+}
+
+export async function updateFolder(id: string, patch: Partial<Omit<TriggerFolder, "id">>): Promise<void> {
+    await triggerStoreReady;
+    _folders = _folders.map(f => f.id === id ? { ...f, ...patch } : f);
+    notifyListeners();
+    persistFolders();
+}
+
+/** Deletes a folder. Its triggers take its place in the list, or go with it when `withTriggers` is set. */
+export async function deleteFolder(id: string, withTriggers: boolean): Promise<void> {
+    await triggerStoreReady;
+    const layout = getLayout();
+    const inside = _triggers.filter(t => t.folderId === id).map(t => t.id);
+    const at = layout.indexOf(id);
+    if (!withTriggers && at !== -1) layout.splice(at, 1, ...inside);
+
+    _folders = _folders.filter(f => f.id !== id);
+    _layout = layout.filter(k => k !== id);
+    _triggers = withTriggers
+        ? _triggers.filter(t => t.folderId !== id)
+        : _triggers.map(t => {
+            if (t.folderId !== id) return t;
+            const { folderId: _, ...rest } = t;
+            return rest;
+        });
+    notifyListeners();
+    persistFolders();
+    persist();
+}
+
+/** Puts a folder right before `beforeKey` (a folder or a trigger outside folders), or last without it */
+export async function moveFolder(id: string, beforeKey: string | null): Promise<void> {
+    await triggerStoreReady;
+    if (!getFolder(id) || beforeKey === id) return;
+    _layout = placeInLayout(getLayout(), id, beforeKey);
+    notifyListeners();
+    persistFolders();
 }
 
 export async function duplicateTrigger(id: string): Promise<Trigger | undefined> {
@@ -465,6 +640,15 @@ export async function duplicateTrigger(id: string): Promise<Trigger | undefined>
         name: `${rest.name} (copy)`,
         state: { ...rest.state, enabled: false },
     };
+
+    // A copy outside folders goes right under the original in the list too
+    const layout = getLayout();
+    const at = layout.indexOf(id);
+    if (at !== -1) {
+        layout.splice(at + 1, 0, copy.id);
+        _layout = layout;
+        persistFolders();
+    }
 
     _triggers = [..._triggers.slice(0, idx + 1), copy, ..._triggers.slice(idx + 1)];
     notifyListeners();
@@ -488,8 +672,52 @@ export type ExportOptions = {
     redact?: RedactField[];
 };
 
+function exportedFolder(f: TriggerFolder, keepState: boolean): ExportedFolder {
+    const out: ExportedFolder = { id: f.id, name: f.name, description: f.description, color: f.color };
+    if (keepState && f.hidden) out.hidden = true;
+    if (keepState && f.paused) out.paused = true;
+    return out;
+}
+
+/**
+ * The file is still a plain array, so older versions keep reading it. A trigger in a folder carries
+ * the folder itself instead of its id. Safe exports leave out the folder's paused and hidden state.
+ */
+function fileShape(t: Trigger, redact?: Set<RedactField>): object | null {
+    const r = redact ? redactTrigger(t, redact) : withInlineIcon(t);
+    if (!r) return null;
+    const { folderId, ...rest } = r;
+    const f = getFolder(folderId);
+    return f ? { ...rest, folder: exportedFolder(f, !redact) } : rest;
+}
+
+function serialize(list: Trigger[], redact?: Set<RedactField>): string {
+    return JSON.stringify(list.map(t => fileShape(t, redact)).filter(Boolean), null, 2);
+}
+
+/** A trigger as it is written to a file, without its id */
+export function exportShape(trigger: Trigger): object {
+    const { id: _, ...shape } = fileShape(trigger) as Trigger;
+    return shape;
+}
+
 export function exportTriggersJson(): string {
-    return JSON.stringify(_triggers.map(withInlineIcon), null, 2);
+    return serialize(_triggers);
+}
+
+const folderTriggers = (folder: TriggerFolder) => _triggers.filter(t => t.folderId === folder.id);
+const _folderSlug = (folder: TriggerFolder) => folder.name.trim().replace(/\s+/g, "-").toLowerCase() || "folder";
+
+export function exportFolderJson(folder: TriggerFolder): string {
+    return serialize(folderTriggers(folder));
+}
+
+export function downloadFolderJson(folder: TriggerFolder): void {
+    _downloadJson(exportFolderJson(folder), `solsradar-folder-${_folderSlug(folder)}-${Date.now()}.json`);
+}
+
+export function downloadFolderJsonRedacted(folder: TriggerFolder, options: ExportOptions = {}): void {
+    _downloadJson(serialize(folderTriggers(folder), new Set(options.redact ?? [])), `solsradar-folder-public-${_folderSlug(folder)}-${Date.now()}.json`);
 }
 
 export function downloadTriggersJson(): void {
@@ -501,7 +729,7 @@ function _triggerSlug(trigger: Trigger): string {
 }
 
 export function exportTriggerJson(trigger: Trigger): string {
-    return JSON.stringify([withInlineIcon(trigger)], null, 2);
+    return serialize([trigger]);
 }
 
 export function downloadTriggerJson(trigger: Trigger): void {
@@ -557,11 +785,7 @@ function redactTrigger(trigger: Trigger, redact: Set<RedactField>): Trigger | nu
 }
 
 export function exportTriggersJsonRedacted(options: ExportOptions = {}): string {
-    const redact = new Set(options.redact ?? []);
-    const result = _triggers
-        .map(t => redactTrigger(t, redact))
-        .filter((t): t is Trigger => t !== null);
-    return JSON.stringify(result, null, 2);
+    return serialize(_triggers, new Set(options.redact ?? []));
 }
 
 export function downloadTriggersJsonRedacted(options: ExportOptions = {}): void {
@@ -569,9 +793,7 @@ export function downloadTriggersJsonRedacted(options: ExportOptions = {}): void 
 }
 
 export function exportTriggerJsonRedacted(trigger: Trigger, options: ExportOptions = {}): string {
-    const redact = new Set(options.redact ?? []);
-    const result = redactTrigger(trigger, redact);
-    return JSON.stringify(result ? [result] : [], null, 2);
+    return serialize([trigger], new Set(options.redact ?? []));
 }
 
 export function downloadTriggerJsonRedacted(trigger: Trigger, options: ExportOptions = {}): void {
@@ -592,7 +814,7 @@ function _downloadJson(content: string, filename: string): void {
 }
 
 export type ParseResult =
-    | { ok: true; triggers: Trigger[]; }
+    | { ok: true; triggers: ImportedTrigger[]; }
     | { ok: false; error: string; };
 
 /** Validates an exported triggers file. Does not touch the store. */
@@ -621,7 +843,12 @@ export function parseTriggersFile(json: string): ParseResult {
 
     // The picker tells triggers apart by id, so a file can't repeat one
     const ids = new Set<string>();
-    const triggers = valid.map(migrateTrigger).map(t => {
+    const triggers = valid.map(raw => {
+        const t: ImportedTrigger = migrateTrigger(raw);
+        // Folders travel as the folder itself, never as an id from someone else's list
+        delete t.folderId;
+        const folder = migrateFolder(raw.folder);
+        if (folder) t.folder = exportedFolder(folder, true);
         if (ids.has(t.id)) t.id = crypto.randomUUID();
         ids.add(t.id);
         return t;
@@ -629,11 +856,15 @@ export function parseTriggersFile(json: string): ParseResult {
     return { ok: true, triggers };
 }
 
-/** Appends triggers. An id is kept when nothing else uses it, so defaults stay recognisable. Returns how many were added. */
-export async function importTriggers(incoming: (Trigger & { rev?: number; })[]): Promise<number> {
+/**
+ * Appends triggers. An id is kept when nothing else uses it, so defaults stay recognisable. Returns how many were added.
+ * A trigger that carries a folder goes into the user's folder with that id, created when they don't have it.
+ */
+export async function importTriggers(incoming: ImportedTrigger[]): Promise<number> {
     await triggerStoreReady;
 
     const used = new Set(_triggers.map(t => t.id));
+    const newFolders: TriggerFolder[] = [];
     const added = incoming.map(raw => {
         const t = migrateTrigger(raw);
         const keep = typeof raw.id === "string" && raw.id !== "" && !used.has(raw.id);
@@ -642,10 +873,21 @@ export async function importTriggers(incoming: (Trigger & { rev?: number; })[]):
         // Only defaults carry a rev, and a fresh copy starts on it
         const def = keep && Number.isFinite(raw.rev) ? getDefault(t.id) : undefined;
         if (def) t.defaultRev = def.rev;
+
+        delete t.folderId;
+        const folder = migrateFolder(raw.folder);
+        if (folder) {
+            if (!getFolder(folder.id) && !newFolders.some(f => f.id === folder.id)) newFolders.push(folder);
+            t.folderId = folder.id;
+        }
         return t;
     });
 
     if (added.length === 0) return 0;
+    if (newFolders.length) {
+        _folders = [..._folders, ...newFolders];
+        persistFolders();
+    }
     _triggers = [..._triggers, ...added];
     notifyListeners();
     persist();
@@ -688,9 +930,39 @@ export function useTriggers(): Trigger[] {
     return triggers;
 }
 
+export function useFolders(): TriggerFolder[] {
+    const [folders, setFolders] = React.useState<TriggerFolder[]>(_folders);
+
+    React.useEffect(() => {
+        triggerStoreReady.then(() => setFolders([..._folders]));
+
+        const update = () => setFolders([..._folders]);
+        _listeners.add(update);
+        return () => { _listeners.delete(update); };
+    }, []);
+
+    return folders;
+}
+
 // Loads triggers once, when the module is imported
 (async () => {
     logger.info("Initializing TriggerStore…");
+
+    // Only after a good read may a missing folder free its triggers, or a failed read would empty every folder
+    let foldersLoaded = false;
+    try {
+        const stored = await DataStore.get<any>(FOLDERS_KEY);
+        // Early builds saved only the folder array
+        const rawFolders = Array.isArray(stored) ? stored : stored?.folders;
+        if (Array.isArray(rawFolders)) {
+            const seen = new Set<string>();
+            _folders = rawFolders.map(migrateFolder).filter((f): f is TriggerFolder => !!f && !seen.has(f.id) && !!seen.add(f.id));
+        }
+        if (Array.isArray(stored?.layout)) _layout = stored.layout.filter((k: unknown): k is string => typeof k === "string");
+        foldersLoaded = true;
+    } catch (e) {
+        logger.error("Failed to load trigger folders from DataStore:", e);
+    }
 
     try {
         const stored = await DataStore.get<any[]>(DATASTORE_KEY);
@@ -698,6 +970,8 @@ export function useTriggers(): Trigger[] {
 
         if (Array.isArray(stored) && stored.length > 0) {
             _triggers = stored.map(migrateTrigger);
+            // A folder that is gone leaves its triggers outside every folder
+            if (foldersLoaded) for (const t of _triggers) if (t.folderId && !getFolder(t.folderId)) delete t.folderId;
             logger.info(`Loaded and migrated ${_triggers.length} triggers.`);
             const adopted = adoptDefaultIds(_triggers);
             if (adopted > 0) logger.info(`Matched ${adopted} triggers to their default.`);

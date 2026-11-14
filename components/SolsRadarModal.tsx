@@ -81,8 +81,9 @@ export function SolsRadarModal({ modalProps, initialTab }: SolsRadarModalProps) 
         UIState.set("activeTab", tab);
     };
 
+    // The triggers tab keeps the modal at full height, so opening folders or filtering doesn't resize it
     return (
-        <ModalRoot {...modalProps} size={ModalSize.MEDIUM}>
+        <ModalRoot {...modalProps} size={ModalSize.MEDIUM} className={activeTab === "triggers" ? "vc-sora-modal-full" : undefined}>
             <ModalHeader className="vc-sora-modal-header vc-sora-modal-header-tall">
                 <div style={{
                     display: "flex",

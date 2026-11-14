@@ -94,6 +94,7 @@ export function TourOverlay() {
     const [ready, setReady] = useState(false);
     const [cardH, setCardH] = useState(180);
     const rootRef = useRef<HTMLDivElement>(null);
+    const heldPos = useRef<{ left: number; top: number; } | null>(null);
     const cardRef = useRef<HTMLDivElement>(null);
 
     // Closing the main modal ends the tour and its cleanups
@@ -212,7 +213,9 @@ export function TourOverlay() {
 
     const hole = rect ? padded(rect) : null;
     const passThrough = step.kind === "action" || step.holeClickable;
-    const cardPos = placeCard(hole, CARD_WIDTH, cardH, step.placement ?? "bottom");
+    // Held while the card is pressed: a press can close what the step points at (a context menu),
+    // and the card must not jump away before the click lands on Next
+    const cardPos = heldPos.current ?? placeCard(hole, CARD_WIDTH, cardH, step.placement ?? "bottom");
     const { pos, total } = TourStore.position();
     const canBack = TourStore.canGoBack();
     const isLast = TourStore.isLast();
@@ -245,7 +248,14 @@ export function TourOverlay() {
                 style={{ left: cardPos.left, top: cardPos.top, width: CARD_WIDTH, opacity: ready ? 1 : 0, pointerEvents: ready ? "auto" : "none" }}
                 onClick={stopBubble}
                 onMouseDown={stopBubble}
-                onPointerDown={stopBubble}
+                onPointerDown={e => {
+                    stopBubble(e);
+                    heldPos.current = cardPos;
+                    const release = () => setTimeout(() => { heldPos.current = null; }, 0);
+                    // The click comes right after the release, so the hold ends one tick later
+                    window.addEventListener("pointerup", release, { once: true, capture: true });
+                    window.addEventListener("pointercancel", release, { once: true });
+                }}
                 onContextMenu={stopBubble}
             >
                 <div className="vc-sora-tour-head">

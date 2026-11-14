@@ -11,7 +11,7 @@ import { explainMessageBlocked, explainTriggerMatch, FilterFix, flattenEmbeds, g
 import { lastSeenAgo } from "../../../services/SnipeDeduplicator";
 import { settings } from "../../../settings";
 import { JoinLockStore } from "../../../stores/JoinLockStore";
-import { getActiveTriggers, getTriggers, Trigger, updateTrigger } from "../../../stores/TriggerStore";
+import { getActiveTriggers, getFolder, getTriggers, isTriggerRunning, Trigger, updateFolder, updateTrigger } from "../../../stores/TriggerStore";
 import { SnipableLink } from "../../../types";
 import { formatElapsedTime, getCurrentVersion, parseCsv } from "../../../utils";
 
@@ -171,11 +171,16 @@ export function analyzeMessage(original: Message, channel: Channel, guild: Guild
     sanitizeContent(message);
     const active = getActiveTriggers();
 
-    // Triggers that are turned off but would match this message
-    const off = getTriggers().filter(t => !t.state.enabled);
+    // Triggers that are turned off, or sit in a paused folder, but would match this message
+    const off = getTriggers().filter(t => !isTriggerRunning(t));
     const offMatches = off.length ? explainTriggerMatch(message, off).matched : [];
     const offNames = offMatches.map(t => t.name).join(", ");
-    const turnOn = offMatches.slice(0, 3).map(t => ({ label: `Turn on ${t.name}`, run: () => patchState(t, { enabled: true }) }));
+    const turnOn = offMatches.slice(0, 3).map(t => {
+        const folder = getFolder(t.folderId);
+        return folder?.paused && t.state.enabled
+            ? { label: `Turn on the ${folder.name} folder`, run: () => updateFolder(folder.id, { paused: false }) }
+            : { label: `Turn on ${t.name}`, run: () => patchState(t, { enabled: true }) };
+    });
     const offVerdict = `${offMatches.length === 1 ? `${offNames} would match, but it's` : `${offNames} would match, but they're`} turned off.`;
 
     if (!active.length) {

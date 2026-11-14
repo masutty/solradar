@@ -765,6 +765,7 @@ export function SettingsTab() {
                 { id: "anonymizeEverything", label: "Anonymize snipes", description: "Hides the author, server, channel, message and logs of each snipe in History. Turn it on before sharing screenshots.", tooltip: "Click an entry in Snipe History to reveal it on its own." },
                 { id: "hideInactiveIndicator", label: "Hide the inactive dot", description: "Hide the red dot on the menu button while auto-join is off." },
                 { id: "useButtonsForOrderingTriggers", label: "Reorder triggers with buttons", description: "Use the ▲▼ buttons instead of drag and drop." },
+                { id: "alwaysShowFolderCount", label: "Always show folder counts", description: "Show how many triggers are on next to each folder's name, not only on hover." },
                 { id: "useTriggerTabContextMenu", label: "Trigger context menu", description: "Right-click a trigger for enable, edit, duplicate, export and remove. When off, right-click only toggles it." },
                 { id: "showTours", label: "Show guided tours", description: "Walk through a tab the first time you open it.", tooltip: "You can always replay a tour from the ? button at the top of this window." },
                 { id: "showDefaultsNudge", label: "Show default trigger updates", description: "Let you know when default triggers are added or updated.", tooltip: "When off, check for new ones yourself in ⋯, Import default triggers." },

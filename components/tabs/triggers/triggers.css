@@ -278,3 +278,434 @@
         animation: none;
     }
 }
+
+/* --- Folders --- */
+
+.vc-sora-triggers-tab {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    height: 100%;
+    min-height: 0;
+}
+
+.vc-sora-triggers-list,
+.vc-sora-trigger-group,
+.vc-sora-folder {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+/* The body's own top padding replaces the gap, so a closed folder leaves no space */
+.vc-sora-folder {
+    gap: 0;
+}
+
+.vc-sora-folder-collapse {
+    display: grid;
+    grid-template-rows: 0fr;
+    opacity: 0;
+    transition: grid-template-rows 0.22s cubic-bezier(0.2, 0, 0, 1), opacity 0.16s ease-out;
+}
+
+.vc-sora-folder-collapse.open {
+    grid-template-rows: 1fr;
+    opacity: 1;
+}
+
+.vc-sora-folder-collapse-inner {
+    min-height: 0;
+    overflow: hidden;
+}
+
+/* Once closed, hidden for real: no focus, no clicks. It waits for the slide to end first. */
+.vc-sora-folder-collapse:not(.open) .vc-sora-folder-collapse-inner {
+    visibility: hidden;
+    transition: visibility 0s 0.22s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .vc-sora-folder-collapse {
+        transition: none;
+    }
+}
+
+.vc-sora-triggers-list {
+    padding-bottom: 8px;
+}
+
+/* Kept in the DOM as a drop target, but without the extra gap when empty */
+.vc-sora-trigger-group:empty {
+    margin-bottom: -6px;
+}
+
+.vc-sora-folder.dragging {
+    opacity: 0.35;
+}
+
+/* Floating: no fill until hovered, so a closed folder costs one short line */
+.vc-sora-folder-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    height: 30px;
+    padding: 0 6px 0 4px;
+    border-radius: 6px;
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.1s ease-out;
+}
+
+.vc-sora-folder-head:hover,
+.vc-sora-folder-head.vc-sora-tour-hover {
+    background: var(--background-mod-subtle);
+}
+
+.vc-sora-folder-head.preview,
+.vc-sora-folder-head.preview:hover {
+    height: 36px;
+    padding: 0 8px;
+    background: none;
+    box-shadow: inset 0 0 0 1px var(--background-mod-strong);
+    cursor: default;
+}
+
+.vc-sora-folder-head.drop {
+    background: color-mix(in srgb, var(--sora-fc) 12%, transparent);
+    box-shadow: inset 0 0 0 2px var(--sora-fc);
+}
+
+.vc-sora-folder-chev {
+    flex-shrink: 0;
+    color: var(--text-muted);
+    transition: transform 0.14s ease-out;
+}
+
+.vc-sora-folder-head.closed .vc-sora-folder-chev {
+    transform: rotate(-90deg);
+}
+
+.vc-sora-folder-head .vc-sora-folder-glyph {
+    flex-shrink: 0;
+    color: var(--sora-fc);
+}
+
+.vc-sora-folder-name {
+    flex: 0 1 auto;
+    min-width: 0;
+    max-width: 55%;
+    overflow: hidden;
+    color: var(--text-default);
+    font-size: 14px;
+    font-weight: 700;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Same look as the filter tokens in the hint, so it reads apart from the name */
+.vc-sora-folder-count {
+    flex-shrink: 0;
+    max-width: 0;
+    margin-right: -8px;
+    overflow: hidden;
+    opacity: 0;
+    transition: max-width 0.16s cubic-bezier(0.23, 1, 0.32, 1), margin-right 0.16s cubic-bezier(0.23, 1, 0.32, 1), padding 0.16s cubic-bezier(0.23, 1, 0.32, 1), opacity 0.12s ease-out;
+    padding: 0;
+    border-radius: 4px;
+    background: var(--background-mod-normal);
+    color: var(--text-muted);
+    font-family: var(--font-code);
+    font-size: 11.5px;
+    line-height: 18px;
+    font-variant-numeric: tabular-nums;
+    cursor: default;
+}
+
+.vc-sora-folder-head:hover .vc-sora-folder-count,
+.vc-sora-folder-head.count-always .vc-sora-folder-count,
+.vc-sora-folder-head.vc-sora-tour-hover .vc-sora-folder-count,
+.vc-sora-folder-head.preview .vc-sora-folder-count {
+    max-width: 80px;
+    margin-right: 0;
+    padding: 0 5px;
+    opacity: 1;
+}
+
+.vc-sora-folder-head.paused:hover .vc-sora-folder-count,
+.vc-sora-folder-head.paused.count-always .vc-sora-folder-count,
+.vc-sora-folder-head.paused.vc-sora-tour-hover .vc-sora-folder-count,
+.vc-sora-folder-head.paused.preview .vc-sora-folder-count {
+    opacity: 0.45;
+}
+
+.vc-sora-folder-count b {
+    color: var(--text-default);
+    font-weight: 500;
+}
+
+.vc-sora-folder-desc {
+    flex: 1 1 0;
+    min-width: 0;
+    margin-left: 4px;
+    overflow: hidden;
+    color: var(--text-muted);
+    font-size: 12.5px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.vc-sora-folder-head.paused .vc-sora-folder-name,
+.vc-sora-folder-head.paused .vc-sora-folder-glyph,
+.vc-sora-folder-head.paused .vc-sora-folder-desc {
+    opacity: 0.45;
+}
+
+.vc-sora-folder-pausebtn {
+    display: grid;
+    flex-shrink: 0;
+    place-items: center;
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    border: none;
+    border-radius: 6px;
+    background: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.1s ease-out;
+}
+
+.vc-sora-folder-head:hover .vc-sora-folder-pausebtn,
+.vc-sora-folder-head.vc-sora-tour-hover .vc-sora-folder-pausebtn,
+.vc-sora-folder-pausebtn:focus-visible,
+.vc-sora-folder-pausebtn.paused {
+    opacity: 1;
+}
+
+.vc-sora-folder-pausebtn:hover {
+    background: var(--background-mod-normal);
+    color: var(--text-default);
+}
+
+/* Paused: the button is the yellow mark that says so */
+.vc-sora-folder-pausebtn.paused,
+.vc-sora-folder-pausebtn.paused:hover {
+    color: var(--status-warning, #f0b232);
+}
+
+.vc-sora-folder-edit {
+    display: grid;
+    flex-shrink: 0;
+    place-items: center;
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    border: none;
+    border-radius: 6px;
+    background: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.1s ease-out;
+}
+
+.vc-sora-folder-head:hover .vc-sora-folder-edit,
+.vc-sora-folder-head.vc-sora-tour-hover .vc-sora-folder-edit,
+.vc-sora-folder-edit:focus-visible {
+    opacity: 1;
+}
+
+.vc-sora-folder-edit:hover {
+    background: var(--background-mod-normal);
+    color: var(--text-default);
+}
+
+/* Same space above the first card and below the last, and the line runs exactly along the cards */
+.vc-sora-folder-body {
+    position: relative;
+    margin-left: 15px;
+    padding-block: 6px;
+    padding-left: 14px;
+}
+
+.vc-sora-folder-body::before {
+    content: "";
+    position: absolute;
+    top: 6px;
+    bottom: 6px;
+    left: 0;
+    width: 2px;
+    border-radius: 1px;
+    background: color-mix(in srgb, var(--sora-fc) 35%, transparent);
+}
+
+.vc-sora-folder-empty {
+    padding: 10px 2px;
+    color: var(--text-muted);
+    font-size: 13px;
+}
+
+/* --- Folder tag (import picker) and menu label --- */
+
+.vc-sora-folder-tag {
+    display: inline-flex;
+    flex-shrink: 1;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+    max-width: 45%;
+    padding: 1px 7px 1px 5px;
+    border-radius: 4px;
+    color: var(--sora-fc);
+    background: color-mix(in srgb, var(--sora-fc) 14%, transparent);
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.vc-sora-folder-tag .vc-sora-folder-glyph {
+    flex-shrink: 0;
+}
+
+.vc-sora-folder-tag span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.vc-sora-menu-folder {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+
+.vc-sora-menu-folder .vc-sora-folder-glyph {
+    flex-shrink: 0;
+    color: var(--sora-fc);
+}
+
+.vc-sora-menu-folder-name {
+    flex: 1;
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* --- Folder editor --- */
+
+.vc-sora-folder-editor-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    width: 100%;
+}
+
+.vc-sora-folder-editor {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 4px 0 16px;
+}
+
+.vc-sora-folder-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.vc-sora-folder-label {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    color: var(--text-default);
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.vc-sora-folder-limit {
+    color: var(--text-muted);
+    font-size: 11.5px;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+}
+
+.vc-sora-folder-swatches {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+}
+
+.vc-sora-folder-swatch {
+    position: relative;
+    box-sizing: border-box;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: var(--sora-c);
+    box-shadow: inset 0 0 0 1px rgb(255 255 255 / 12%);
+    cursor: pointer;
+}
+
+.vc-sora-folder-swatch[aria-pressed="true"],
+.vc-sora-folder-swatch.custom.on {
+    box-shadow: 0 0 0 2px var(--modal-background, var(--background-base-low)), 0 0 0 4px var(--sora-c, var(--text-default));
+}
+
+.vc-sora-folder-swatch.custom {
+    overflow: hidden;
+    background: conic-gradient(#f23f43, #f0b232, #3ba55c, #00a8fc, #5865f2, #eb459e, #f23f43);
+}
+
+.vc-sora-folder-swatch.custom input {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    cursor: pointer;
+}
+
+.vc-sora-folder-switches {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.vc-sora-folder-hiderow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: var(--background-mod-subtle);
+    color: var(--text-default);
+    font-weight: 500;
+}
+
+.vc-sora-folder-editor-foot {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+}
+
+/* After the first fade-in, cards that mount again (folder opened, card moved) appear at once */
+.vc-sora-triggers-list.settled .vc-sora-trigger-card {
+    animation: none;
+}
+
+/* The scrollbar sits in the modal's side padding, so cards and folders line up with the search bar's right edge */
+.vc-sora-triggers-scroller {
+    margin-right: -8px;
+    scrollbar-gutter: stable;
+}

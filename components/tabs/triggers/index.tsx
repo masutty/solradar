@@ -11,7 +11,7 @@ import "./triggers.css";
 import { Button } from "@components/Button";
 import { DeleteIcon } from "@components/Icons";
 import { Paragraph } from "@components/Paragraph";
-import { Alerts, ContextMenuApi, Menu, React, ReactDOM, ScrollerThin, showToast, TextInput, Tooltip, useEffect, useRef, useState } from "@webpack/common";
+import { Alerts, ContextMenuApi, Menu, React, ReactDOM, ScrollerThin, showToast, Tooltip, useEffect, useRef, useState } from "@webpack/common";
 
 import { settings } from "../../../settings";
 import { countChanges, DEFAULT_TRIGGERS, markDefaultsSeen, pendingChanges } from "../../../stores/defaultTriggers";
@@ -21,15 +21,24 @@ import {
     deleteTrigger,
     downloadTriggersJson,
     downloadTriggersJsonRedacted,
+    getFolder,
+    getFolders,
+    getLayout,
     importTriggers,
+    isTriggerHidden,
+    isTriggerRunning,
+    moveFolder,
+    moveTrigger,
     parseTriggersFile,
     RedactField,
-    reorderTriggers,
     toggleTrigger,
     Trigger,
+    TriggerFolder,
     triggerStoreReady,
     TriggerType,
+    updateFolder,
     updateTrigger,
+    useFolders,
     useTriggers,
 } from "../../../stores/TriggerStore";
 import { UIState } from "../../../stores/UIStateStore";
@@ -39,26 +48,40 @@ import { fakeMouseEvent } from "../../tour/anchors";
 import { TourAnchor, tourAnchor } from "../../tour/TourAnchor";
 import { useAutoTour } from "../../tour/useAutoTour";
 import { DeleteButton } from "../../ui/buttons/DeleteButton";
+import { QuerySearchInput, splitQuery } from "../../ui/QuerySearchInput";
 import { COLORS } from "../../ui/styles";
 import { useShiftHeld } from "../../ui/useShiftHeld";
 import { DefaultsNudge } from "./DefaultsNudge";
 import { TriggerIcon, TYPE_META } from "./editor/sections";
 import { confirmWebhookThenRun } from "./exportActions";
+import { FolderCount, FolderGlyph, FolderHeader, openFolderEditor } from "./folders";
 import { importSummary, openDefaultsPicker, openFilePicker } from "./ImportPicker";
 import { PublicExportOptions } from "./PublicExportOptions";
+import { pickTourCard, pickTourFolder } from "./tourTarget";
 import { openTriggerContextMenu } from "./TriggerContextMenu";
 import { openAddTriggerModal, openEditTriggerModal } from "./TriggerModal";
 
 // --- Query parser ---
 
+type TextField = "name" | "description" | "keyword";
+type BoolKey = "enabled" | "join" | "notify" | "lock" | "hidden";
+type Priority = { op: "eq" | "gt" | "lt"; value: number; };
+
+interface TextTerm { negated: boolean; field?: TextField; value: string; }
+/** `none` means outside every folder, anything else is the start of a folder name */
+interface FolderTerm { negated: boolean; value: string; }
+
 interface ParsedQuery {
     text: string;
+    terms: TextTerm[];
     enabled: boolean | null;
     autojoin: boolean | null;
     notify: boolean | null;
     lock: boolean | null;
-    priority: { op: "eq" | "gt" | "lt"; value: number; } | null;
-    hidden: boolean | null;
+    priority: Priority | null;
+    /** `any` shows hidden and normal triggers together */
+    hidden: boolean | "any" | null;
+    folders: FolderTerm[];
 }
 
 function parseBool(v: string): boolean | null {
@@ -67,49 +90,123 @@ function parseBool(v: string): boolean | null {
     return null;
 }
 
-/**
- * Parses a query string into structured filters.
- * Supported tokens: enabled: join: notify: lock: hidden: priority: (=/>/<)
- * Everything else is treated as free-text search.
- */
-function parseQuery(raw: string): ParsedQuery {
-    const result: ParsedQuery = {
-        text: "", enabled: null, autojoin: null,
-        notify: null, lock: null, priority: null, hidden: null,
-    };
+const BOOL_QUERY_LABELS: Record<BoolKey, [on: string, off: string]> = {
+    enabled: ["Only triggers that are enabled", "Only triggers that are disabled"],
+    join: ["Only triggers that auto-join", "Only triggers that don't auto-join"],
+    notify: ["Only triggers that notify you", "Only triggers that don't notify you"],
+    lock: ["Only triggers that use the join lock", "Only triggers that don't use the join lock"],
+    hidden: ["Show only hidden triggers", "Hide hidden triggers (the default)"],
+};
 
-    const TOKEN_RE = /(\w+):([^\s]+)/g;
-    let freeText = raw;
-    let match: RegExpExecArray | null;
+const TEXT_KEYS: Record<string, TextField> = { name: "name", desc: "description", description: "description", keyword: "keyword", keywords: "keyword" };
+const TEXT_LABELS: Record<TextField, string> = { name: "whose name contains", description: "whose description contains", keyword: "with a keyword containing" };
 
-    while ((match = TOKEN_RE.exec(raw)) !== null) {
-        const [full, key, val] = match;
-        freeText = freeText.replace(full, "");
+type Word =
+    | { kind: "bool"; key: BoolKey; value: boolean; }
+    | { kind: "priority"; priority: Priority; }
+    | { kind: "text"; term: TextTerm; }
+    | { kind: "hiddenAny"; }
+    | { kind: "folder"; term: FolderTerm; }
+    | { kind: "invalid"; message: string; };
 
-        switch (key.toLowerCase()) {
-            case "enabled":
-                result.enabled = parseBool(val); break;
-            case "join":
-                result.autojoin = parseBool(val); break;
-            case "notify":
-                result.notify = parseBool(val); break;
-            case "lock":
-                result.lock = parseBool(val); break;
-            case "hidden":
-                result.hidden = parseBool(val); break;
-            case "priority": {
-                const gtMatch = /^>(\d+)$/.exec(val);
-                const ltMatch = /^<(\d+)$/.exec(val);
-                const eqMatch = /^(\d+)$/.exec(val);
-                if (gtMatch) result.priority = { op: "gt", value: parseInt(gtMatch[1]) };
-                else if (ltMatch) result.priority = { op: "lt", value: parseInt(ltMatch[1]) };
-                else if (eqMatch) result.priority = { op: "eq", value: parseInt(eqMatch[1]) };
-                break;
-            }
+const has = (obj: object, key: string) => Object.prototype.hasOwnProperty.call(obj, key);
+
+// `key:value`, `key:"two words"`, `!key:value` or `!word`. Anything else is plain text.
+function parseWord(word: string): Word | null {
+    const negated = word.startsWith("!");
+    const body = negated ? word.slice(1) : word;
+    const m = /^(\w+):(.*)$/.exec(body);
+
+    if (m) {
+        const key = m[1].toLowerCase();
+        const raw = m[2];
+
+        if (key === "hidden" && raw.toLowerCase() === "any") {
+            return negated ? { kind: "invalid", message: "hidden:any can't be negated. Use hidden:no instead" } : { kind: "hiddenAny" };
+        }
+
+        if (key === "folder") {
+            const value = raw.replace(/^"/, "").replace(/"$/, "").trim().toLowerCase();
+            return value ? { kind: "folder", term: { negated, value } } : null;
+        }
+
+        if (has(BOOL_QUERY_LABELS, key)) {
+            if (!raw) return null;
+            const b = parseBool(raw.toLowerCase());
+            return b === null
+                ? { kind: "invalid", message: `Invalid value. Use ${key}:yes or ${key}:no` }
+                : { kind: "bool", key: key as BoolKey, value: negated ? !b : b };
+        }
+
+        if (key === "priority") {
+            if (!raw) return null;
+            if (negated) return { kind: "invalid", message: "priority can't be negated. Use priority:<5 or priority:>5 instead" };
+            const p = /^([<>]?)(\d+)$/.exec(raw);
+            if (!p) return { kind: "invalid", message: "Invalid priority. Use priority:5, priority:>5 or priority:<5" };
+            return { kind: "priority", priority: { op: p[1] === ">" ? "gt" : p[1] === "<" ? "lt" : "eq", value: parseInt(p[2]) } };
+        }
+
+        if (has(TEXT_KEYS, key)) {
+            const value = raw.replace(/^"/, "").replace(/"$/, "").trim().toLowerCase();
+            return value ? { kind: "text", term: { negated, field: TEXT_KEYS[key], value } } : null;
         }
     }
 
-    result.text = freeText.trim().toLowerCase();
+    return negated && body ? { kind: "text", term: { negated, value: body.toLowerCase() } } : null;
+}
+
+function describeQueryTerm(word: string): string | undefined {
+    const w = parseWord(word);
+    if (!w) return;
+    switch (w.kind) {
+        case "invalid": return w.message;
+        case "bool": return BOOL_QUERY_LABELS[w.key][w.value ? 0 : 1];
+        case "hiddenAny": return "Show hidden and normal triggers together";
+        case "folder": {
+            const { negated, value } = w.term;
+            if (value === "none") return negated ? "Only triggers inside a folder" : "Only triggers outside folders";
+            return `${negated ? "Hide triggers" : "Only triggers"} in folders whose name starts with "${value}"`;
+        }
+        case "priority": return `Only triggers with priority ${w.priority.op === "gt" ? "above" : w.priority.op === "lt" ? "below" : "exactly"} ${w.priority.value}`;
+        case "text": {
+            const { negated, field, value } = w.term;
+            if (!field) return `Hide triggers that mention "${value}" in the name, description or keywords`;
+            return `${negated ? "Hide triggers" : "Only triggers"} ${TEXT_LABELS[field]} "${value}"`;
+        }
+    }
+}
+
+const isNegatedWord = (word: string) => word.startsWith("!") && !!parseWord(word);
+
+/**
+ * Parses a query string into structured filters.
+ * Supported tokens: enabled: join: notify: lock: hidden: (also hidden:any) priority: (=/>/<) name: description: keyword: folder:
+ * A leading ! negates one, and a value in quotes may hold spaces. Everything else is free-text search.
+ */
+function parseQuery(raw: string): ParsedQuery {
+    const result: ParsedQuery = {
+        text: "", terms: [], enabled: null, autojoin: null,
+        notify: null, lock: null, priority: null, hidden: null, folders: [],
+    };
+    const free: string[] = [];
+
+    splitQuery(raw).forEach((word, i) => {
+        if (i % 2 === 0) return;
+        const w = parseWord(word);
+        if (!w) { free.push(word); return; }
+        switch (w.kind) {
+            case "bool":
+                if (w.key === "join") result.autojoin = w.value;
+                else result[w.key] = w.value;
+                break;
+            case "priority": result.priority = w.priority; break;
+            case "text": result.terms.push(w.term); break;
+            case "hiddenAny": result.hidden = "any"; break;
+            case "folder": result.folders.push(w.term); break;
+        }
+    });
+
+    result.text = free.join(" ").toLowerCase();
     return result;
 }
 
@@ -117,10 +214,11 @@ function applyQuery(triggers: Trigger[], q: ParsedQuery, typeFilter: TriggerType
     return triggers.filter(t => {
         if (typeFilter !== "all" && t.type !== typeFilter) return false;
 
-        // Hidden triggers only show up when the filter asks for them
-        if (Boolean(t.hidden) !== (q.hidden ?? false)) return false;
+        // Hidden triggers, and triggers in hidden folders, only show up when the filter asks for them
+        if (q.hidden !== "any" && isTriggerHidden(t) !== (q.hidden ?? false)) return false;
 
-        if (q.enabled !== null && t.state.enabled !== q.enabled) return false;
+        // A trigger in a paused folder counts as off
+        if (q.enabled !== null && isTriggerRunning(t) !== q.enabled) return false;
         if (q.autojoin !== null && t.state.autojoin !== q.autojoin) return false;
         if (q.notify !== null && t.state.notify !== q.notify) return false;
         if (q.lock !== null && t.state.joinlock !== q.lock) return false;
@@ -132,13 +230,25 @@ function applyQuery(triggers: Trigger[], q: ParsedQuery, typeFilter: TriggerType
             if (q.priority.op === "lt" && p >= q.priority.value) return false;
         }
 
-        if (q.text) {
-            const keywords = t.conditions.keywords.match.value.join(" ").toLowerCase();
-            const haystack = `${t.name} ${t.description} ${keywords}`.toLowerCase();
-            if (!haystack.includes(q.text)) return false;
-        }
+        const folder = getFolder(t.folderId);
+        const folderName = folder?.name.toLowerCase();
+        if (!q.folders.every(({ negated, value }) => (value === "none" ? !folder : !!folderName?.startsWith(value)) !== negated)) return false;
 
-        return true;
+        const keywords = t.conditions.keywords.match.value.map(k => k.toLowerCase());
+        const name = t.name.toLowerCase();
+        const description = t.description.toLowerCase();
+
+        // Text that matches the folder's name or description brings the whole folder
+        const folderText = folder ? `${folderName} ${folder.description.toLowerCase()}` : "";
+        if (q.text && !`${name} ${description} ${keywords.join(" ")}`.includes(q.text) && !folderText.includes(q.text)) return false;
+
+        return q.terms.every(({ negated, field, value }) => {
+            const hit = field === "name" ? name.includes(value)
+                : field === "description" ? description.includes(value)
+                : field === "keyword" ? keywords.some(k => k.includes(value))
+                : `${name} ${description} ${keywords.join(" ")}`.includes(value);
+            return hit !== negated;
+        });
     });
 }
 
@@ -179,8 +289,10 @@ function confirmDeleteAll(count: number) {
 
 type TypeFilter = TriggerType | "all";
 
-function openTypeFilterMenu(e: React.MouseEvent, triggers: Trigger[], current: TypeFilter, onChange: (f: TypeFilter) => void, onShowHidden: () => void) {
+function openTypeFilterMenu(e: React.MouseEvent, triggers: Trigger[], current: TypeFilter, onChange: (f: TypeFilter) => void, onSearch: (q: string) => void) {
     const options: TypeFilter[] = ["all", ...(Object.keys(TYPE_META) as TriggerType[])];
+    const hiddenCount = triggers.filter(isTriggerHidden).length;
+    const hasHiddenFolder = getFolders().some(f => f.hidden);
 
     // The menu is placed once, where it was opened, so a resize would leave it floating in the wrong spot
     const onResize = () => ContextMenuApi.closeContextMenu();
@@ -196,7 +308,7 @@ function openTypeFilterMenu(e: React.MouseEvent, triggers: Trigger[], current: T
             aria-label="Filter triggers"
         >
             {options.map(type => {
-                const count = triggers.filter(t => !t.hidden && (type === "all" || t.type === type)).length;
+                const count = triggers.filter(t => !isTriggerHidden(t) && (type === "all" || t.type === type)).length;
                 return (
                     <Menu.MenuRadioItem
                         key={type}
@@ -211,9 +323,16 @@ function openTypeFilterMenu(e: React.MouseEvent, triggers: Trigger[], current: T
             <Menu.MenuSeparator />
             <Menu.MenuItem
                 id="vc-sora-triggers-filter-hidden"
-                label={`Hidden triggers (${triggers.filter(t => t.hidden).length})`}
-                disabled={!triggers.some(t => t.hidden)}
-                action={pick(onShowHidden)}
+                label={`Hidden triggers (${hiddenCount})`}
+                disabled={!hiddenCount && !hasHiddenFolder}
+                action={pick(() => onSearch("hidden:yes"))}
+            />
+            <Menu.MenuSeparator />
+            <Menu.MenuItem
+                id="vc-sora-triggers-filter-all"
+                label={`Show all (${triggers.length})`}
+                disabled={!hiddenCount && !hasHiddenFolder}
+                action={pick(() => onSearch("hidden:any"))}
             />
         </Menu.Menu>
     ));
@@ -255,12 +374,25 @@ function QuickToggle({ on, emoji, color, tooltip, onClick }: {
     );
 }
 
+// For a card with no description and no keywords: what it matches on instead (a role ping, a channel, a user)
+function matchSummary(t: Trigger): string {
+    const { mentionRoles, inChannel, fromUser } = t.conditions;
+    const count = (n: number, one: string) => `${n} ${one}${n === 1 ? "" : "s"}`;
+    const parts = [
+        mentionRoles.length && count(mentionRoles.length, "role ping"),
+        inChannel.length && count(inChannel.length, "channel"),
+        fromUser.length && count(fromUser.length, "user"),
+    ].filter(Boolean);
+    return parts.length ? `Matches by ${parts.join(", ")}` : "No keywords yet";
+}
+
 function TriggerCard({
     trigger,
-    index,
     position,
+    tourTarget,
     isFirst,
     isLast,
+    folderPaused,
     orderingDisabled,
     useButtonsForOrdering,
     useContextMenu,
@@ -271,11 +403,14 @@ function TriggerCard({
     onDragStart,
 }: {
     trigger: Trigger;
-    index: number;
     /** Place in the visible list, for the entry stagger */
     position: number;
+    /** The card the triggers tour points at */
+    tourTarget: boolean;
+    /** First and last in its own folder (or outside folders) */
     isFirst: boolean;
     isLast: boolean;
+    folderPaused: boolean;
     orderingDisabled: boolean;
     useButtonsForOrdering: boolean;
     useContextMenu: boolean;
@@ -295,7 +430,8 @@ function TriggerCard({
     const { enabled, autojoin, notify, joinlock, priority } = trigger.state;
     const forwards = trigger.forwarding.onMatch.enabled || trigger.forwarding.onDetection.enabled;
     const keywords = trigger.conditions.keywords.match.value;
-    const subline = trigger.description || (keywords.length ? keywords.join(", ") : "No keywords yet");
+    const subline = trigger.description || (keywords.length ? keywords.join(", ") : matchSummary(trigger));
+    const paused = enabled && folderPaused;
 
     const stop = (e: React.SyntheticEvent) => e.stopPropagation();
     const setState = (p: Partial<Trigger["state"]>) => updateTrigger(trigger.id, { state: { ...trigger.state, ...p } });
@@ -303,9 +439,9 @@ function TriggerCard({
     return (
         <div
             ref={cardRef}
-            {...tourAnchor(position === 0 ? "triggers.firstCard" : undefined)}
-            data-trigger-index={index}
-            className={`vc-sora-trigger-card${enabled ? "" : " off"}${trigger.hidden ? " hidden" : ""}${isDragging ? " dragging" : ""}`}
+            {...tourAnchor(tourTarget ? "triggers.firstCard" : undefined)}
+            data-trigger-id={trigger.id}
+            className={`vc-sora-trigger-card${enabled && !paused ? "" : " off"}${trigger.hidden ? " hidden" : ""}${isDragging ? " dragging" : ""}`}
             style={{ animationDelay: `${Math.min(position * 30, MAX_STAGGER_MS)}ms` }}
             onPointerDown={e => {
                 draggedRef.current = false;
@@ -342,7 +478,7 @@ function TriggerCard({
                 {props => (
                     <button
                         {...props}
-                        {...tourAnchor(position === 0 ? "triggers.firstIcon" : undefined)}
+                        {...tourAnchor(tourTarget ? "triggers.firstIcon" : undefined)}
                         type="button"
                         aria-pressed={enabled}
                         aria-label={enabled ? "Disable trigger" : "Enable trigger"}
@@ -363,6 +499,11 @@ function TriggerCard({
                     {trigger.hidden && (
                         <Tooltip text="Hidden from the list. Right-click and choose Unhide to bring it back.">
                             {props => <span {...props} className="vc-sora-trigger-offtag">Hidden</span>}
+                        </Tooltip>
+                    )}
+                    {paused && (
+                        <Tooltip text="Its folder is paused. Turn the folder on to run it.">
+                            {props => <span {...props} className="vc-sora-trigger-offtag">Folder off</span>}
                         </Tooltip>
                     )}
                     {!enabled && (
@@ -405,7 +546,7 @@ function TriggerCard({
                     />
                 </div>
                 <Tooltip text={joinlock ? `Priority ${priority}, with join lock. Lower is more important.` : `Priority ${priority}. Lower is more important.`}>
-                    {props => <span {...props} {...tourAnchor(position === 0 ? "triggers.firstPriority" : undefined)} className="vc-sora-trigger-prio">{joinlock ? "🔒" : "★"} {priority}</span>}
+                    {props => <span {...props} {...tourAnchor(tourTarget ? "triggers.firstPriority" : undefined)} className="vc-sora-trigger-prio">{joinlock ? "🔒" : "★"} {priority}</span>}
                 </Tooltip>
             </div>
             {shiftHeld && <DeleteButton visible hint="Delete this trigger" onClick={() => deleteTrigger(trigger.id)} />}
@@ -421,6 +562,85 @@ function DragGhost({ trigger }: { trigger: Trigger; }) {
             <span className="vc-sora-trigger-name">{trigger.name}</span>
         </div>
     );
+}
+
+function FolderDragGhost({ folder }: { folder: TriggerFolder; }) {
+    return (
+        <div style={{ ...s.dragGhost, color: folder.color }}>
+            <FolderGlyph size={22} />
+            <span className="vc-sora-trigger-name">{folder.name}</span>
+        </div>
+    );
+}
+
+// --- Drop slots ---
+// Read from the DOM while dragging. A slot is a place between two cards (or folders) where the dragged one can land.
+
+interface Slot {
+    y: number;
+    left: number;
+    width: number;
+    /** Group the slot belongs to, null outside folders */
+    folderId: string | null;
+    /** Lands right before this one, or last in the group when null */
+    beforeId: string | null;
+    /** Dropping here would not move anything */
+    noop: boolean;
+}
+
+// Half the gap between cards, so the line sits in the middle of it
+const SLOT_GAP = 3;
+
+const itemKey = (el: HTMLElement) => el.dataset.triggerId ?? el.dataset.folderSection!;
+const TOP_ITEMS = ":scope > [data-trigger-id], :scope > [data-folder-section]";
+
+function triggerSlots(wrapper: HTMLElement, dragId: string): Slot[] {
+    const out: Slot[] = [];
+    wrapper.querySelectorAll<HTMLElement>("[data-trigger-group]:not([data-closed])").forEach(group => {
+        const folderId = group.dataset.triggerGroup || null;
+        // Outside folders, cards and folders share the list
+        const cards = Array.from(group.querySelectorAll<HTMLElement>(folderId ? ":scope > [data-trigger-id]" : TOP_ITEMS));
+        const self = cards.findIndex(c => c.dataset.triggerId === dragId);
+
+        cards.forEach((card, i) => {
+            if (i === self) return;
+            const r = card.getBoundingClientRect();
+            out.push({ y: r.top - SLOT_GAP, left: r.left, width: r.width, folderId, beforeId: itemKey(card), noop: self !== -1 && i === self + 1 });
+        });
+
+        const last = cards[cards.length - 1];
+        const r = (last ?? group).getBoundingClientRect();
+        out.push({
+            y: last ? r.bottom + SLOT_GAP : r.top + r.height / 2,
+            left: r.left,
+            width: r.width,
+            folderId,
+            beforeId: null,
+            noop: self !== -1 && self === cards.length - 1,
+        });
+    });
+    return out;
+}
+
+// Folders move along the list outside folders, between cards too, but never into another folder
+function folderSlots(wrapper: HTMLElement, dragId: string): Slot[] {
+    const top = wrapper.querySelector<HTMLElement>("[data-trigger-group='']");
+    const sections = Array.from(top?.querySelectorAll<HTMLElement>(TOP_ITEMS) ?? []);
+    const self = sections.findIndex(el => el.dataset.folderSection === dragId);
+    const out: Slot[] = [];
+
+    sections.forEach((el, i) => {
+        if (i === self) return;
+        const r = el.getBoundingClientRect();
+        out.push({ y: r.top - SLOT_GAP, left: r.left, width: r.width, folderId: null, beforeId: itemKey(el), noop: i === self + 1 });
+    });
+
+    const last = sections[sections.length - 1];
+    if (last) {
+        const r = last.getBoundingClientRect();
+        out.push({ y: r.bottom + SLOT_GAP, left: r.left, width: r.width, folderId: null, beforeId: null, noop: self === sections.length - 1 });
+    }
+    return out;
 }
 
 // --- Styles ---
@@ -456,8 +676,15 @@ const s = {
 
 // --- Tab ---
 
+type DragTarget = { folderId: string | null; beforeId: string | null; };
+
+type TopItem =
+    | { kind: "trigger"; trigger: Trigger; }
+    | { kind: "folder"; folder: TriggerFolder; triggers: Trigger[]; };
+
 export function TriggersTab() {
     const triggers = useTriggers();
+    const folders = useFolders();
     const importRef = useRef<HTMLInputElement>(null);
     const wrapperRef = useRef<HTMLDivElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
@@ -468,12 +695,20 @@ export function TriggersTab() {
     const shiftHeld = useShiftHeld();
     const [search, setSearch] = useState(saved.search);
     const [typeFilter, setTypeFilter] = useState<TypeFilter>(saved.typeFilter);
-    const { useButtonsForOrderingTriggers: useButtonsForOrdering, useTriggerTabContextMenu: useContextMenu, defaultsSeen, showDefaultsNudge } = settings.use([
+    const { useButtonsForOrderingTriggers: useButtonsForOrdering, useTriggerTabContextMenu: useContextMenu, defaultsSeen, showDefaultsNudge, alwaysShowFolderCount } = settings.use([
         "useButtonsForOrderingTriggers",
+        "alwaysShowFolderCount",
         "useTriggerTabContextMenu",
         "defaultsSeen",
         "showDefaultsNudge",
     ]);
+
+    // Cards only fade in when the tab opens. Opening a folder or dropping a card mounts them again, and must not blink.
+    const [settled, setSettled] = useState(false);
+    useEffect(() => {
+        const t = setTimeout(() => setSettled(true), 1000);
+        return () => clearTimeout(t);
+    }, []);
 
     // Triggers load a moment after the tab opens. Until then every default would look new.
     const [storeReady, setStoreReady] = useState(false);
@@ -496,16 +731,58 @@ export function TriggersTab() {
         UIState.set("triggers", { typeFilter: f });
     };
 
-    const filtered = React.useMemo(() => {
-        const q = parseQuery(search);
-        return applyQuery(triggers, q, typeFilter);
-    }, [triggers, search, typeFilter]);
+    const query = React.useMemo(() => parseQuery(search), [search]);
+    // `folders` is a dependency because folder names, hiding and pausing change the result
+    const filtered = React.useMemo(() => applyQuery(triggers, query, typeFilter), [triggers, folders, query, typeFilter]);
 
-    // Hidden triggers stay out of the ordering. Their places in the full list are kept.
-    const visible = React.useMemo(() => triggers.filter(t => !t.hidden), [triggers]);
+    // Any search or type filter narrows the list: folders without a match disappear, the rest open, and reordering is off
+    const narrowed = search.trim() !== "" || typeFilter !== "all";
+    const orderingDisabled = narrowed;
+    // A lone hidden: filter also lists hidden folders that are empty, so they can be found and unhidden
+    const onlyHiddenFilter = typeFilter === "all" && /^\s*hidden:\S+\s*$/i.test(search) && (query.hidden === true || query.hidden === "any");
 
-    // Reordering is off while a filter or search narrows the list
-    const orderingDisabled = filtered.length !== visible.length || filtered.some(t => t.hidden);
+    // Folders and triggers outside folders, mixed, in the saved order
+    const top = React.useMemo(() => {
+        const shown = new Set(filtered.map(t => t.id));
+        const byId = new Map(triggers.map(t => [t.id, t]));
+        const items: TopItem[] = [];
+        for (const key of getLayout()) {
+            const folder = folders.find(f => f.id === key);
+            if (folder) {
+                const list = filtered.filter(t => t.folderId === folder.id);
+                const show = narrowed
+                    ? list.length > 0 || (onlyHiddenFilter && (!!folder.hidden || query.hidden === "any"))
+                    : !folder.hidden;
+                if (show) items.push({ kind: "folder", folder, triggers: list });
+            } else if (shown.has(key)) {
+                items.push({ kind: "trigger", trigger: byId.get(key)! });
+            }
+        }
+        return items;
+    }, [filtered, triggers, folders, narrowed, onlyHiddenFilter, query]);
+
+    // While the tour talks about cards and none is on screen, it opens the first folder that has one.
+    // Only here, never saved, so the user's closed folders stay closed.
+    const [tourOpenFolder, setTourOpenFolder] = useState<string | null>(null);
+    const isOpen = (f: TriggerFolder) => narrowed || !f.collapsed || f.id === tourOpenFolder;
+
+    // What the tour points at: a card on screen (not in a closed folder) and the first folder
+    const tourItems = top.map(item => item.kind === "folder" ? { ...item, open: isOpen(item.folder) } : item);
+    const tourCard = pickTourCard(tourItems);
+    const tourFolder = pickTourFolder(tourItems);
+
+    useTourAction("triggers.revealCard", () => {
+        if (tourCard) return;
+        const first = top.find(item => item.kind === "folder" && item.triggers.length > 0);
+        if (first?.kind === "folder") setTourOpenFolder(first.folder.id);
+    });
+    useTourAction("triggers.unrevealCard", () => setTourOpenFolder(null));
+
+    // Counts what the folder shows, so hidden triggers don't give themselves away
+    const countFor = (f: TriggerFolder): FolderCount => {
+        const ts = triggers.filter(t => t.folderId === f.id && (f.hidden || query.hidden === "any" || !!t.hidden === (query.hidden ?? false)));
+        return { on: ts.filter(t => t.state.enabled).length, total: ts.length };
+    };
 
     const importDefaults = async () => {
         if (importingRef.current) return;
@@ -564,93 +841,91 @@ export function TriggersTab() {
         });
     };
 
-    const move = (fromIndex: number, toIndex: number) => {
-        if (toIndex < 0 || toIndex >= visible.length) return;
-        const newOrder = [...visible];
-        const [moved] = newOrder.splice(fromIndex, 1);
-        newOrder.splice(toIndex, 0, moved);
-        triggers.forEach((t, i) => { if (t.hidden) newOrder.splice(i, 0, t); });
-        reorderTriggers(newOrder);
-    };
-
-    // `slot`: insert before the item at this index (or at the end when slot === triggers.length),
-    // counted before the dragged item is removed.
-    const moveToSlot = (fromIndex: number, slot: number) => {
-        move(fromIndex, slot > fromIndex ? slot - 1 : slot);
+    // The ▲▼ buttons move a card inside its own folder, or along the list outside folders (past folders too)
+    const moveWithinGroup = (list: Trigger[], i: number, dir: -1 | 1) => {
+        const t = list[i];
+        const folderId = getFolder(t.folderId) ? t.folderId! : null;
+        if (folderId) {
+            const other = list[i + dir];
+            if (!other) return;
+            if (dir === -1) moveTrigger(t.id, folderId, other.id);
+            else moveTrigger(other.id, folderId, t.id);
+            return;
+        }
+        const keys = top.map(item => item.kind === "trigger" ? item.trigger.id : item.folder.id);
+        const at = keys.indexOf(t.id);
+        if (dir === -1 && at > 0) moveTrigger(t.id, null, keys[at - 1]);
+        if (dir === 1 && at < keys.length - 1) moveTrigger(t.id, null, keys[at + 2] ?? null);
     };
 
     // --- Drag to reorder ---
     // Uses pointer events because native drag-and-drop is unreliable in Electron
     // (drag image, clipping, tiny hitboxes).
     const [drag, setDrag] = useState<{
-        fromIndex: number;
+        kind: "trigger" | "folder";
+        id: string;
         width: number;
         grabOffsetX: number;
         grabOffsetY: number;
         pointerClientX: number;
         pointerClientY: number;
-        targetSlot: number | null;
+        target: DragTarget | null;
+        /** Folder header under the pointer: the trigger goes to the end of that folder */
+        dropFolder: string | null;
         indicator: { top: number; left: number; width: number; } | null;
     } | null>(null);
 
-    const startDrag = (fromIndex: number, e: React.PointerEvent, cardRect: DOMRect) => {
+    const startDrag = (kind: "trigger" | "folder", id: string, e: React.PointerEvent, rect: DOMRect) => {
         e.preventDefault();
         setDrag({
-            fromIndex,
-            width: cardRect.width,
-            grabOffsetX: e.clientX - cardRect.left,
-            grabOffsetY: e.clientY - cardRect.top,
+            kind,
+            id,
+            width: rect.width,
+            grabOffsetX: e.clientX - rect.left,
+            grabOffsetY: e.clientY - rect.top,
             pointerClientX: e.clientX,
             pointerClientY: e.clientY,
-            targetSlot: null,
+            target: null,
+            dropFolder: null,
             indicator: null,
         });
     };
 
     useEffect(() => {
         if (!drag) return;
+        const { kind, id } = drag;
 
         const onMove = (e: PointerEvent) => {
+            const wrapper = wrapperRef.current;
             const containerRect = containerRef.current?.getBoundingClientRect();
-            const wrapperRect = wrapperRef.current?.getBoundingClientRect();
+            const wrapperRect = wrapper?.getBoundingClientRect();
 
-            let targetSlot: number | null = null;
+            let target: DragTarget | null = null;
+            let dropFolder: string | null = null;
             let indicator: NonNullable<typeof drag>["indicator"] = null;
 
             const nearContainer = containerRect
                 && e.clientX >= containerRect.left - 40 && e.clientX <= containerRect.right + 40
                 && e.clientY >= containerRect.top - 40 && e.clientY <= containerRect.bottom + 40;
 
-            if (nearContainer && wrapperRect) {
-                const rows = Array.from(wrapperRef.current?.querySelectorAll<HTMLElement>("[data-trigger-index]") ?? [])
-                    .map(el => ({ idx: Number(el.dataset.triggerIndex), rect: el.getBoundingClientRect() }))
-                    .filter(r => !Number.isNaN(r.idx))
-                    .sort((a, b) => a.idx - b.idx);
+            if (nearContainer && wrapper && wrapperRect) {
+                const header = kind === "trigger"
+                    ? (document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null)?.closest<HTMLElement>("[data-folder-header]")
+                    : null;
 
-                if (rows.length > 0) {
-                    // One Y per insertion slot (N rows give N+1 slots), in the middle of the gap between rows
-                    const slotYs = rows.map((r, i) =>
-                        i === 0 ? r.rect.top : (rows[i - 1].rect.bottom + r.rect.top) / 2
-                    );
-                    slotYs.push(rows[rows.length - 1].rect.bottom);
-
-                    let bestSlot = 0;
-                    let bestDist = Infinity;
-                    slotYs.forEach((y, k) => {
-                        const d = Math.abs(e.clientY - y);
-                        if (d < bestDist) { bestDist = d; bestSlot = k; }
-                    });
-
-                    // Dropping right back next to itself wouldn't actually move anything.
-                    const isNoOp = bestSlot === drag.fromIndex || bestSlot === drag.fromIndex + 1;
-                    if (!isNoOp) {
-                        targetSlot = bestSlot;
-                        const row = rows[Math.min(bestSlot, rows.length - 1)];
-                        indicator = {
-                            top: slotYs[bestSlot] - wrapperRect.top,
-                            left: row.rect.left - wrapperRect.left,
-                            width: row.rect.width,
-                        };
+                if (header && wrapper.contains(header)) {
+                    dropFolder = header.dataset.folderHeader!;
+                    target = { folderId: dropFolder, beforeId: null };
+                } else {
+                    // A folder's slots are indented, so a pointer left of them means the outer list
+                    const score = (slot: Slot) => Math.abs(slot.y - e.clientY) + (e.clientX < slot.left ? 24 : 0);
+                    let best: Slot | null = null;
+                    for (const slot of kind === "trigger" ? triggerSlots(wrapper, id) : folderSlots(wrapper, id)) {
+                        if (!best || score(slot) < score(best)) best = slot;
+                    }
+                    if (best && !best.noop) {
+                        target = { folderId: best.folderId, beforeId: best.beforeId };
+                        indicator = { top: best.y - wrapperRect.top, left: best.left - wrapperRect.left, width: best.width };
                     }
                 }
             }
@@ -659,15 +934,17 @@ export function TriggersTab() {
                 ...prev,
                 pointerClientX: e.clientX,
                 pointerClientY: e.clientY,
-                targetSlot,
+                target,
+                dropFolder,
                 indicator,
             });
         };
 
         const finishDrag = () => {
             setDrag(prev => {
-                if (prev && prev.targetSlot !== null) {
-                    moveToSlot(prev.fromIndex, prev.targetSlot);
+                if (prev?.target) {
+                    if (prev.kind === "trigger") moveTrigger(prev.id, prev.target.folderId, prev.target.beforeId);
+                    else moveFolder(prev.id, prev.target.beforeId);
                 }
                 return null;
             });
@@ -684,11 +961,13 @@ export function TriggersTab() {
             window.removeEventListener("pointerup", finishDrag);
             window.removeEventListener("pointercancel", finishDrag);
         };
-    }, [drag?.fromIndex]);
+    }, [drag?.kind, drag?.id]);
 
     const openMoreMenu = (e: React.MouseEvent) => {
         ContextMenuApi.openContextMenu(e, () => (
             <Menu.Menu navId="vc-sora-triggers-more" onClose={ContextMenuApi.closeContextMenu} aria-label="Trigger options">
+                <Menu.MenuItem id="vc-sora-triggers-new-folder" label="New folder" action={() => openFolderEditor()} />
+                <Menu.MenuSeparator />
                 <Menu.MenuItem id="vc-sora-triggers-import-file" label="Import from file" action={() => importRef.current?.click()} />
                 <Menu.MenuItem
                     id="vc-sora-triggers-import-defaults"
@@ -725,19 +1004,50 @@ export function TriggersTab() {
     useTourAction("triggers.importDefaults", importDefaults);
 
     const activeType = typeFilter === "all" ? null : TYPE_META[typeFilter];
+    const draggedTrigger = drag?.kind === "trigger" ? triggers.find(t => t.id === drag.id) : undefined;
+    const draggedFolder = drag?.kind === "folder" ? folders.find(f => f.id === drag.id) : undefined;
+
+    // Place of each card in the whole list, for the entry stagger and the tour anchors
+    let position = 0;
+    const renderCard = (t: Trigger, list: Trigger[], i: number, folder?: TriggerFolder, first = i === 0, last = i === list.length - 1) => (
+        <TriggerCard
+            key={t.id}
+            trigger={t}
+            position={position++}
+            tourTarget={t.id === tourCard}
+            isFirst={first}
+            isLast={last}
+            folderPaused={!!folder?.paused}
+            orderingDisabled={orderingDisabled}
+            useButtonsForOrdering={useButtonsForOrdering}
+            useContextMenu={useContextMenu}
+            shiftHeld={shiftHeld}
+            isDragging={drag?.kind === "trigger" && drag.id === t.id}
+            onMoveUp={() => moveWithinGroup(folder ? list : [t], folder ? i : 0, -1)}
+            onMoveDown={() => moveWithinGroup(folder ? list : [t], folder ? i : 0, 1)}
+            onDragStart={(e, rect) => startDrag("trigger", t.id, e, rect)}
+        />
+    );
 
     return (
-        <div ref={wrapperRef} style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0, gap: 8, position: "relative" }}>
+        <div ref={wrapperRef} className="vc-sora-triggers-tab">
             <div style={{ flexShrink: 0, display: "flex", flexDirection: "column", gap: 6 }}>
                 <div className="vc-sora-triggers-bar">
                     <div style={{ flex: 1, minWidth: 0 }} {...tourAnchor("triggers.search")}>
-                        <TextInput value={search} onChange={handleSearchChange} placeholder="Search triggers" />
+                        <QuerySearchInput
+                            value={search}
+                            onChange={handleSearchChange}
+                            placeholder="Search triggers"
+                            describe={describeQueryTerm}
+                            isNegation={isNegatedWord}
+                            suffix={narrowed ? `${filtered.length} of ${triggers.length}` : undefined}
+                        />
                     </div>
                     <button
                         type="button"
                         className={`vc-sora-triggers-sbtn${activeType ? " active" : ""}`}
                         style={activeType ? { "--sora-c": activeType.color } as React.CSSProperties : undefined}
-                        onClick={e => openTypeFilterMenu(e, triggers, typeFilter, handleTypeFilterChange, () => handleSearchChange("hidden:yes"))}
+                        onClick={e => openTypeFilterMenu(e, triggers, typeFilter, handleTypeFilterChange, handleSearchChange)}
                     >
                         <FilterIcon />
                         {activeType?.label ?? "All types"}
@@ -758,15 +1068,14 @@ export function TriggersTab() {
                     <TourAnchor id="triggers.new"><Button size="medium" variant="positive" onClick={openAddTriggerModal}>+ New</Button></TourAnchor>
                 </div>
                 <span className="vc-sora-triggers-hint" {...tourAnchor("triggers.hint")}>
-                    Filter with <code>enabled:</code> <code>join:</code> <code>notify:</code> <code>lock:</code> <code>hidden:</code> <code>priority:&gt;5</code>
-                    {filtered.length !== visible.length && <> · showing {filtered.length} of {triggers.length}</>}
+                    Filter with <code>enabled:</code> <code>join:</code> <code>notify:</code> <code>lock:</code> <code>hidden:</code> <code>priority:&gt;5</code> <code>folder:</code>
                 </span>
                 <JoinLockBanner />
             </div>
 
             <div ref={containerRef} style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
-            <ScrollerThin style={{ flex: 1, minHeight: 0 }}>
-                {filtered.length === 0
+            <ScrollerThin className="vc-sora-triggers-scroller" style={{ flex: 1, minHeight: 0 }}>
+                {top.length === 0
                     ? (
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", textAlign: "center", minHeight: 200, color: COLORS.muted }} {...tourAnchor(triggers.length === 0 ? "triggers.empty" : undefined)}>
                             <Paragraph size="sm">
@@ -777,36 +1086,50 @@ export function TriggersTab() {
                         </div>
                     )
                     : (
-                        <div style={{ display: "flex", flexDirection: "column", gap: 6, paddingBottom: 8 }}>
-                            {filtered.map((t, i) => {
-                                // order buttons need the index in the full list, not the filtered one
-                                const realIdx = visible.indexOf(t);
-                                return (
-                                    <TriggerCard
-                                        key={t.id}
-                                        trigger={t}
-                                        index={realIdx}
-                                        position={i}
-                                        isFirst={realIdx === 0}
-                                        isLast={realIdx === visible.length - 1}
-                                        orderingDisabled={orderingDisabled}
-                                        useButtonsForOrdering={useButtonsForOrdering}
-                                        useContextMenu={useContextMenu}
-                                        shiftHeld={shiftHeld}
-                                        isDragging={drag?.fromIndex === realIdx}
-                                        onMoveUp={() => move(realIdx, realIdx - 1)}
-                                        onMoveDown={() => move(realIdx, realIdx + 1)}
-                                        onDragStart={(e, cardRect) => startDrag(realIdx, e, cardRect)}
-                                    />
-                                );
-                            })}
+                        <div className={`vc-sora-triggers-list${settled ? " settled" : ""}`}>
+                            <div className="vc-sora-trigger-group" data-trigger-group="">
+                                {top.map((item, idx) => {
+                                    // Outside folders, ▲▼ walk the mixed list, so first and last are taken from it
+                                    if (item.kind === "trigger") return renderCard(item.trigger, [], 0, undefined, idx === 0, idx === top.length - 1);
+                                    const { folder, triggers: list } = item;
+                                    const open = isOpen(folder);
+                                    return (
+                                        <div
+                                            key={folder.id}
+                                            data-folder-section={folder.id}
+                                            className={`vc-sora-folder${drag?.kind === "folder" && drag.id === folder.id ? " dragging" : ""}`}
+                                            style={{ "--sora-fc": folder.color } as React.CSSProperties}
+                                        >
+                                            <FolderHeader
+                                                folder={folder}
+                                                tourId={folder.id === tourFolder ? "triggers.firstFolder" : undefined}
+                                                alwaysShowCount={alwaysShowFolderCount}
+                                                count={countFor(folder)}
+                                                open={open}
+                                                isDropTarget={drag?.dropFolder === folder.id}
+                                                canDrag={!orderingDisabled && !useButtonsForOrdering}
+                                                onToggle={narrowed ? undefined : () => updateFolder(folder.id, { collapsed: !folder.collapsed })}
+                                                onDragStart={(e, rect) => startDrag("folder", folder.id, e, rect)}
+                                            />
+                                            {/* Always mounted so opening and closing can slide. Closed, it can't be focused or dropped into. */}
+                                            <div className={`vc-sora-folder-collapse${open ? " open" : ""}`}>
+                                                <div className="vc-sora-folder-collapse-inner">
+                                                    <div className="vc-sora-folder-body vc-sora-trigger-group" data-trigger-group={folder.id} data-closed={open ? undefined : ""}>
+                                                        {list.length ? list.map((t, i) => renderCard(t, list, i, folder)) : <div className="vc-sora-folder-empty">Drag triggers here.</div>}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
                         </div>
                     )
                 }
             </ScrollerThin>
             </div>
 
-            {/* Where the dragged trigger will land */}
+            {/* Where the dragged trigger or folder will land */}
             {drag?.indicator && (
                 <div style={{
                     position: "absolute",
@@ -822,7 +1145,7 @@ export function TriggersTab() {
             )}
 
             {/* Drag preview, portaled to <body> so the modal doesn't clip it */}
-            {drag && ReactDOM.createPortal(
+            {drag && (draggedTrigger || draggedFolder) && ReactDOM.createPortal(
             <div style={{
                 position: "fixed",
                 top: drag.pointerClientY - drag.grabOffsetY,
@@ -834,7 +1157,7 @@ export function TriggersTab() {
                 pointerEvents: "none",
                 zIndex: 9999,
             }}>
-                <DragGhost trigger={visible[drag.fromIndex]} />
+                {draggedTrigger ? <DragGhost trigger={draggedTrigger} /> : <FolderDragGhost folder={draggedFolder!} />}
             </div>,
             document.body
             )}

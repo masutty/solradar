@@ -404,6 +404,12 @@ export const settings = definePluginSettings({
         default: false,
         hidden: true,
     },
+    alwaysShowFolderCount: {
+        type: OptionType.BOOLEAN,
+        description: "Always show how many triggers are on next to each folder's name, not only on hover.",
+        default: false,
+        hidden: true,
+    },
     useTriggerTabContextMenu: {
         type: OptionType.BOOLEAN,
         description: "Right-click a trigger to open a menu with quick actions (enable/disable, edit, duplicate, export, remove). Disable to go back to right-click instantly toggling enabled/disabled.",

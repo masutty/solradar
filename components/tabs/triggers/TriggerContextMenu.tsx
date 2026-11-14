@@ -19,9 +19,10 @@ import {
 import { Paragraph } from "@components/Paragraph";
 import { Alerts, ContextMenuApi, Menu, React, showToast } from "@webpack/common";
 
-import { deleteTrigger, downloadTriggerJson, duplicateTrigger, toggleTrigger, Trigger, updateTrigger } from "../../../stores/TriggerStore";
+import { deleteTrigger, downloadTriggerJson, duplicateTrigger, getFolders, moveTrigger, toggleTrigger, Trigger, updateTrigger } from "../../../stores/TriggerStore";
 import { isDeveloper } from "../../../utils";
 import { confirmWebhookThenRun, copyTriggerToClipboard, openSafeExportDialogForTrigger } from "./exportActions";
+import { FolderGlyph, openFolderEditor } from "./folders";
 import { openEditTriggerModal } from "./TriggerModal";
 
 // Same shape as the built-in icons: the menu passes props such as color to the svg, and the strokes follow currentColor
@@ -85,6 +86,27 @@ function TriggerContextMenu({ trigger }: { trigger: Trigger; }) {
                 leadingAccessory={{ type: "icon", icon: PlusIcon }}
                 action={() => duplicateTrigger(trigger.id)}
             />
+            <Menu.MenuItem id="vc-sora-trigger-move" label="Move to folder" leadingAccessory={{ type: "icon", icon: FolderIcon }}>
+                {getFolders().map(f => (
+                    <Menu.MenuItem
+                        key={f.id}
+                        id={`vc-sora-trigger-move-${f.id}`}
+                        label={
+                            <span className="vc-sora-menu-folder" style={{ "--sora-fc": f.color } as React.CSSProperties}>
+                                <FolderGlyph size={16} />
+                                <span className="vc-sora-menu-folder-name">{f.name}</span>
+                                {trigger.folderId === f.id && <span aria-label="Current folder">✓</span>}
+                            </span>
+                        }
+                        action={() => moveTrigger(trigger.id, f.id)}
+                    />
+                ))}
+                {getFolders().length > 0 && <Menu.MenuSeparator />}
+                {trigger.folderId && (
+                    <Menu.MenuItem id="vc-sora-trigger-move-none" label="Take out of folder" action={() => moveTrigger(trigger.id, null)} />
+                )}
+                <Menu.MenuItem id="vc-sora-trigger-move-new" label="New folder..." leadingAccessory={{ type: "icon", icon: PlusIcon }} action={() => openFolderEditor(undefined, trigger.id)} />
+            </Menu.MenuItem>
             <Menu.MenuItem
                 id="vc-sora-trigger-export"
                 label="Export"

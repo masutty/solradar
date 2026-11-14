@@ -10,10 +10,18 @@ import { runTourAction } from "../../../stores/TourStore";
 import { getTriggers } from "../../../stores/TriggerStore";
 import defaultTriggers from "../../../triggers.json";
 import { setForcedHover } from "../anchors";
-import { Btn, DisabledTag, Legend, Muted, P, Priority, QuickToggle, Rainbow, Row } from "../copy";
+import { Btn, DisabledTag, Legend, Muted, P, PauseMark, Priority, QuickToggle, Rainbow, Row } from "../copy";
 import type { Tour } from "../types";
 
 const hasTriggers = () => getTriggers().length > 0;
+const onScreen = (id: string) => !!document.querySelector(`[data-sora-tour="${id}"]`);
+const folderOnScreen = () => onScreen("triggers.firstFolder");
+
+// The card steps may open a closed folder first, so the card shows up a frame later. Hover it again then.
+function hoverCard(id: string, on: boolean) {
+    setForcedHover(id, on);
+    if (on) setTimeout(() => setForcedHover(id, true), 120);
+}
 const MENU_ITEM = "#vc-sora-triggers-more-vc-sora-triggers-import-defaults";
 const MENU_ROOT = "[role='menu'][aria-label='Trigger options']";
 const openMenu = () => { runTourAction("triggers.openMoreMenu"); };
@@ -23,6 +31,13 @@ export const makeTriggersTour = (): Tour => ({
     id: "triggers",
     version: 3,
     label: "Triggers",
+    groups: {
+        // Card steps need a card on screen: open a folder for them if every card sits in a closed one
+        cards: {
+            enter: () => { runTourAction("triggers.revealCard"); },
+            leave: () => { runTourAction("triggers.unrevealCard"); },
+        },
+    },
     steps: [
         {
             id: "triggers.intro",
@@ -55,9 +70,10 @@ export const makeTriggersTour = (): Tour => ({
             id: "triggers.cards",
             kind: "demo",
             when: hasTriggers,
+            group: "cards",
             anchor: "triggers.firstCard",
-            enter: () => setForcedHover("triggers.firstCard", true),
-            leave: () => setForcedHover("triggers.firstCard", false),
+            enter: () => hoverCard("triggers.firstCard", true),
+            leave: () => hoverCard("triggers.firstCard", false),
             title: "Your triggers",
             body: <>
                 <P>Each card is one trigger. <b>Click</b> it to edit it.</P>
@@ -73,10 +89,11 @@ export const makeTriggersTour = (): Tour => ({
             id: "triggers.power",
             kind: "demo",
             when: hasTriggers,
+            group: "cards",
             anchor: "triggers.firstIcon",
             placement: "right",
-            enter: () => setForcedHover("triggers.firstIcon", true),
-            leave: () => setForcedHover("triggers.firstIcon", false),
+            enter: () => hoverCard("triggers.firstIcon", true),
+            leave: () => hoverCard("triggers.firstIcon", false),
             title: "Turn it on or off",
             body: <>
                 <P>Click a trigger's <b>icon</b> to switch it on or off, right from the list.</P>
@@ -87,6 +104,7 @@ export const makeTriggersTour = (): Tour => ({
             id: "triggers.priority",
             kind: "info",
             when: hasTriggers,
+            group: "cards",
             anchor: "triggers.firstPriority",
             placement: "left",
             title: "Priority",
@@ -96,6 +114,33 @@ export const makeTriggersTour = (): Tour => ({
             </Legend>,
         },
         {
+            id: "triggers.folders",
+            kind: "demo",
+            when: folderOnScreen,
+            anchor: "triggers.firstFolder",
+            enter: () => setForcedHover("triggers.firstFolder", true),
+            leave: () => setForcedHover("triggers.firstFolder", false),
+            title: "Folders",
+            body: <>
+                <P>Folders group your triggers. <b>Drag</b> a card onto one, or right-click it and pick <b>Move to folder</b>.</P>
+                <P>Hover a folder to see how many of its triggers are on, or click the pencil to edit it.</P>
+            </>,
+        },
+        {
+            id: "triggers.folderPause",
+            kind: "demo",
+            when: folderOnScreen,
+            anchor: "triggers.folderPause",
+            placement: "left",
+            enter: () => setForcedHover("triggers.firstFolder", true),
+            leave: () => setForcedHover("triggers.firstFolder", false),
+            title: "Pause a folder",
+            body: <>
+                <P>This button pauses the whole folder: <b>none of its triggers run</b> until you turn it back on.</P>
+                <P>Each trigger keeps its own on or off, so they come back as they were. A paused folder looks faded and keeps a <PauseMark /> mark.</P>
+            </>,
+        },
+        {
             id: "triggers.menu",
             kind: "demo",
             when: ctx => hasTriggers() && !ctx.ran("triggers.defaults"),
@@ -103,8 +148,9 @@ export const makeTriggersTour = (): Tour => ({
             placement: "left",
             enter: openMenu,
             leave: closeMenu,
-            title: "Import and export",
+            title: "Folders, import and export",
             body: <>
+                <P><b>New folder</b> groups triggers you want to keep together.</P>
                 <P><b>Import</b> brings back the defaults or loads triggers from a file.</P>
                 <P><b>Export</b> saves yours to a file, as a backup or to share.</P>
             </>,

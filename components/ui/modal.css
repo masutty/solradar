@@ -16,3 +16,8 @@
 .vc-sora-modal-footer.vc-sora-modal-footer {
     border-top: 1px solid var(--background-mod-strong);
 }
+
+/* Takes the most height Discord allows a modal, so the content scrolls inside instead of the modal changing size */
+.vc-sora-modal-full.vc-sora-modal-full {
+    height: 100%;
+}
