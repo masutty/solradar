@@ -20,6 +20,7 @@ import {
     getLatestKnownChangelog,
     getLatestKnownVersion,
     hasNewVersionAvailable,
+    isVersionNewer,
 } from "../../../utils";
 import { COLORS, sectionTitle, tabColumn } from "../../ui/styles";
 import { Block } from "../settings/Block";
@@ -68,6 +69,7 @@ const TYPE_COLOR: Record<string, string> = {
 const STATUS_COLOR = {
     ok: COLORS.positive,
     update: COLORS.warning,
+    dev: COLORS.brand,
     error: COLORS.danger,
 };
 
@@ -205,13 +207,17 @@ function StatusCard({ updateAvailable, latestVersion, checkState, lastCheck, onC
     const checking = checkState === "checking";
     const failed = checkState === "error";
 
+    // Newer than what is published: a build that isn't out yet
+    const inDevelopment = !!latestVersion && isVersionNewer(latestVersion, currentVersion);
+
     const title = checking ? "Checking for updates"
         : failed ? "Couldn't check for updates"
             : updateAvailable ? "Update available"
-                : "You're up to date";
+                : inDevelopment ? "Development version"
+                    : "You're up to date";
 
-    const color = failed ? STATUS_COLOR.error : updateAvailable ? STATUS_COLOR.update : STATUS_COLOR.ok;
-    const icon = checking ? "…" : failed ? "!" : updateAvailable ? "↑" : "✓";
+    const color = failed ? STATUS_COLOR.error : updateAvailable ? STATUS_COLOR.update : inDevelopment ? STATUS_COLOR.dev : STATUS_COLOR.ok;
+    const icon = checking ? "…" : failed ? "!" : updateAvailable ? "↑" : inDevelopment ? "β" : "✓";
 
     return (
         <div style={{ display: "flex", flexDirection: "column", gap: 12, padding: 18, borderRadius: 10, background: "var(--background-mod-subtle)" }}>
@@ -248,7 +254,9 @@ function StatusCard({ updateAvailable, latestVersion, checkState, lastCheck, onC
                 <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
                     {failed
                         ? "The update server didn't answer. Try again in a bit."
-                        : lastCheck ? `Last checked ${timeAgo(lastCheck)}.` : "Not checked yet."}
+                        : inDevelopment
+                            ? `Newer than the published v${latestVersion}, so things may still change or break.`
+                            : lastCheck ? `Last checked ${timeAgo(lastCheck)}.` : "Not checked yet."}
                 </span>
             )}
 
