@@ -8,7 +8,7 @@ import "./history.css";
 
 import { DeleteIcon, StarFilled } from "@components/Icons";
 import { Paragraph } from "@components/Paragraph";
-import { Alerts, ContextMenuApi, Menu, React, ScrollerThin, TextInput, Tooltip, useState } from "@webpack/common";
+import { Alerts, ContextMenuApi, Menu, React, ScrollerThin, Tooltip, useState } from "@webpack/common";
 
 import { BOLT_PRESETS, boltSum, JOIN_STEPS, sameSteps } from "../../../services/JoinTimeline";
 import { settings } from "../../../settings";
@@ -21,6 +21,7 @@ import { PendingActionBanner } from "../../PendingActionBanner";
 import { tourAnchor } from "../../tour/TourAnchor";
 import { useAutoTour } from "../../tour/useAutoTour";
 import { DeleteButton } from "../../ui/buttons/DeleteButton";
+import { QuerySearchInput, splitQuery } from "../../ui/QuerySearchInput";
 import Spoiler from "../../ui/Spoiler";
 import { COLORS } from "../../ui/styles";
 import { useShiftHeld } from "../../ui/useShiftHeld";
@@ -52,16 +53,78 @@ function matchesFilter(entry: SnipeEntry, filter: Filter): boolean {
     return entry.tags.includes(filter);
 }
 
+type Field = "trigger" | "channel" | "author" | "guild";
+
+const FIELD_KEYS: Record<string, Field> = { trigger: "trigger", channel: "channel", author: "author", from: "author", server: "guild", guild: "guild" };
+const FIELD_LABELS: Record<Field, string> = { trigger: "from a trigger", channel: "in a channel", author: "from an author", guild: "in a server" };
+
+interface Term { negated: boolean; field?: Field; value: string; }
+
+// `key:value`, `key:"two words"`, `!key:value` or `!word`
+function parseTerm(word: string): Term | null {
+    const negated = word.startsWith("!");
+    const body = negated ? word.slice(1) : word;
+    const m = /^(\w+):(.*)$/.exec(body);
+    const field = m && FIELD_KEYS[m[1].toLowerCase()];
+    if (field) {
+        const value = m[2].replace(/^"/, "").replace(/"$/, "").trim().toLowerCase();
+        return value ? { negated, field, value } : null;
+    }
+    return negated && body ? { negated, value: body.toLowerCase() } : null;
+}
+
+function describeTerm(word: string): string | undefined {
+    const t = parseTerm(word);
+    if (!t) return;
+    if (!t.field) return `Hide snipes that mention "${t.value}" in the trigger, author, channel or server`;
+    return `${t.negated ? "Hide snipes" : "Only snipes"} ${FIELD_LABELS[t.field]} whose name contains "${t.value}"`;
+}
+
+function parseSearch(raw: string) {
+    const include: string[] = [];
+    const terms: Term[] = [];
+    splitQuery(raw).forEach((word, i) => {
+        if (i % 2 === 0) return;
+        const term = parseTerm(word);
+        if (term) terms.push(term);
+        else include.push(word.toLowerCase());
+    });
+    return { include: include.join(" "), terms };
+}
+
 function countFor(entries: SnipeEntry[], tag: Filter): number {
     return entries.filter(e => matchesFilter(e, tag)).length;
 }
 
+function dayKey(ts: number): number {
+    return new Date(ts).setHours(0, 0, 0, 0);
+}
+
 function dayLabel(ts: number): string {
-    const startOfToday = new Date().setHours(0, 0, 0, 0);
-    const days = Math.floor((startOfToday - new Date(ts).setHours(0, 0, 0, 0)) / 86_400_000);
+    const days = Math.floor((dayKey(Date.now()) - dayKey(ts)) / 86_400_000);
     if (days <= 0) return "Today";
     if (days === 1) return "Yesterday";
     return new Date(ts).toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" });
+}
+
+const PAGE_SIZE = 60;
+
+type Haystack = Record<Field | "all", string>;
+
+const haystacks = new WeakMap<SnipeEntry, Haystack>();
+function haystackOf(e: SnipeEntry): Haystack {
+    let h = haystacks.get(e);
+    if (!h) {
+        h = {
+            all: [e.triggerName, e.authorName, e.channelName, e.guildName].join("\n").toLowerCase(),
+            trigger: (e.triggerName ?? "").toLowerCase(),
+            channel: (e.channelName ?? "").toLowerCase(),
+            author: (e.authorName ?? "").toLowerCase(),
+            guild: (e.guildName ?? "").toLowerCase(),
+        };
+        haystacks.set(e, h);
+    }
+    return h;
 }
 
 function timeAgo(ts: number): string {
@@ -258,10 +321,15 @@ export function RecentJoinsTab() {
     const [search, setSearch] = useState(saved.search);
     const [filter, setFilter] = useState<Filter>(saved.tagFilter);
 
-    const handleSearch = (v: string) => {
-        setSearch(v);
-        UIState.set("recentJoins", { search: v });
-    };
+    // Filtering and saving wait for a pause in typing, so each keystroke only repaints the input
+    const [query, setQuery] = useState(search);
+    React.useEffect(() => {
+        const t = setTimeout(() => {
+            setQuery(search);
+            UIState.set("recentJoins", { search });
+        }, 200);
+        return () => clearTimeout(t);
+    }, [search]);
 
     const handleFilter = (f: Filter) => {
         setFilter(f);
@@ -269,12 +337,28 @@ export function RecentJoinsTab() {
     };
 
     const filtered = React.useMemo(() => {
-        const q = search.trim().toLowerCase();
-        return entries.filter(e =>
-            matchesFilter(e, filter)
-            && (!q || [e.triggerName, e.authorName, e.channelName, e.guildName].some(v => v?.toLowerCase().includes(q)))
-        );
-    }, [entries, filter, search]);
+        const { include, terms } = parseSearch(query);
+        return entries.filter(e => {
+            if (!matchesFilter(e, filter)) return false;
+            if (!include && terms.length === 0) return true;
+            const h = haystackOf(e);
+            return (!include || h.all.includes(include))
+                && terms.every(t => (t.field ? h[t.field] : h.all).includes(t.value) !== t.negated);
+        });
+    }, [entries, filter, query]);
+
+    const [limit, setLimit] = useState(PAGE_SIZE);
+    React.useEffect(() => setLimit(PAGE_SIZE), [filtered]);
+    const visible = React.useMemo(() => filtered.slice(0, limit), [filtered, limit]);
+
+    const sentinelRef = React.useRef<HTMLDivElement>(null);
+    React.useEffect(() => {
+        const el = sentinelRef.current;
+        if (!el) return;
+        const io = new IntersectionObserver(([hit]) => { if (hit.isIntersecting) setLimit(l => l + PAGE_SIZE); }, { rootMargin: "400px" });
+        io.observe(el);
+        return () => io.disconnect();
+    }, [visible.length, filtered]);
 
     useAutoTour("recentJoins");
     // The tour opens the newest snipe that joined, so its timing views have something to show
@@ -288,10 +372,10 @@ export function RecentJoinsTab() {
     const activeFilter = FILTERS.find(f => f.tag === filter) ?? FILTERS[0];
 
     // Group consecutive entries (newest first) under a day heading
-    let lastDay = "";
+    let lastDay = 0;
     const dayCounts = React.useMemo(() => {
-        const m = new Map<string, number>();
-        filtered.forEach(e => { const d = dayLabel(e.timestamp); m.set(d, (m.get(d) ?? 0) + 1); });
+        const m = new Map<number, number>();
+        filtered.forEach(e => { const d = dayKey(e.timestamp); m.set(d, (m.get(d) ?? 0) + 1); });
         return m;
     }, [filtered]);
 
@@ -300,10 +384,12 @@ export function RecentJoinsTab() {
             <div style={{ display: "flex", flexDirection: "column", gap: 8, flexShrink: 0 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                        <TextInput
+                        <QuerySearchInput
                             value={search}
-                            onChange={handleSearch}
+                            onChange={setSearch}
                             placeholder="Search snipes by trigger, author, channel..."
+                            describe={describeTerm}
+                            isNegation={w => !!parseTerm(w)?.negated}
                         />
                     </div>
                     <Tooltip text="Filter by result">
@@ -352,11 +438,11 @@ export function RecentJoinsTab() {
                     </div>
                 ) : (
                     <div style={{ paddingBottom: 12 }}>
-                        {filtered.map((entry, i) => {
-                            const day = dayLabel(entry.timestamp);
+                        {visible.map((entry, i) => {
+                            const day = dayKey(entry.timestamp);
                             const count = dayCounts.get(day) ?? 0;
                             const heading = day !== lastDay
-                                ? <div className="vc-sora-history-day">{day}<span className="vc-sora-history-day-count">{count} {count === 1 ? "snipe" : "snipes"}</span></div>
+                                ? <div className="vc-sora-history-day">{dayLabel(entry.timestamp)}<span className="vc-sora-history-day-count">{count} {count === 1 ? "snipe" : "snipes"}</span></div>
                                 : null;
                             lastDay = day;
                             return (
@@ -366,6 +452,7 @@ export function RecentJoinsTab() {
                                 </React.Fragment>
                             );
                         })}
+                        {visible.length < filtered.length && <div ref={sentinelRef} style={{ height: 1 }} />}
                     </div>
                 )}
             </ScrollerThin>

@@ -1,0 +1,70 @@
+/* A mirror behind the input paints query terms like inline code */
+
+.vc-sora-qsearch {
+    position: relative;
+}
+
+.vc-sora-qsearch input {
+    position: relative;
+    color: transparent;
+    caret-color: var(--text-default);
+    background: transparent;
+}
+
+/* Monospace on both layers, so the caret stays under the mirrored text */
+.vc-sora-qsearch input,
+.vc-sora-qsearch-mirror {
+    font-family: var(--font-code);
+    font-size: 14px;
+}
+
+.vc-sora-qsearch-mirror {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    padding: 0 11px;
+    overflow: hidden;
+    white-space: pre;
+    color: var(--text-default);
+    pointer-events: none;
+}
+
+.vc-sora-qsearch-term {
+    background: var(--background-mod-subtle);
+    box-shadow: 0 0 0 2px var(--background-mod-subtle);
+    border-radius: 4px;
+}
+
+.vc-sora-qsearch-term-not {
+    color: var(--status-danger);
+}
+
+/* Invisible box over the hovered term that the Discord tooltip anchors to */
+.vc-sora-qsearch-anchor {
+    position: absolute;
+    top: 0;
+    height: 100%;
+    pointer-events: none;
+}
+
+/* Room on the right for the suffix, on both layers so the caret still lines up */
+.vc-sora-qsearch-suffixed input {
+    padding-right: 80px;
+}
+
+.vc-sora-qsearch-suffixed .vc-sora-qsearch-mirror {
+    padding-right: 80px;
+}
+
+.vc-sora-qsearch-suffix {
+    position: absolute;
+    top: 50%;
+    right: 12px;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    font-size: 12.5px;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    pointer-events: none;
+}
