@@ -66,8 +66,6 @@ function EditModal({
         setDraftValue("");
     };
 
-    const hasChanges = draftLabel.trim() !== "" || draftValue.trim() !== "";
-
     return (
         <ModalRoot {...modalProps} size={ModalSize.SMALL}>
             <ModalHeader>

@@ -13,8 +13,8 @@ import { SnipeEntry } from "../../../stores/SnipeStore";
 import { Note } from "../../ui/Note";
 import { COLORS } from "../../ui/styles";
 import { BarItem, StackedBars } from "./charts";
-import { SnipeTable } from "./Detail";
 import { Bin, Bucket, bucketLabel, BucketUnit, fmtSeconds, Measure, medianByBucket, pad2, peakWindow, plural, Stats, stepMedians, timingBins, TimingSample, timingSamples, TriggerRow, WEEKDAYS, whenBreakdown } from "./data";
+import { SnipeTable } from "./Detail";
 import { GroupTable, Section, TriggerIcon } from "./parts";
 
 // --- Timing ---

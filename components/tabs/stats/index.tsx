@@ -15,8 +15,8 @@ import { computeStats, measureOf, Period, serverKey, triggerRows, windowOf } fro
 import { Detail } from "./Detail";
 import { Overview } from "./Overview";
 import { TimingPage, WhenPage, WhoPage } from "./Pages";
-import { MeasureMenu, PeriodMenu } from "./PeriodMenu";
 import { serverIconUrl, TriggerIcon } from "./parts";
+import { MeasureMenu, PeriodMenu } from "./PeriodMenu";
 
 /** What the tab is showing a closer look at: a trigger or a server. */
 interface Subject { type: "trigger" | "server"; key: string; name: string; iconUrl?: string; }

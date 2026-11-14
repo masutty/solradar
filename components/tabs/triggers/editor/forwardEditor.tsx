@@ -167,7 +167,6 @@ function unavailableReason(key: keyof ForwardShow, draft: Draft): string | null 
 
 export function ShowFields({ draft, patch }: { draft: Draft; patch: Patch; }) {
     const f = draft.forwarding;
-    const uses = f.format === "card" ? CARD_LAYOUTS[f.layout].uses : EMBED_USES;
     return (
         <Field label="Show in the message" hint="Turn off what you don't want to send. Options the chosen layout doesn't draw are greyed out.">
             <div className="vc-sora-fchecks">

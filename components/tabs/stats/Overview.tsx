@@ -7,7 +7,7 @@
 import { ActivityChart, Spark } from "./charts";
 import { coverageNote, fmtDuration, fmtRate, Group, Measure, Stats, TriggerRow } from "./data";
 import { AuthorsTile, BentoTile, TimingTile, WhenTile } from "./Detail";
-import { GroupTable, Section, SplitBar, SummaryCard, summaryCaption, TriggerIcon } from "./parts";
+import { GroupTable, Section, SplitBar, summaryCaption, SummaryCard, TriggerIcon } from "./parts";
 
 // --- Trigger table ---
 

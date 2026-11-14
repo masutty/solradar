@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-import { BOLT_PRESETS, BOLT_STEP_KEYS, boltSum, DEFAULT_BOLT_STEPS, joinBreakdown, JOIN_STEPS, JoinStepKey, sameSteps, summarize, Summary } from "../../../services/JoinTimeline";
+import { BOLT_PRESETS, BOLT_STEP_KEYS, boltSum, DEFAULT_BOLT_STEPS, JOIN_STEPS, joinBreakdown, JoinStepKey, sameSteps, summarize, Summary } from "../../../services/JoinTimeline";
 import { SnipeEntry } from "../../../stores/SnipeStore";
 
 // Everything the Stats tab shows is read from the snipes already in the history. Nothing here is stored.

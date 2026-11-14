@@ -10,7 +10,7 @@ import { guildIconUrl } from "../../ui/idFilter/resolve";
 import { Note } from "../../ui/Note";
 import { card, COLORS, descriptionText, sectionTitle } from "../../ui/styles";
 import { FallbackImage, formatTimeAgo } from "../recentJoins/components";
-import { Bucket, bucketLabel, BucketUnit, bucketTotal, Counts, fmtRate, Group, plural, RESULT_KINDS, RESULT_LABEL, RESULT_WORD, ResultKind, Stats } from "./data";
+import { Bucket, bucketLabel, bucketTotal, BucketUnit, Counts, fmtRate, Group, plural, RESULT_KINDS, RESULT_LABEL, RESULT_WORD, ResultKind, Stats } from "./data";
 
 export const RESULT_COLOR: Record<ResultKind, string> = {
     real: COLORS.positive,
