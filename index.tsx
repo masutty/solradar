@@ -24,7 +24,7 @@ import { cancelBiomeDetection } from "./services/BiomeWatcher";
 import { forwardSnipe } from "./services/ForwardingService";
 import { isJoinLocked, join, shouldJoin } from "./services/JoinService";
 import { recordSnipe, shouldProcessEdit, snipedTriggers } from "./services/MessageEditWatcher";
-import { flattenEmbeds, getSnipableLink, isMessageAllowed, isValidMessage, resolveTrigger, sanitizeContent } from "./services/MessageProcessor";
+import { flattenEmbeds, getSnipableLink, isValidMessage, resolveTrigger, sanitizeContent } from "./services/MessageProcessor";
 import { canNotify, notify } from "./services/NotificationService";
 import { redactUserPath } from "./services/paths";
 import { isDuplicateLink, markAsSeen } from "./services/SnipeDeduplicator";
@@ -73,7 +73,6 @@ async function handleMessage(message: Message, channel: Channel, guild: Guild, t
 
     logger.info(`Match: "${trigger.name}" (p${trigger.state.priority}) in #${channel.name} @ ${guild.name}${fromEdit ? " (edited message)" : ""}`);
 
-    if (!isMessageAllowed({ channel, message, trigger })) return;
     if (isJoinLocked(trigger)) return;
 
     const snipe = Snipe.create(message, link, trigger, channel, guild, tMessageReceived);

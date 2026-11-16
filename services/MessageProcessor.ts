@@ -11,6 +11,7 @@ import { settings } from "../settings";
 import { getActiveTriggers, KeywordSet } from "../stores/TriggerStore";
 import { SnipableLink, Trigger } from "../types";
 import { extractComponentContent, parseCsv } from "../utils";
+import { explainScope, FilterFix, hasBypass } from "./scope";
 
 const logger = new Logger("SolRadar.MessageProcessor");
 
@@ -154,46 +155,6 @@ export function isValidMessage(message: Message): boolean {
     return reason === null;
 }
 
-/** Why a message is blocked for this trigger, or null when it passes. Same rules as isMessageAllowed. */
-export function explainMessageBlocked(
-    { channel, message, trigger }: { channel: Channel; message: Message; trigger: Trigger; },
-): { reason: string; fix?: FilterFix; } | null {
-    if (!trigger.conditions.bypassIgnoredGuilds && parseCsv(settings.store.ignoredGuilds).has(channel.guild_id))
-        return { reason: "This server is in \"Always ignore these servers\" in Settings.", fix: { kind: "unignoreGuild", id: channel.guild_id } };
-
-    if (trigger.conditions.ignoredGuilds.includes(channel.guild_id))
-        return { reason: `${trigger.name} never fires in this server (its Filters).` };
-
-    if (!trigger.conditions.bypassIgnoredChannels && parseCsv(settings.store.ignoredChannels).has(channel.id))
-        return { reason: `#${channel.name} is in "Always ignore these channels" in Settings.`, fix: { kind: "unignoreChannel", id: channel.id } };
-
-    if (trigger.conditions.ignoredChannels.includes(channel.id))
-        return { reason: `${trigger.name} never fires in #${channel.name} (its Filters).` };
-
-    if (parseCsv(settings.store.ignoredUsers).has(message.author.id))
-        return { reason: `${message.author.username} is in "Always ignore these users" in Settings.`, fix: { kind: "unignoreUser", id: message.author.id } };
-
-    if (!trigger.conditions.bypassMonitoredOnly) {
-        const monitoredChannels = parseCsv(settings.store.monitoredChannels);
-        const monitoredGuilds = parseCsv(settings.store.monitoredGuilds);
-        const hasMonitors = monitoredChannels.size > 0 || monitoredGuilds.size > 0;
-        if (hasMonitors && !monitoredChannels.has(channel.id) && !monitoredGuilds.has(channel.guild_id))
-            return { reason: "This server and channel aren't in your \"Only monitor\" lists in Settings.", fix: { kind: "monitorGuild", id: channel.guild_id } };
-    }
-
-    return null;
-}
-
-export type FilterFix = { kind: "unignoreGuild" | "unignoreChannel" | "unignoreUser" | "monitorGuild"; id: string; };
-
-export function isMessageAllowed(
-    { channel, message, trigger }: { channel: Channel; message: Message; trigger: Trigger; },
-): boolean {
-    const blocked = explainMessageBlocked({ channel, message, trigger });
-    if (blocked) logger.debug(`[${trigger.name}] ${blocked.reason} Skipping.`);
-    return !blocked;
-}
-
 // --- Trigger matching ---
 
 function containsKeyword(text: string, keyword: string, strict: boolean): boolean {
@@ -224,17 +185,9 @@ export function findExcluded(text: string, conditions: Pick<Trigger["conditions"
 function evaluateTrigger(message: Message, trigger: Trigger): { matched: boolean; reason?: string; via?: string; globalExclude?: boolean; } {
     const { conditions } = trigger;
     const { content } = message;
-    const authorId = message.author.id;
-    const channelId = message.channel_id;
 
     // message.mentionRoles is unreliable (often undefined), so parse role mentions from the content
     const mentionRoles = [...content.matchAll(/<@&(\d+)>/g)].map(m => m[1]);
-
-    if (conditions.fromUser.length > 0 && !conditions.fromUser.includes(authorId))
-        return { matched: false, reason: "only fires for certain users" };
-
-    if (conditions.inChannel.length > 0 && !conditions.inChannel.includes(channelId))
-        return { matched: false, reason: "only fires in certain channels" };
 
     const hasKeywords = conditions.keywords.match.value.length > 0;
     const hasMentionRoles = conditions.mentionRoles.length > 0;
@@ -248,7 +201,7 @@ function evaluateTrigger(message: Message, trigger: Trigger): { matched: boolean
         via = keyword ? `keyword "${keyword}"` : `role ${role!.label || role!.id}`;
     }
 
-    const blocker = findExcluded(content, conditions);
+    const blocker = findExcluded(content, { ...conditions, bypassGlobalExclude: hasBypass(trigger, "bypassGlobalExclude") });
     if (blocker?.global)
         return { matched: false, reason: `global excluded keyword "${blocker.word}" is in the message`, globalExclude: true };
     if (blocker)
@@ -266,16 +219,26 @@ export interface TriggerMatchResult {
     /** Every trigger whose conditions matched, before ambiguity and priority are applied */
     matched: Trigger[];
     /** Why each active trigger didn't match */
-    rejected: { trigger: Trigger; reason: string; globalExclude?: boolean; }[];
+    rejected: { trigger: Trigger; reason: string; globalExclude?: boolean; filtered?: boolean; fix?: FilterFix; }[];
 }
 
-export function explainTriggerMatch(message: Message, activeTriggers: Trigger[]): TriggerMatchResult {
-    const results = activeTriggers.map(t => ({ trigger: t, ...evaluateTrigger(message, t) }));
-    const matched = results.filter(r => r.matched).map(r => r.trigger);
-    const rejected = results.filter(r => !r.matched).map(r => ({ trigger: r.trigger, reason: r.reason ?? "did not match", globalExclude: r.globalExclude }));
+export function explainTriggerMatch(message: Message, activeTriggers: Trigger[], ctx?: { channel: Channel; }): TriggerMatchResult {
+    const filtered: TriggerMatchResult["rejected"] = [];
+    const allowed = ctx ? activeTriggers.filter(t => {
+        const blocked = explainScope(t, { channel: ctx.channel, message });
+        if (blocked) filtered.push({ trigger: t, reason: blocked.reason, filtered: true, fix: blocked.fix });
+        return !blocked;
+    }) : activeTriggers;
 
-    const bypass = matched.filter(t => t.conditions.bypassMatchAmbiguity);
-    const normals = matched.filter(t => !t.conditions.bypassMatchAmbiguity);
+    const results = allowed.map(t => ({ trigger: t, ...evaluateTrigger(message, t) }));
+    const matched = results.filter(r => r.matched).map(r => r.trigger);
+    const rejected = [
+        ...filtered,
+        ...results.filter(r => !r.matched).map(r => ({ trigger: r.trigger, reason: r.reason ?? "did not match", globalExclude: r.globalExclude })),
+    ];
+
+    const bypass = matched.filter(t => hasBypass(t, "bypassMatchAmbiguity"));
+    const normals = matched.filter(t => !hasBypass(t, "bypassMatchAmbiguity"));
     const ambiguous = normals.length > 1 ? normals : [];
 
     const candidates = [...bypass, ...(normals.length === 1 ? normals : [])];
@@ -285,8 +248,8 @@ export function explainTriggerMatch(message: Message, activeTriggers: Trigger[])
     return { winner, via: results.find(r => r.trigger === winner)?.via, ambiguous, matched, rejected };
 }
 
-function getMatchingTrigger(message: Message, activeTriggers: Trigger[]): Trigger | null {
-    const { winner, ambiguous } = explainTriggerMatch(message, activeTriggers);
+function getMatchingTrigger(message: Message, activeTriggers: Trigger[], channel: Channel): Trigger | null {
+    const { winner, ambiguous } = explainTriggerMatch(message, activeTriggers, { channel });
 
     if (ambiguous.length) {
         logger.warn(
@@ -295,7 +258,7 @@ function getMatchingTrigger(message: Message, activeTriggers: Trigger[]): Trigge
             ". Discarding all normal triggers."
         );
     }
-    if (winner) logger.debug(`Winner: "${winner.name}" (p${winner.state.priority}, bypass=${winner.conditions.bypassMatchAmbiguity})`);
+    if (winner) logger.debug(`Winner: "${winner.name}" (p${winner.state.priority}, bypass=${hasBypass(winner, "bypassMatchAmbiguity")})`);
 
     return winner;
 }
@@ -306,5 +269,5 @@ export function resolveTrigger(
     const activeTriggers = getActiveTriggers();
     if (!activeTriggers.length) return null;
 
-    return getMatchingTrigger(message, activeTriggers);
+    return getMatchingTrigger(message, activeTriggers, channel);
 }

@@ -11,6 +11,7 @@ import { isLocalIcon, resolveIcon } from "../stores/IconStore";
 import { hasBiomeStatus } from "../stores/TriggerStore";
 import { parseCsv, sendWebhook } from "../utils";
 import { buildForwardPayload, ForwardKind, ICON_ATTACHMENT } from "./forwardMessage";
+import { hasBypass } from "./scope";
 
 const logger = new Logger("SolRadar:Forwarding");
 
@@ -43,7 +44,7 @@ export function canForward(snipe: Snipe): boolean {
         return false;
     }
 
-    const bypassForwardIgnoredGuilds = snipe.trigger.conditions?.bypassForwardIgnoredGuilds ?? false;
+    const bypassForwardIgnoredGuilds = hasBypass(snipe.trigger, "bypassForwardIgnoredGuilds");
     if (!bypassForwardIgnoredGuilds) {
         const ignoredGuilds = parseCsv(settings.store.forwardIgnoredGuilds);
         if (ignoredGuilds.has(snipe.guild.id)) {

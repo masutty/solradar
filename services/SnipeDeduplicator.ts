@@ -7,6 +7,7 @@
 import { Snipe } from "../models/Snipe";
 import { settings } from "../settings";
 import { formatElapsedTime } from "../utils";
+import { hasBypass } from "./scope";
 
 /** A link seen again within this window counts as a repeat. */
 const DEDUPE_WINDOW_MS = 10 * 60 * 1000;
@@ -22,7 +23,7 @@ export function isDuplicateLink(snipe: Snipe): boolean {
 
     if (!isDuplicate) return false;
 
-    if (!settings.store.deduplicateLinks || snipe.trigger.conditions.bypassLinkDeduplication) {
+    if (!settings.store.deduplicateLinks || hasBypass(snipe.trigger, "bypassLinkDeduplication")) {
         snipe.logInfo(`Duplicate link detected (from ${formatElapsedTime(now - last!.timestamp)} ago), but deduplication is bypassed. Executing anyways.`);
         return false;
     }

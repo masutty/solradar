@@ -20,6 +20,7 @@ import { stopAllAutoPlay } from "./InputAutomation";
 import { scheduleTimelineCapture } from "./JoinTimeline";
 import { redactUserPath, redactUserPaths } from "./paths";
 import { closeGame, getPlaceId } from "./RobloxService";
+import { hasBypass } from "./scope";
 import { startWindowsAutoPlay, stopWindowsAutoPlay } from "./WindowsAutoPlay";
 
 const logger = new Logger("SolRadar:Join");
@@ -131,7 +132,7 @@ async function verifyLink(link: SnipableLink): Promise<VerifyLinkResult> {
 }
 
 async function verifySnipeSafety(snipe: Snipe): Promise<void> {
-    if (snipe.trigger.conditions.bypassLinkVerification) {
+    if (hasBypass(snipe.trigger, "bypassLinkVerification")) {
         snipe.logInfo("Link verification bypassed by trigger.");
         return;
     }

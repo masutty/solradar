@@ -7,7 +7,8 @@
 import { Channel, Guild, Message } from "@vencord/discord-types";
 
 import { BiomeDetector } from "../../../services/BiomeDetector";
-import { explainMessageBlocked, explainTriggerMatch, FilterFix, flattenEmbeds, getSnipableLink, invalidMessageReason, isComponentsV2, sanitizeContent } from "../../../services/MessageProcessor";
+import { explainTriggerMatch, flattenEmbeds, getSnipableLink, invalidMessageReason, isComponentsV2, sanitizeContent } from "../../../services/MessageProcessor";
+import { FilterFix, hasBypass } from "../../../services/scope";
 import { lastSeenAgo } from "../../../services/SnipeDeduplicator";
 import { settings } from "../../../settings";
 import { JoinLockStore } from "../../../stores/JoinLockStore";
@@ -173,7 +174,7 @@ export function analyzeMessage(original: Message, channel: Channel, guild: Guild
 
     // Triggers that are turned off, or sit in a paused folder, but would match this message
     const off = getTriggers().filter(t => !isTriggerRunning(t));
-    const offMatches = off.length ? explainTriggerMatch(message, off).matched : [];
+    const offMatches = off.length ? explainTriggerMatch(message, off, { channel }).matched : [];
     const offNames = offMatches.map(t => t.name).join(", ");
     const turnOn = offMatches.slice(0, 3).map(t => {
         const folder = getFolder(t.folderId);
@@ -188,8 +189,14 @@ export function analyzeMessage(original: Message, channel: Channel, guild: Guild
         return ignored(offMatches.length ? offVerdict : "You have no active triggers.");
     }
 
-    const match = explainTriggerMatch(message, active);
+    const match = explainTriggerMatch(message, active, { channel });
     trigger = match.winner;
+
+    // Triggers a filter left out, among those that would otherwise have matched
+    const wouldMatch = explainTriggerMatch(message, active).matched;
+    const removed = match.rejected.filter(r => r.filtered && wouldMatch.includes(r.trigger));
+    const removedFixes = [...new Map(removed.flatMap(r => r.fix ? [r.fix] : []).map(f => [`${f.kind}:${f.id}`, f])).values()].slice(0, 3).map(filterFix);
+    const removedDetail = removed.length === 1 ? removed[0].reason : removed.map(r => `${r.trigger.name}: ${r.reason}`).join(" ");
     if (!trigger) {
         if (match.ambiguous.length) {
             const names = match.ambiguous.map(t => `${t.name} (${t.state.priority})`).join(" and ");
@@ -200,6 +207,10 @@ export function analyzeMessage(original: Message, channel: Channel, guild: Guild
                 fixes: [{ label: `Let ${best.name} win ties`, run: () => patchConditions(best, { bypassMatchAmbiguity: true }) }],
             });
             return ignored(`${match.ambiguous.map(t => t.name).join(" and ")} all matched, so none of them fires.`);
+        }
+        if (removed.length) {
+            add({ group: "match", name: "Filters", status: "fail", detail: removedDetail, fixes: removedFixes.length ? removedFixes : undefined });
+            return ignored(removedDetail);
         }
         const globalBlocked = match.rejected.filter(r => r.globalExclude).slice(0, 3);
         const bypassFixes = globalBlocked.map(r => ({ label: `Let ${r.trigger.name} ignore the global list`, run: () => patchConditions(r.trigger, { bypassGlobalExclude: true }) }));
@@ -215,12 +226,7 @@ export function analyzeMessage(original: Message, channel: Channel, guild: Guild
         detail: `Matched ${trigger.name} (priority ${trigger.state.priority})${match.via ? ` by ${match.via}` : ""}.${offMatches.length ? ` Turned off but would also match: ${offNames}.` : ""}`,
     });
 
-    const blocked = explainMessageBlocked({ channel, message, trigger });
-    if (blocked) {
-        add({ group: "match", name: "Filters", status: "fail", detail: blocked.reason, fixes: blocked.fix ? [filterFix(blocked.fix)] : undefined });
-        return ignored(blocked.reason);
-    }
-    add({ group: "match", name: "Filters", status: "pass", detail: "Not blocked by any filter." });
+    add({ group: "match", name: "Filters", status: "pass", detail: removed.length ? `Not blocked. ${removed.length === 1 ? "1 other trigger was" : `${removed.length} other triggers were`} filtered out.` : "Not blocked by any filter." });
 
     // --- Save to History ---
 
@@ -243,7 +249,7 @@ export function analyzeMessage(original: Message, channel: Channel, guild: Guild
     const seenAgo = lastSeenAgo(t.name, link.code);
     if (seenAgo != null) {
         const ago = formatElapsedTime(seenAgo);
-        if (settings.store.deduplicateLinks && !t.conditions.bypassLinkDeduplication) {
+        if (settings.store.deduplicateLinks && !hasBypass(t, "bypassLinkDeduplication")) {
             add({
                 group: "join", name: "Duplicate link", status: "fail",
                 detail: `${t.name} saw this link ${ago} ago. It's saved as Ignored.`,
@@ -292,7 +298,7 @@ export function analyzeMessage(original: Message, channel: Channel, guild: Guild
     }
 
     const mode = settings.store.linkVerification;
-    if (t.conditions.bypassLinkVerification) add({ group: "join", name: "Link check", status: "info", detail: `${t.name} skips link checks.` });
+    if (hasBypass(t, "bypassLinkVerification")) add({ group: "join", name: "Link check", status: "info", detail: `${t.name} skips link checks.` });
     else if (mode === "disabled") add({ group: "join", name: "Link check", status: "info", detail: "Link checks are off in Settings." });
     else if (link.type === "joinguard") add({ group: "join", name: "Link check", status: "warn", detail: "Joinguard links can't be checked, so it joins without checking." });
     else if (!settings.store.robloxToken) {
@@ -313,7 +319,7 @@ export function analyzeMessage(original: Message, channel: Channel, guild: Guild
     });
 
     after();
-    return done("join", `Would join ${t.name}`, mode === "before" && !t.conditions.bypassLinkVerification && link.type !== "joinguard"
+    return done("join", `Would join ${t.name}`, mode === "before" && !hasBypass(t, "bypassLinkVerification") && link.type !== "joinguard"
         ? "If the link passes the check, it joins and then watches for the biome."
         : "It joins right away, then follows the steps below.");
 }
@@ -325,7 +331,7 @@ function forwardingOutcome(t: Trigger, channel: Channel, guild: Guild): Pick<Deb
     if (!(t.forwarding.webhookUrl || settings.store.globalWebhookUrl)) return { status: "warn", detail: "On, but no webhook URL is set." };
     if (t.forwarding.excludedGuilds?.includes(guild.id)) return { status: "info", detail: `${t.name} doesn't forward from this server.` };
     if (t.forwarding.excludedChannels?.includes(channel.id)) return { status: "info", detail: `${t.name} doesn't forward from #${channel.name}.` };
-    if (!t.conditions.bypassForwardIgnoredGuilds && parseCsv(settings.store.forwardIgnoredGuilds).has(guild.id)) return { status: "info", detail: "This server is in \"Never forward from these servers\"." };
+    if (!hasBypass(t, "bypassForwardIgnoredGuilds") && parseCsv(settings.store.forwardIgnoredGuilds).has(guild.id)) return { status: "info", detail: "This server is in \"Never forward from these servers\"." };
     const when = [onMatch.enabled && (onMatch.early ? "on match, before joining" : "on match"), onDetection.enabled && "when the biome is confirmed"].filter(Boolean).join(" and ");
     return { status: "pass", detail: `To your webhook, ${when}.` };
 }
