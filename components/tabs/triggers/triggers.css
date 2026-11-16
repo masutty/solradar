@@ -715,7 +715,9 @@
     display: inline-grid;
     place-items: center;
     flex-shrink: 0;
-    width: 18px;
+    width: 14px;
     height: 18px;
+    /* Hugs the name, the header's 8px gap read as a separate item */
+    margin-left: -3px;
     color: var(--text-muted);
 }
