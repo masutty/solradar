@@ -68,8 +68,10 @@ export interface TriggerConditions {
     mentionRoles: { id: string; label: string; }[]; // for servers that only ping a role instead of naming the biome
     fromUser: string[]; // empty = ignore check
     inChannel: string[]; // empty = ignore check
+    inGuild: string[]; // empty = ignore check
     ignoredChannels: string[];
     ignoredGuilds: string[];
+    ignoredUsers: string[];
     ignoreEdits: boolean; // never fire on edited messages
     // Each bypass skips one global check for this trigger
     bypassMatchAmbiguity: boolean; // several triggers matched
@@ -77,10 +79,38 @@ export interface TriggerConditions {
     bypassIgnoredGuilds: boolean; // ignored servers
     bypassForwardIgnoredGuilds: boolean; // no-forward servers
     bypassIgnoredChannels: boolean; // ignored channels
+    bypassIgnoredUsers: boolean; // ignored users
     bypassLinkVerification: boolean; // allowed place IDs
     bypassLinkDeduplication: boolean; // repeated links
     bypassGlobalExclude: boolean; // global "Must not contain" words
 }
+
+/** Where a trigger or folder runs. Empty lists set nothing. */
+export type ScopeRules = {
+    onlyServers: string[];
+    onlyChannels: string[];
+    onlyUsers: string[];
+    neverServers: string[];
+    neverChannels: string[];
+    neverUsers: string[];
+};
+
+export type BypassKey =
+    | "bypassMatchAmbiguity"
+    | "bypassMonitoredOnly"
+    | "bypassIgnoredGuilds"
+    | "bypassForwardIgnoredGuilds"
+    | "bypassIgnoredChannels"
+    | "bypassIgnoredUsers"
+    | "bypassLinkVerification"
+    | "bypassLinkDeduplication"
+    | "bypassGlobalExclude";
+
+const SCOPE_KEYS: (keyof ScopeRules)[] = ["onlyServers", "onlyChannels", "onlyUsers", "neverServers", "neverChannels", "neverUsers"];
+const BYPASS_KEYS: BypassKey[] = [
+    "bypassMatchAmbiguity", "bypassMonitoredOnly", "bypassIgnoredGuilds", "bypassForwardIgnoredGuilds", "bypassIgnoredChannels",
+    "bypassIgnoredUsers", "bypassLinkVerification", "bypassLinkDeduplication", "bypassGlobalExclude",
+];
 
 export interface TriggerBiome {
     detectionEnabled: boolean;
@@ -165,10 +195,12 @@ export interface TriggerFolder {
     /** Stops every trigger inside, without touching their own on/off */
     paused?: boolean;
     collapsed?: boolean;
+    rules?: Partial<ScopeRules>;
+    bypasses?: Partial<Record<BypassKey, boolean>>;
 }
 
 /** What an exported trigger carries about its folder, so an import can put it back in one */
-export type ExportedFolder = Pick<TriggerFolder, "id" | "name" | "description" | "color" | "hidden" | "paused">;
+export type ExportedFolder = Pick<TriggerFolder, "id" | "name" | "description" | "color" | "hidden" | "paused" | "rules" | "bypasses">;
 
 export type ImportedTrigger = Trigger & { rev?: number; folder?: ExportedFolder; };
 
@@ -198,14 +230,17 @@ export const DEFAULT_CONDITIONS: TriggerConditions = {
     mentionRoles: [],
     fromUser: [],
     inChannel: [],
+    inGuild: [],
     ignoredChannels: [],
     ignoredGuilds: [],
+    ignoredUsers: [],
     ignoreEdits: false,
     bypassMatchAmbiguity: false,
     bypassMonitoredOnly: false,
     bypassIgnoredGuilds: false,
     bypassForwardIgnoredGuilds: false,
     bypassIgnoredChannels: false,
+    bypassIgnoredUsers: false,
     bypassLinkVerification: false,
     bypassLinkDeduplication: false,
     bypassGlobalExclude: false,
@@ -293,14 +328,17 @@ function migrateTrigger(raw: any): Trigger {
             mentionRoles: raw.conditions?.mentionRoles ?? [],
             fromUser: raw.conditions?.fromUser ?? [],
             inChannel: raw.conditions?.inChannel ?? [],
+            inGuild: raw.conditions?.inGuild ?? [],
             ignoredChannels: raw.conditions?.ignoredChannels ?? [],
             ignoredGuilds: raw.conditions?.ignoredGuilds ?? [],
+            ignoredUsers: raw.conditions?.ignoredUsers ?? [],
             ignoreEdits: raw.conditions?.ignoreEdits ?? false,
             bypassMatchAmbiguity: raw.conditions?.bypassMatchAmbiguity ?? false,
             bypassMonitoredOnly: raw.conditions?.bypassMonitoredOnly ?? false,
             bypassIgnoredGuilds: raw.conditions?.bypassIgnoredGuilds ?? false,
             bypassForwardIgnoredGuilds: raw.conditions?.bypassForwardIgnoredGuilds ?? false,
             bypassIgnoredChannels: raw.conditions?.bypassIgnoredChannels ?? false,
+            bypassIgnoredUsers: raw.conditions?.bypassIgnoredUsers ?? false,
             bypassLinkVerification: raw.conditions?.bypassLinkVerification ?? false,
             bypassLinkDeduplication: raw.conditions?.bypassLinkDeduplication ?? false,
             bypassGlobalExclude: raw.conditions?.bypassGlobalExclude ?? false,
@@ -345,7 +383,7 @@ function migrateTrigger(raw: any): Trigger {
 const isColor = (v: unknown): v is string => typeof v === "string" && /^#[0-9a-f]{6}$/i.test(v);
 
 /** Cleans a stored or imported folder. Returns null when it has no usable id. */
-function migrateFolder(raw: any): TriggerFolder | null {
+export function migrateFolder(raw: any): TriggerFolder | null {
     if (!raw || typeof raw !== "object" || typeof raw.id !== "string" || !raw.id) return null;
     const folder: TriggerFolder = {
         id: raw.id,
@@ -356,6 +394,17 @@ function migrateFolder(raw: any): TriggerFolder | null {
     if (raw.hidden === true) folder.hidden = true;
     if (raw.paused === true) folder.paused = true;
     if (raw.collapsed === true) folder.collapsed = true;
+
+    const rules: Partial<ScopeRules> = {};
+    for (const key of SCOPE_KEYS) {
+        const list = Array.isArray(raw.rules?.[key]) ? raw.rules[key].filter((v: unknown) => typeof v === "string" && v) : [];
+        if (list.length) rules[key] = list;
+    }
+    if (Object.keys(rules).length) folder.rules = rules;
+
+    const bypasses: Partial<Record<BypassKey, boolean>> = {};
+    for (const key of BYPASS_KEYS) if (raw.bypasses?.[key] === true) bypasses[key] = true;
+    if (Object.keys(bypasses).length) folder.bypasses = bypasses;
     return folder;
 }
 
@@ -664,6 +713,37 @@ export async function duplicateTrigger(id: string): Promise<Trigger | undefined>
     return copy;
 }
 
+/** Copies a folder and its triggers right after it. The copy starts paused. */
+export async function duplicateFolder(id: string): Promise<TriggerFolder | undefined> {
+    await triggerStoreReady;
+    const src = getFolder(id);
+    if (!src) return undefined;
+
+    const copy: TriggerFolder = {
+        ...structuredClone(src),
+        id: crypto.randomUUID(),
+        name: `${src.name} (copy)`.slice(0, FOLDER_NAME_MAX),
+        paused: true,
+    };
+    delete copy.collapsed;
+
+    const copies = _triggers
+        .filter(t => t.folderId === id)
+        .map((t): Trigger => ({ ...structuredClone(t), id: crypto.randomUUID(), folderId: copy.id }));
+
+    const layout = getLayout();
+    const at = layout.indexOf(id);
+    layout.splice(at === -1 ? layout.length : at + 1, 0, copy.id);
+
+    _folders = [..._folders, copy];
+    _layout = layout;
+    _triggers = [..._triggers, ...copies];
+    notifyListeners();
+    persistFolders();
+    persist();
+    return copy;
+}
+
 // --- Export / Import ---
 
 export type RedactField =
@@ -680,10 +760,12 @@ export type ExportOptions = {
     redact?: RedactField[];
 };
 
-function exportedFolder(f: TriggerFolder, keepState: boolean): ExportedFolder {
+function exportedFolder(f: TriggerFolder, redact?: Set<RedactField>): ExportedFolder {
     const out: ExportedFolder = { id: f.id, name: f.name, description: f.description, color: f.color };
-    if (keepState && f.hidden) out.hidden = true;
-    if (keepState && f.paused) out.paused = true;
+    if (!redact && f.hidden) out.hidden = true;
+    if (!redact && f.paused) out.paused = true;
+    if (f.rules && !redact?.has("conditions")) out.rules = { ...f.rules };
+    if (f.bypasses && !redact?.has("bypasses")) out.bypasses = { ...f.bypasses };
     return out;
 }
 
@@ -696,7 +778,7 @@ function fileShape(t: Trigger, redact?: Set<RedactField>): object | null {
     if (!r) return null;
     const { folderId, ...rest } = r;
     const f = getFolder(folderId);
-    return f ? { ...rest, folder: exportedFolder(f, !redact) } : rest;
+    return f ? { ...rest, folder: exportedFolder(f, redact) } : rest;
 }
 
 function serialize(list: Trigger[], redact?: Set<RedactField>): string {
@@ -756,13 +838,14 @@ function redactTrigger(trigger: Trigger, redact: Set<RedactField>): Trigger | nu
         ...withInlineIcon(trigger),
         conditions: {
             ...trigger.conditions,
-            ...(redact.has("conditions") && { fromUser: [], inChannel: [], ignoredChannels: [], ignoredGuilds: [], mentionRoles: [] }),
+            ...(redact.has("conditions") && { fromUser: [], inChannel: [], inGuild: [], ignoredChannels: [], ignoredGuilds: [], ignoredUsers: [], mentionRoles: [] }),
             ...(redact.has("bypasses") && {
                 bypassMatchAmbiguity: false,
                 bypassMonitoredOnly: false,
                 bypassIgnoredGuilds: false,
                 bypassForwardIgnoredGuilds: false,
                 bypassIgnoredChannels: false,
+                bypassIgnoredUsers: false,
                 bypassLinkVerification: false,
                 bypassLinkDeduplication: false,
                 bypassGlobalExclude: false,
@@ -856,7 +939,7 @@ export function parseTriggersFile(json: string): ParseResult {
         // Folders travel as the folder itself, never as an id from someone else's list
         delete t.folderId;
         const folder = migrateFolder(raw.folder);
-        if (folder) t.folder = exportedFolder(folder, true);
+        if (folder) t.folder = exportedFolder(folder);
         if (ids.has(t.id)) t.id = crypto.randomUUID();
         ids.add(t.id);
         return t;

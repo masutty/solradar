@@ -453,6 +453,12 @@ export const settings = definePluginSettings({
         default: "",
         hidden: true,
     },
+    monitoredUsers: {
+        type: OptionType.STRING,
+        description: "Comma-separated list of user IDs that the plugin should monitor. If empty, all users will be monitored. Example: `123456789012345678, 987654321098765432`",
+        default: "",
+        hidden: true,
+    },
     ignoredGuilds: {
         type: OptionType.STRING,
         description: "Comma-separated list of guild IDs that are always ignored, regardless of what any trigger says. Use this for servers with no-sniper policies. Example: `123456789012345678, 987654321098765432`",
