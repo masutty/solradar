@@ -196,7 +196,19 @@ export function analyzeMessage(original: Message, channel: Channel, guild: Guild
     const wouldMatch = explainTriggerMatch(message, active).matched;
     const removed = match.rejected.filter(r => r.filtered && wouldMatch.includes(r.trigger));
     const removedFixes = [...new Map(removed.flatMap(r => r.fix ? [r.fix] : []).map(f => [`${f.kind}:${f.id}`, f])).values()].slice(0, 3).map(filterFix);
-    const removedDetail = removed.length === 1 ? removed[0].reason : removed.map(r => r.reason.startsWith(r.trigger.name) ? r.reason : `${r.trigger.name}: ${r.reason}`).join(" ");
+    // Same reason, one line: "Dreamspace, Miniboss: This server is in ...". User filters only get a count.
+    const shown = removed.filter(r => !r.byUser);
+    const byUserCount = removed.length - shown.length;
+    const groups = new Map<string, string[]>();
+    for (const r of shown) {
+        const names = groups.get(r.reason) ?? [];
+        // Trigger-level reasons already start with the trigger's name
+        if (!r.reason.startsWith(r.trigger.name)) names.push(r.trigger.name);
+        groups.set(r.reason, names);
+    }
+    const lines = [...groups].map(([reason, names]) => names.length ? `${names.join(", ")}: ${reason}` : reason);
+    if (byUserCount) lines.push(`${byUserCount === 1 ? "1 trigger only fires" : `${byUserCount} triggers only fire`} for other users.`);
+    const removedDetail = shown.length === 1 && !byUserCount ? shown[0].reason : lines.join(" ");
     if (!trigger) {
         if (match.ambiguous.length) {
             const names = match.ambiguous.map(t => `${t.name} (${t.state.priority})`).join(" and ");
@@ -226,7 +238,7 @@ export function analyzeMessage(original: Message, channel: Channel, guild: Guild
         detail: `Matched ${trigger.name} (priority ${trigger.state.priority})${match.via ? ` by ${match.via}` : ""}.${offMatches.length ? ` Turned off but would also match: ${offNames}.` : ""}`,
     });
 
-    add({ group: "match", name: "Filters", status: "pass", detail: removed.length ? `Not blocked. ${removed.length === 1 ? "1 other trigger was" : `${removed.length} other triggers were`} filtered out.` : "Not blocked by any filter." });
+    add({ group: "match", name: "Filters", status: "pass", detail: shown.length ? `Not blocked. ${shown.length === 1 ? "1 other trigger was" : `${shown.length} other triggers were`} filtered out.` : "Not blocked by any filter." });
 
     // --- Save to History ---
 

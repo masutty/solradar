@@ -45,7 +45,7 @@ function triggerTier(t: Trigger): Tier {
 export function explainScope(
     t: Trigger,
     { channel, message }: { channel: Channel; message: Message; },
-): { reason: string; fix?: FilterFix; } | null {
+): { reason: string; fix?: FilterFix; byUser: boolean; } | null {
     const folder = getFolder(t.folderId);
     const block = scopeBlock({
         userId: message.author.id,
@@ -57,19 +57,21 @@ export function explainScope(
         bypass: k => hasBypass(t, k),
     });
     if (!block) return null;
+    // User filters are expected config, the debug modal doesn't list them
+    const out = (r: { reason: string; fix?: FilterFix; }) => ({ ...r, byUser: block.list === "onlyUsers" || block.list === "neverUsers" });
 
     const user = message.author.username;
 
     if (block.tier === "global") {
         switch (block.list) {
-            case "neverServers": return { reason: "This server is in \"Always ignore these servers\" in Settings.", fix: { kind: "unignoreGuild", id: channel.guild_id } };
-            case "neverChannels": return { reason: `#${channel.name} is in "Always ignore these channels" in Settings.`, fix: { kind: "unignoreChannel", id: channel.id } };
-            case "neverUsers": return { reason: `${user} is in "Always ignore these users" in Settings.`, fix: { kind: "unignoreUser", id: message.author.id } };
-            case "onlyUsers": return { reason: `${user} isn't in "Only from these users" in Settings.` };
-            default: return { reason: "This server and channel aren't in your \"Only monitor\" lists in Settings.", fix: { kind: "monitorGuild", id: channel.guild_id } };
+            case "neverServers": return out({ reason: "This server is in \"Always ignore these servers\" in Settings.", fix: { kind: "unignoreGuild", id: channel.guild_id } });
+            case "neverChannels": return out({ reason: `#${channel.name} is in "Always ignore these channels" in Settings.`, fix: { kind: "unignoreChannel", id: channel.id } });
+            case "neverUsers": return out({ reason: `${user} is in "Always ignore these users" in Settings.`, fix: { kind: "unignoreUser", id: message.author.id } });
+            case "onlyUsers": return out({ reason: `${user} isn't in "Only from these users" in Settings.` });
+            default: return out({ reason: "This server and channel aren't in your \"Only monitor\" lists in Settings.", fix: { kind: "monitorGuild", id: channel.guild_id } });
         }
     }
 
     const owner = block.tier === "folder" ? `The ${folder!.name} folder` : t.name;
-    return { reason: scopeReason(block, owner, channel.name, user) };
+    return out({ reason: scopeReason(block, owner, channel.name, user) });
 }

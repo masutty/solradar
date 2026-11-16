@@ -219,14 +219,14 @@ export interface TriggerMatchResult {
     /** Every trigger whose conditions matched, before ambiguity and priority are applied */
     matched: Trigger[];
     /** Why each active trigger didn't match */
-    rejected: { trigger: Trigger; reason: string; globalExclude?: boolean; filtered?: boolean; fix?: FilterFix; }[];
+    rejected: { trigger: Trigger; reason: string; globalExclude?: boolean; filtered?: boolean; byUser?: boolean; fix?: FilterFix; }[];
 }
 
 export function explainTriggerMatch(message: Message, activeTriggers: Trigger[], ctx?: { channel: Channel; }): TriggerMatchResult {
     const filtered: TriggerMatchResult["rejected"] = [];
     const allowed = ctx ? activeTriggers.filter(t => {
         const blocked = explainScope(t, { channel: ctx.channel, message });
-        if (blocked) filtered.push({ trigger: t, reason: blocked.reason, filtered: true, fix: blocked.fix });
+        if (blocked) filtered.push({ trigger: t, reason: blocked.reason, filtered: true, byUser: blocked.byUser, fix: blocked.fix });
         return !blocked;
     }) : activeTriggers;
 
