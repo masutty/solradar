@@ -245,14 +245,11 @@ export function EssentialsSection({ draft, patch }: { draft: Draft; patch: Patch
             <TourAnchor id="editor.roles">
                 <RoleChipInput roles={draft.conditions.mentionRoles} onChange={roles => patch({ conditions: { ...draft.conditions, mentionRoles: roles } })} />
             </TourAnchor>
-            {/* Last: it checks every way above that can fire the trigger */}
+            {/* Last: it checks the keywords and the excluded words, not roles */}
             <TourAnchor id="editor.preview">
             <MatchPreview
                 triggerName={draft.name}
-                matchKeywords={keywords.match.value}
-                matchStrict={keywords.match.strict}
-                excludeKeywords={keywords.exclude.value}
-                excludeStrict={keywords.exclude.strict}
+                conditions={draft.conditions}
             />
             </TourAnchor>
         </>

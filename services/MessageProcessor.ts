@@ -205,8 +205,20 @@ function containsKeyword(text: string, keyword: string, strict: boolean): boolea
     return text.toLowerCase().includes(keyword.toLowerCase());
 }
 
-function firstKeyword(text: string, set: KeywordSet): string | undefined {
+export function firstKeyword(text: string, set: KeywordSet): string | undefined {
     return set.value.find(kw => containsKeyword(text, kw, set.strict));
+}
+
+export function findExcluded(text: string, conditions: Pick<Trigger["conditions"], "keywords" | "bypassGlobalExclude">): { word: string; global: boolean; } | null {
+    const word = firstKeyword(text, conditions.keywords.exclude);
+    if (word) return { word, global: false };
+
+    if (!conditions.bypassGlobalExclude) {
+        const globalWord = firstKeyword(text, { value: [...parseCsv(settings.store.globalExcludeKeywords)], strict: settings.store.globalExcludeStrict });
+        if (globalWord) return { word: globalWord, global: true };
+    }
+
+    return null;
 }
 
 /** `via` says what made it match: a keyword, a role, or nothing (a trigger with no keywords). */
@@ -237,15 +249,11 @@ function evaluateTrigger(message: Message, trigger: Trigger): { matched: boolean
         via = keyword ? `keyword "${keyword}"` : `role ${role!.label || role!.id}`;
     }
 
-    const excluded = firstKeyword(content, conditions.keywords.exclude);
-    if (excluded)
-        return { matched: false, reason: `excluded keyword "${excluded}" is in the message` };
-
-    if (!conditions.bypassGlobalExclude) {
-        const globalExcluded = firstKeyword(content, { value: [...parseCsv(settings.store.globalExcludeKeywords)], strict: settings.store.globalExcludeStrict });
-        if (globalExcluded)
-            return { matched: false, reason: `global excluded keyword "${globalExcluded}" is in the message`, globalExclude: true };
-    }
+    const blocker = findExcluded(content, conditions);
+    if (blocker?.global)
+        return { matched: false, reason: `global excluded keyword "${blocker.word}" is in the message`, globalExclude: true };
+    if (blocker)
+        return { matched: false, reason: `excluded keyword "${blocker.word}" is in the message` };
 
     return { matched: true, via };
 }

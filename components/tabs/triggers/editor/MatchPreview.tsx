@@ -6,6 +6,9 @@
 
 import { React, TextInput, Tooltip, useState } from "@webpack/common";
 
+import { settings } from "../../../../settings";
+import { findExcluded, firstKeyword, stripSnipableLinks } from "../../../../services/MessageProcessor";
+import { Trigger } from "../../../../types";
 import { COLORS, descriptionText, labelText } from "../../../ui/styles";
 
 // --- Matching helpers ---
@@ -29,10 +32,6 @@ function escapeRegex(s: string) {
     return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-function testKw(text: string, kw: string, strict: boolean) {
-    return new RegExp(strict ? `\\b${escapeRegex(kw)}\\b` : escapeRegex(kw), "i").test(text);
-}
-
 function highlight(text: string, kws: string[], strict: boolean, color: string): React.ReactNode[] {
     const active = kws.filter(k => k.trim());
     if (!active.length) return [text];
@@ -44,21 +43,34 @@ function highlight(text: string, kws: string[], strict: boolean, color: string):
     );
 }
 
-type Verdict = "match" | "excluded" | "none";
+type Verdict = "match" | "excluded" | "global" | "none";
 
-const VERDICT: Record<Verdict, { label: string; color: string; }> = {
-    match: { label: "Would match", color: COLORS.positive },
-    excluded: { label: "Cancelled by a word in Must not contain", color: COLORS.danger },
-    none: { label: "No match", color: COLORS.muted },
+interface Result { verdict: Verdict; word?: string; }
+
+const VERDICT: Record<Verdict, { color: string; }> = {
+    match: { color: COLORS.positive },
+    excluded: { color: COLORS.danger },
+    global: { color: COLORS.danger },
+    none: { color: COLORS.muted },
 };
 
+function verdictLabel({ verdict, word }: Result) {
+    switch (verdict) {
+        case "match": return "Would match";
+        case "excluded": return `Cancelled by "${word}" in Must not contain`;
+        case "global": return `Cancelled by "${word}" in your global Must not contain list`;
+        default: return "No keyword in the message";
+    }
+}
+
 // Built on render, never at module load: JSX at import time crashes the whole Vencord renderer
-function VerdictSymbol({ verdict }: { verdict: Verdict; }) {
+function VerdictSymbol({ result }: { result: Result; }) {
+    const { verdict } = result;
     const { color } = VERDICT[verdict];
     return (
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-label={VERDICT[verdict].label} style={{ flexShrink: 0 }}>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-label={verdictLabel(result)} style={{ flexShrink: 0 }}>
             {verdict === "match" && <path d="M4.5 12.5l5 5 10-11" />}
-            {verdict === "excluded" && <path d="m6 6 12 12M18 6 6 18" />}
+            {(verdict === "excluded" || verdict === "global") && <path d="m6 6 12 12M18 6 6 18" />}
             {verdict === "none" && <path d="M7 12h10" />}
         </svg>
     );
@@ -66,22 +78,24 @@ function VerdictSymbol({ verdict }: { verdict: Verdict; }) {
 
 // --- MatchPreview ---
 
-export function MatchPreview({ triggerName, matchKeywords, matchStrict, excludeKeywords, excludeStrict }: {
+export function MatchPreview({ triggerName, conditions }: {
     triggerName: string;
-    matchKeywords: string[];
-    matchStrict: boolean;
-    excludeKeywords: string[];
-    excludeStrict: boolean;
+    conditions: Pick<Trigger["conditions"], "keywords" | "bypassGlobalExclude">;
 }) {
     const [extra, setExtra] = useState<string[]>([]);
     const [draft, setDraft] = useState("");
     const messages = [...generatePreviewMessages(triggerName), ...extra];
+    const { match } = conditions.keywords;
 
-    const verdictOf = (msg: string): Verdict => {
-        if (excludeKeywords.some(k => k && testKw(msg, k, excludeStrict))) return "excluded";
-        return matchKeywords.some(k => k && testKw(msg, k, matchStrict)) ? "match" : "none";
+    // Same order as the pipeline: a match keyword first, then the excluded words
+    const resultOf = (msg: string): Result => {
+        const text = stripSnipableLinks(msg);
+        if (!firstKeyword(text, match)) return { verdict: "none" };
+        const blocker = findExcluded(text, conditions);
+        if (blocker) return { verdict: blocker.global ? "global" : "excluded", word: blocker.word };
+        return { verdict: "match" };
     };
-    const matches = messages.filter(m => verdictOf(m) === "match").length;
+    const matches = messages.filter(m => resultOf(m).verdict === "match").length;
 
     const addMessage = () => {
         const v = draft.trim();
@@ -102,17 +116,18 @@ export function MatchPreview({ triggerName, matchKeywords, matchStrict, excludeK
 
             <div style={{ marginTop: 8, padding: 4, borderRadius: 8, background: "var(--input-background-default)", border: "1px solid var(--input-border-default)" }}>
                 {messages.map((msg, i) => {
-                    const verdict = verdictOf(msg);
+                    const result = resultOf(msg);
+                    const { verdict } = result;
                     return (
-                        <Tooltip key={`${i}-${msg}`} text={VERDICT[verdict].label}>
+                        <Tooltip key={`${i}-${msg}`} text={verdictLabel(result)}>
                             {props => (
                                 <div {...props} style={{ display: "flex", alignItems: "center", gap: 8, minHeight: 28, padding: "3px 8px", borderRadius: 5, fontSize: 13 }}>
                                     <span style={{ flex: 1, minWidth: 0, overflowWrap: "anywhere", color: verdict === "none" ? COLORS.muted : COLORS.text }}>
-                                        {verdict === "excluded"
-                                            ? highlight(msg, excludeKeywords, excludeStrict, COLORS.danger)
-                                            : highlight(msg, matchKeywords, matchStrict, COLORS.positive)}
+                                        {verdict === "excluded" || verdict === "global"
+                                            ? highlight(msg, [result.word!], verdict === "excluded" ? conditions.keywords.exclude.strict : settings.store.globalExcludeStrict, COLORS.danger)
+                                            : highlight(msg, match.value, match.strict, COLORS.positive)}
                                     </span>
-                                    <VerdictSymbol verdict={verdict} />
+                                    <VerdictSymbol result={result} />
                                 </div>
                             )}
                         </Tooltip>
