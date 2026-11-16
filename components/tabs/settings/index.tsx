@@ -661,9 +661,10 @@ export function SettingsTab() {
             entries: [
                 { id: "monitoredGuilds", label: "Only monitor these servers", chipKind: "guild", description: "Leave empty to monitor all of your servers.", tooltip: "Adding even one server means every other server is silently ignored." },
                 { id: "monitoredChannels", label: "Only monitor these channels", chipKind: "channel", description: "Leave empty to monitor every channel.", tooltip: "Adding even one channel means every other channel is silently ignored." },
-                { id: "ignoredGuilds", label: "Always ignore these servers", chipKind: "guild", description: "Overrides every trigger. Good for servers with no-sniper rules." },
-                { id: "ignoredChannels", label: "Always ignore these channels", chipKind: "channel", description: "Overrides every trigger." },
-                { id: "ignoredUsers", label: "Always ignore these users", chipKind: "user", description: "Overrides every trigger." },
+                { id: "monitoredUsers", label: "Only from these users", chipKind: "user", description: "Leave empty for anyone." },
+                { id: "ignoredGuilds", label: "Always ignore these servers", chipKind: "guild", description: "Triggers and folders can bypass this. Good for servers with no-sniper rules." },
+                { id: "ignoredChannels", label: "Always ignore these channels", chipKind: "channel", description: "Triggers and folders can bypass this." },
+                { id: "ignoredUsers", label: "Always ignore these users", chipKind: "user", description: "Triggers and folders can bypass this." },
             ],
         },
         {

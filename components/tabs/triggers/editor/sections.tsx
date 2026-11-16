@@ -12,7 +12,7 @@ import { React, showToast, TextInput, Tooltip, useEffect, useState } from "@webp
 
 import { settings } from "../../../../settings";
 import { isLocalIcon, resolveIcon, saveIconFile } from "../../../../stores/IconStore";
-import { DEFAULT_BIOME, hasBiomeCheck, hasBiomeStatus, locksUntilBiomeEnds, Trigger, TriggerType, TYPE_COLORS } from "../../../../stores/TriggerStore";
+import { DEFAULT_BIOME, getFolder, hasBiomeCheck, hasBiomeStatus, locksUntilBiomeEnds, Trigger, TriggerType, TYPE_COLORS } from "../../../../stores/TriggerStore";
 import { TourAnchor, tourAnchor } from "../../../tour/TourAnchor";
 import { IdChipInput } from "../../../ui/IdChipInput";
 import { KeywordsInput } from "../../../ui/KeywordsInput";
@@ -20,6 +20,7 @@ import { Note } from "../../../ui/Note";
 import { descriptionText, labelText } from "../../../ui/styles";
 import { AudioField, NumberField, RoleChipInput, rowStacked, sectionHeading, SwitchRow, TextAreaField, TextField } from "./fields";
 import { AccentField, FloatingPreview, FormatFields, MatchTimingField, ShowFields } from "./forwardEditor";
+import { BYPASSES } from "./bypasses";
 import { MatchPreview } from "./MatchPreview";
 
 export type Draft = Omit<Trigger, "id">;
@@ -249,7 +250,7 @@ export function EssentialsSection({ draft, patch }: { draft: Draft; patch: Patch
             <TourAnchor id="editor.preview">
             <MatchPreview
                 triggerName={draft.name}
-                conditions={draft.conditions}
+                conditions={{ ...draft.conditions, bypassGlobalExclude: Boolean(draft.conditions.bypassGlobalExclude || getFolder(draft.folderId)?.bypasses?.bypassGlobalExclude) }}
             />
             </TourAnchor>
         </>
@@ -393,32 +394,28 @@ function FiltersSection({ draft, patch }: { draft: Draft; patch: Patch; }) {
             <p style={{ ...descriptionText, margin: "0 2px 4px" }}>Narrow down when this trigger fires. Every filter you set must pass.</p>
             <IdChipInput kind="user" label="Only from these users" hint="Leave empty for anyone." ids={c.fromUser} onChange={ids => patchC({ fromUser: ids })} />
             <IdChipInput kind="channel" label="Only in these channels" hint="Leave empty for any monitored channel." ids={c.inChannel} onChange={ids => patchC({ inChannel: ids })} />
+            <IdChipInput kind="guild" label="Only in these servers" hint="Leave empty for any server." ids={c.inGuild} onChange={ids => patchC({ inGuild: ids })} />
             <IdChipInput kind="channel" label="Never in these channels" hint="On top of the channels ignored in Settings." ids={c.ignoredChannels} onChange={ids => patchC({ ignoredChannels: ids })} />
             <IdChipInput kind="guild" label="Never in these servers" hint="Good for servers with no-sniper rules." ids={c.ignoredGuilds} onChange={ids => patchC({ ignoredGuilds: ids })} />
+            <IdChipInput kind="user" label="Never from these users" hint="On top of the users ignored in Settings." ids={c.ignoredUsers} onChange={ids => patchC({ ignoredUsers: ids })} />
             <SwitchRow label="Ignore edited messages" hint="Only fire on new messages, never on edits. Matters only when Check edited messages is on in Settings." value={c.ignoreEdits} onChange={v => patchC({ ignoreEdits: v })} />
         </>
     );
 }
 
-const BYPASSES: [keyof Draft["conditions"], string, string][] = [
-    ["bypassMonitoredOnly", "Bypass monitored channels", "Allows this trigger to search for matches in any channel."],
-    ["bypassIgnoredChannels", "Bypass ignored channels", "Allows matching even in globally ignored channels."],
-    ["bypassIgnoredGuilds", "Bypass ignored servers", "Allows matching even in globally ignored servers."],
-    ["bypassForwardIgnoredGuilds", "Bypass forward ignored servers", "Allows forwarding even from globally forward-ignored servers."],
-    ["bypassMatchAmbiguity", "Bypass match ambiguity", "Always treat this trigger as unambiguous, even if multiple triggers match simultaneously."],
-    ["bypassLinkVerification", "Bypass link verification", "Skip Place ID verification for this trigger."],
-    ["bypassLinkDeduplication", "Bypass link deduplication", "Skip the duplication check for this trigger."],
-    ["bypassGlobalExclude", "Bypass global excluded words", "Ignore the global \"Must not contain\" list from Settings for this trigger."],
-];
-
 function BypassesSection({ draft, patch }: { draft: Draft; patch: Patch; }) {
     const c = draft.conditions;
+    const folder = getFolder(draft.folderId);
     return (
         <>
             <Note variant="danger">These skip global safety checks. Only turn them on if you know why.</Note>
-            {BYPASSES.map(([key, label, hint]) => (
-                <SwitchRow key={key} label={label} hint={hint} value={Boolean(c[key])} onChange={v => patch({ conditions: { ...c, [key]: v } })} />
-            ))}
+            {BYPASSES.map(([key, label, hint]) => {
+                const inherited = Boolean(folder?.bypasses?.[key]);
+                const reason = `On from the ${folder?.name} folder.`;
+                return inherited
+                    ? <SwitchRow key={key} label={label} hint={reason} value disabledReason={reason} onChange={() => { }} />
+                    : <SwitchRow key={key} label={label} hint={hint} value={Boolean(c[key])} onChange={v => patch({ conditions: { ...c, [key]: v } })} />;
+            })}
         </>
     );
 }
@@ -461,15 +458,17 @@ export const SECTIONS: EditorSection[] = [
         summary: d => joinParts([
             count(d.conditions.fromUser.length, "user", "users"),
             count(d.conditions.inChannel.length, "channel", "channels"),
+            count(d.conditions.inGuild.length, "server", "servers"),
             count(d.conditions.ignoredChannels.length, "ignored channel", "ignored channels"),
             count(d.conditions.ignoredGuilds.length, "ignored server", "ignored servers"),
+            count(d.conditions.ignoredUsers.length, "ignored user", "ignored users"),
             d.conditions.ignoreEdits && "ignores edits",
         ]),
         Component: FiltersSection,
     },
     {
         id: "bypasses", label: "Bypasses", group: "optional", tech: true, visible: () => true,
-        summary: d => joinParts(BYPASSES.filter(([k]) => Boolean(d.conditions[k])).map(([, label]) => label)),
+        summary: d => joinParts(BYPASSES.filter(([k]) => Boolean(d.conditions[k] || getFolder(d.folderId)?.bypasses?.[k])).map(([, label]) => label)),
         Component: BypassesSection,
     },
 ];
