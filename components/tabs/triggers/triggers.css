@@ -709,3 +709,12 @@
     margin-right: -8px;
     scrollbar-gutter: stable;
 }
+
+.vc-sora-folder-rules {
+    display: inline-grid;
+    place-items: center;
+    flex-shrink: 0;
+    width: 18px;
+    height: 18px;
+    color: var(--text-muted);
+}

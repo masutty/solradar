@@ -4,28 +4,40 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+import "./editor/editor.css";
+
 import { Button, TextButton } from "@components/Button";
 import { Heading } from "@components/Heading";
 import { CloudUploadIcon, CopyIcon, DeleteIcon, EyeIcon, FolderIcon as FileIcon, PencilIcon, UploadIcon } from "@components/Icons";
 import { Paragraph } from "@components/Paragraph";
 import { Switch } from "@components/Switch";
-import { Alerts, ContextMenuApi, Menu, React, showToast, TextArea, TextInput, Tooltip, useRef, useState } from "@webpack/common";
+import { Alerts, ContextMenuApi, Menu, React, ScrollerThin, showToast, TextArea, TextInput, Tooltip, useRef, useState } from "@webpack/common";
 
 import {
     createFolder,
+    BypassKey,
     deleteFolder,
+    duplicateFolder,
     FOLDER_COLORS,
     FOLDER_DESC_MAX,
     FOLDER_NAME_MAX,
     getTriggers,
     moveTrigger,
+    ScopeRules,
     TriggerFolder,
     updateFolder,
 } from "../../../stores/TriggerStore";
 import { isDeveloper } from "../../../utils";
 import { HeaderActions } from "../../tour/ReplayTourButton";
 import { tourAnchor } from "../../tour/TourAnchor";
+import { IdChipInput } from "../../ui/IdChipInput";
+import { resolveRow } from "../../ui/idFilter/resolve";
+import { ChipKind } from "../../ui/idFilter/types";
+import { Note } from "../../ui/Note";
+import { descriptionText } from "../../ui/styles";
 import { ModalContent, ModalFooter, ModalHeader, ModalProps, ModalRoot, ModalSize, openModal } from "../../ui/LegacyModal";
+import { BYPASSES } from "./editor/bypasses";
+import { SwitchRow } from "./editor/fields";
 import { copyFolderToClipboard, exportFolderToFile, openSafeExportDialogForFolder } from "./exportActions";
 
 // --- Icons ---
@@ -170,6 +182,15 @@ export function FolderHeader({ folder, count, open, preview, tourId, alwaysShowC
                     {props => <span {...props} className="vc-sora-trigger-offtag">Hidden</span>}
                 </Tooltip>
             )}
+            {rulesSummary(folder) && (
+                <Tooltip text={rulesSummary(folder)}>
+                    {props => (
+                        <span {...props} className="vc-sora-folder-rules" aria-label="Folder rules">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 5h16l-6 7.5V19l-4 1.5v-8z" /></svg>
+                        </span>
+                    )}
+                </Tooltip>
+            )}
             <TruncatedText text={folder.description} className="vc-sora-folder-desc" />
             {!preview && (
                 <Tooltip text="Edit folder">
@@ -242,6 +263,17 @@ export function openFolderContextMenu(e: React.MouseEvent, folder: TriggerFolder
                 leadingAccessory={{ type: "icon", icon: folder.hidden ? EyeIcon : EyeOffIcon }}
                 action={() => updateFolder(folder.id, { hidden: !folder.hidden })}
             />
+            <Menu.MenuItem
+                id="vc-sora-folder-duplicate"
+                label="Duplicate"
+                leadingAccessory={{ type: "icon", icon: CopyIcon }}
+                action={async () => {
+                    const copy = await duplicateFolder(folder.id);
+                    if (!copy) return;
+                    showToast({ text: `Duplicated with ${plural(getTriggers().filter(t => t.folderId === copy.id).length)}. The copy is paused.` });
+                    openFolderEditor(copy, undefined, "limit");
+                }}
+            />
             <Menu.MenuSeparator />
             <Menu.MenuItem id="vc-sora-folder-export" label="Export" leadingAccessory={{ type: "icon", icon: UploadIcon }}>
                 <Menu.MenuItem
@@ -304,21 +336,91 @@ export function confirmDeleteFolder(folder: TriggerFolder, onDone?: () => void):
     });
 }
 
+// --- Rules summary ---
+
+const RULE_FIELDS: [keyof ScopeRules, ChipKind, string, string][] = [
+    ["onlyServers", "guild", "Only in these servers", "Leave empty for any server."],
+    ["onlyChannels", "channel", "Only in these channels", "Leave empty for any channel. A channel here runs even if Settings doesn't monitor it."],
+    ["onlyUsers", "user", "Only from these users", "Leave empty for anyone."],
+    ["neverServers", "guild", "Never in these servers", "On top of the servers ignored in Settings."],
+    ["neverChannels", "channel", "Never in these channels", "On top of the channels ignored in Settings."],
+    ["neverUsers", "user", "Never from these users", "On top of the users ignored in Settings."],
+];
+
+function idName(kind: ChipKind, id: string): string {
+    const name = resolveRow(kind, id).name;
+    if (!name) return id;
+    return kind === "user" ? "@" + name : name;
+}
+
+function ruleParts(rules: Partial<ScopeRules> | undefined, keys?: (keyof ScopeRules)[]): string[] {
+    return RULE_FIELDS
+        .filter(([k]) => (!keys || keys.includes(k)) && rules?.[k]?.length)
+        .map(([k, kind, label]) => `${label.replace("these ", "")}: ${rules![k]!.map(id => idName(kind, id)).join(", ")}`);
+}
+
+function rulesSummary(folder: Pick<TriggerFolder, "rules" | "bypasses">): string {
+    const parts = ruleParts(folder.rules);
+    const n = BYPASSES.filter(([k]) => folder.bypasses?.[k]).length;
+    if (n) parts.push(`${n} bypass${n === 1 ? "" : "es"}`);
+    return parts.join(" · ");
+}
+
 // --- Editor ---
 
 type Draft = Omit<TriggerFolder, "id">;
+export type FolderPage = "folder" | "limit" | "ignore" | "bypasses";
 
-function FolderEditor({ modalProps, folder, forTrigger }: { modalProps: ModalProps; folder?: TriggerFolder; forTrigger?: string; }) {
+const PAGES: { id: FolderPage; label: string; keys?: (keyof ScopeRules)[]; lead?: string; }[] = [
+    { id: "folder", label: "Folder" },
+    { id: "limit", label: "Limit to", keys: ["onlyServers", "onlyChannels", "onlyUsers"], lead: "Every trigger in this folder only fires in the listed servers or channels, and only for the listed users. A server or channel here runs even if Settings doesn't monitor it." },
+    { id: "ignore", label: "Ignore", keys: ["neverServers", "neverChannels", "neverUsers"], lead: "Every trigger in this folder skips these, on top of what Settings and each trigger ignore." },
+    { id: "bypasses", label: "Bypasses" },
+];
+
+function pageSet(draft: Draft, page: (typeof PAGES)[number]): string {
+    if (page.id === "bypasses") return BYPASSES.filter(([k]) => draft.bypasses?.[k]).map(([, l]) => l).join(", ");
+    return page.keys ? ruleParts(draft.rules, page.keys).join(" · ") : "";
+}
+
+function FolderNavButton({ label, set, active, onSelect }: { label: string; set: string; active: boolean; onSelect: () => void; }) {
+    return (
+        <button type="button" className={`vc-sora-editor-navbtn${active ? " active" : ""}`} onClick={onSelect} aria-current={active}>
+            <span className="label">{label}</span>
+            {set && (
+                <Tooltip text={set}>
+                    {props => (
+                        <span {...props} className="vc-sora-editor-set" aria-label={set}>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4.5 12.5l5 5 10-11" /></svg>
+                        </span>
+                    )}
+                </Tooltip>
+            )}
+        </button>
+    );
+}
+
+function FolderEditor({ modalProps, folder, forTrigger, startPage }: { modalProps: ModalProps; folder?: TriggerFolder; forTrigger?: string; startPage?: FolderPage; }) {
     const [draft, setDraft] = useState<Draft>(() => folder
-        ? { name: folder.name, description: folder.description, color: folder.color, hidden: folder.hidden, paused: folder.paused, collapsed: folder.collapsed }
+        ? { name: folder.name, description: folder.description, color: folder.color, hidden: folder.hidden, paused: folder.paused, collapsed: folder.collapsed, rules: folder.rules, bypasses: folder.bypasses }
         : { name: "", description: "", color: FOLDER_COLORS[0] });
+    const [page, setPage] = useState<FolderPage>(startPage ?? "folder");
     const set = (p: Partial<Draft>) => setDraft(d => ({ ...d, ...p }));
     const count = folder
         ? (() => { const ts = getTriggers().filter(t => t.folderId === folder.id && !t.hidden); return { on: ts.filter(t => t.state.enabled).length, total: ts.length }; })()
         : { on: 0, total: 0 };
+    const active = PAGES.find(p => p.id === page)!;
 
     const save = async () => {
-        const data = { ...draft, name: draft.name.trim() || "Untitled folder", description: draft.description.trim() };
+        const rules = Object.fromEntries(Object.entries(draft.rules ?? {}).filter(([, ids]) => ids?.length)) as Partial<ScopeRules>;
+        const bypasses = Object.fromEntries(Object.entries(draft.bypasses ?? {}).filter(([, on]) => on)) as Partial<Record<BypassKey, boolean>>;
+        const data: Draft = {
+            ...draft,
+            name: draft.name.trim() || "Untitled folder",
+            description: draft.description.trim(),
+            rules: Object.keys(rules).length ? rules : undefined,
+            bypasses: Object.keys(bypasses).length ? bypasses : undefined,
+        };
         if (folder) await updateFolder(folder.id, data);
         else {
             const created = await createFolder(data);
@@ -327,8 +429,97 @@ function FolderEditor({ modalProps, folder, forTrigger }: { modalProps: ModalPro
         modalProps.onClose();
     };
 
+    const folderPage = (
+        <div
+            className="vc-sora-folder-editor"
+            onKeyDown={e => {
+                if (e.key !== "Enter" || e.shiftKey || (e.target as HTMLElement).tagName === "BUTTON") return;
+                e.preventDefault();
+                save();
+            }}
+        >
+            <FolderHeader folder={{ id: "preview", ...draft, name: draft.name || "Untitled folder" }} count={count} open preview />
+
+            <div className="vc-sora-folder-field">
+                <div className="vc-sora-folder-label"><span>Name</span><span className="vc-sora-folder-limit">{draft.name.length}/{FOLDER_NAME_MAX}</span></div>
+                <TextInput value={draft.name} onChange={v => set({ name: v.slice(0, FOLDER_NAME_MAX) })} maxLength={FOLDER_NAME_MAX} placeholder="Rare biomes" autoFocus />
+            </div>
+
+            <div className="vc-sora-folder-field">
+                <div className="vc-sora-folder-label"><span>Description</span><span className="vc-sora-folder-limit">{draft.description.length}/{FOLDER_DESC_MAX}</span></div>
+                <TextArea value={draft.description} onChange={v => set({ description: v.replace(/\n/g, " ").slice(0, FOLDER_DESC_MAX) })} maxLength={FOLDER_DESC_MAX} rows={2} placeholder="Optional" />
+            </div>
+
+            <div className="vc-sora-folder-field">
+                <div className="vc-sora-folder-label"><span>Color</span></div>
+                <div className="vc-sora-folder-swatches">
+                    {FOLDER_COLORS.map(c => (
+                        <button
+                            key={c}
+                            type="button"
+                            className="vc-sora-folder-swatch"
+                            aria-label={c}
+                            aria-pressed={draft.color === c}
+                            style={{ "--sora-c": c } as React.CSSProperties}
+                            onClick={() => set({ color: c })}
+                        />
+                    ))}
+                    <Tooltip text="Custom color">
+                        {props => (
+                            <label {...props} className={`vc-sora-folder-swatch custom${FOLDER_COLORS.includes(draft.color) ? "" : " on"}`}>
+                                <input type="color" value={draft.color} onChange={e => set({ color: e.currentTarget.value })} />
+                            </label>
+                        )}
+                    </Tooltip>
+                </div>
+            </div>
+
+            <div className="vc-sora-folder-switches">
+                <div className="vc-sora-folder-hiderow">
+                    <span>Pause folder</span>
+                    <Switch checked={!!draft.paused} onChange={v => set({ paused: v })} />
+                </div>
+                <div className="vc-sora-folder-hiderow">
+                    <span>Hide from list</span>
+                    <Switch checked={!!draft.hidden} onChange={v => set({ hidden: v })} />
+                </div>
+            </div>
+        </div>
+    );
+
+    const rulesPage = (
+        <>
+            <div style={descriptionText}>{active.lead}</div>
+            {RULE_FIELDS.filter(([k]) => active.keys?.includes(k)).map(([key, kind, label, hint]) => (
+                <IdChipInput
+                    key={key}
+                    kind={kind}
+                    label={label}
+                    hint={hint}
+                    ids={draft.rules?.[key] ?? []}
+                    onChange={ids => set({ rules: { ...draft.rules, [key]: ids } })}
+                />
+            ))}
+        </>
+    );
+
+    const bypassesPage = (
+        <>
+            <Note variant="danger">These skip global safety checks for every trigger in this folder.</Note>
+            {BYPASSES.map(([key, label, hint]) => (
+                <SwitchRow
+                    key={key}
+                    label={label}
+                    hint={hint.replace("this trigger", "these triggers")}
+                    value={Boolean(draft.bypasses?.[key])}
+                    onChange={v => set({ bypasses: { ...draft.bypasses, [key]: v } })}
+                />
+            ))}
+        </>
+    );
+
     return (
-        <ModalRoot {...modalProps} size={ModalSize.SMALL}>
+        <ModalRoot {...modalProps} size={ModalSize.LARGE}>
             <ModalHeader className="vc-sora-modal-header vc-sora-modal-header-tall">
                 <div className="vc-sora-folder-editor-head">
                     <Heading tag="h2" className="vc-sora-modal-title" style={{ margin: 0 }}>{folder ? "Edit folder" : "New folder"}</Heading>
@@ -336,61 +527,26 @@ function FolderEditor({ modalProps, folder, forTrigger }: { modalProps: ModalPro
                 </div>
             </ModalHeader>
 
-            <ModalContent>
-                <div
-                    className="vc-sora-folder-editor"
-                    onKeyDown={e => {
-                        if (e.key !== "Enter" || e.shiftKey || (e.target as HTMLElement).tagName === "BUTTON") return;
-                        e.preventDefault();
-                        save();
-                    }}
-                >
-                    <FolderHeader folder={{ id: "preview", ...draft, name: draft.name || "Untitled folder" }} count={count} open preview />
-
-                    <div className="vc-sora-folder-field">
-                        <div className="vc-sora-folder-label"><span>Name</span><span className="vc-sora-folder-limit">{draft.name.length}/{FOLDER_NAME_MAX}</span></div>
-                        <TextInput value={draft.name} onChange={v => set({ name: v.slice(0, FOLDER_NAME_MAX) })} maxLength={FOLDER_NAME_MAX} placeholder="Rare biomes" autoFocus />
-                    </div>
-
-                    <div className="vc-sora-folder-field">
-                        <div className="vc-sora-folder-label"><span>Description</span><span className="vc-sora-folder-limit">{draft.description.length}/{FOLDER_DESC_MAX}</span></div>
-                        <TextArea value={draft.description} onChange={v => set({ description: v.replace(/\n/g, " ").slice(0, FOLDER_DESC_MAX) })} maxLength={FOLDER_DESC_MAX} rows={2} placeholder="Optional" />
-                    </div>
-
-                    <div className="vc-sora-folder-field">
-                        <div className="vc-sora-folder-label"><span>Color</span></div>
-                        <div className="vc-sora-folder-swatches">
-                            {FOLDER_COLORS.map(c => (
-                                <button
-                                    key={c}
-                                    type="button"
-                                    className="vc-sora-folder-swatch"
-                                    aria-label={c}
-                                    aria-pressed={draft.color === c}
-                                    style={{ "--sora-c": c } as React.CSSProperties}
-                                    onClick={() => set({ color: c })}
-                                />
-                            ))}
-                            <Tooltip text="Custom color">
-                                {props => (
-                                    <label {...props} className={`vc-sora-folder-swatch custom${FOLDER_COLORS.includes(draft.color) ? "" : " on"}`}>
-                                        <input type="color" value={draft.color} onChange={e => set({ color: e.currentTarget.value })} />
-                                    </label>
-                                )}
-                            </Tooltip>
+            <ModalContent style={{ padding: 0, overflow: "hidden" }}>
+                <div className="vc-sora-editor-body">
+                    <nav className="vc-sora-editor-nav vc-sora-thin-scroll">
+                        {PAGES.map((p, i) => (
+                            <React.Fragment key={p.id}>
+                                {i === 1 && <div className="vc-sora-editor-navsep" role="separator" />}
+                                <FolderNavButton label={p.label} set={pageSet(draft, p)} active={p.id === page} onSelect={() => setPage(p.id)} />
+                            </React.Fragment>
+                        ))}
+                    </nav>
+                    <ScrollerThin key={page} className="vc-sora-editor-content">
+                        <div className="vc-sora-editor-page">
+                            {page === "folder" ? folderPage : (
+                                <>
+                                    <h2 className="vc-sora-editor-pagetitle">{active.label}</h2>
+                                    {page === "bypasses" ? bypassesPage : rulesPage}
+                                </>
+                            )}
                         </div>
-                    </div>
-
-                    <div className="vc-sora-folder-switches">
-                        <div className="vc-sora-folder-hiderow">
-                            <span>Pause folder</span>
-                            <Switch checked={!!draft.paused} onChange={v => set({ paused: v })} />
-                        </div>
-                        <div className="vc-sora-folder-hiderow">
-                            <span>Hide from list</span>
-                            <Switch checked={!!draft.hidden} onChange={v => set({ hidden: v })} />
-                        </div>
-                    </div>
+                    </ScrollerThin>
                 </div>
             </ModalContent>
 
@@ -407,6 +563,6 @@ function FolderEditor({ modalProps, folder, forTrigger }: { modalProps: ModalPro
 }
 
 /** Opens the folder editor. Without a folder it creates one, and `forTrigger` then moves that trigger into it. */
-export function openFolderEditor(folder?: TriggerFolder, forTrigger?: string): void {
-    openModal(p => <FolderEditor modalProps={p} folder={folder} forTrigger={forTrigger} />);
+export function openFolderEditor(folder?: TriggerFolder, forTrigger?: string, page?: FolderPage): void {
+    openModal(p => <FolderEditor modalProps={p} folder={folder} forTrigger={forTrigger} startPage={page} />);
 }
