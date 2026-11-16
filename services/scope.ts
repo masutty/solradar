@@ -7,10 +7,10 @@
 import { Channel, Message } from "@vencord/discord-types";
 
 import { settings } from "../settings";
-import { BypassKey, getFolder, ScopeRules } from "../stores/TriggerStore";
+import { BypassKey, getFolder } from "../stores/TriggerStore";
 import { Trigger } from "../types";
 import { parseCsv } from "../utils";
-import { scopeBlock, Tier } from "./scopeRules";
+import { scopeBlock, scopeReason, Tier } from "./scopeRules";
 
 export type FilterFix = { kind: "unignoreGuild" | "unignoreChannel" | "unignoreUser" | "monitorGuild"; id: string; };
 
@@ -59,14 +59,6 @@ export function explainScope(
     if (!block) return null;
 
     const user = message.author.username;
-    const where: Record<keyof ScopeRules, string> = {
-        neverServers: "in this server",
-        neverChannels: `in #${channel.name}`,
-        neverUsers: `for ${user}`,
-        onlyServers: "here",
-        onlyChannels: "here",
-        onlyUsers: `for ${user}`,
-    };
 
     if (block.tier === "global") {
         switch (block.list) {
@@ -78,7 +70,6 @@ export function explainScope(
         }
     }
 
-    const owner = block.tier === "folder" ? `the ${folder!.name} folder` : t.name;
-    const verb = block.list.startsWith("never") ? "never fires" : "only fires";
-    return { reason: `${owner} ${verb} ${where[block.list]} (${block.tier === "folder" ? "its rules" : "its Filters"}).` };
+    const owner = block.tier === "folder" ? `The ${folder!.name} folder` : t.name;
+    return { reason: scopeReason(block, owner, channel.name, user) };
 }

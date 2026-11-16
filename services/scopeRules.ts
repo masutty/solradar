@@ -58,3 +58,16 @@ export function scopeBlock(i: ScopeInput): ScopeBlock | null {
 
     return null;
 }
+
+export function scopeReason(block: ScopeBlock, owner: string, channelName: string, userName: string): string {
+    const where = block.tier === "folder" ? "its rules" : "its Filters";
+    const text: Record<keyof ScopeRules, string> = {
+        neverServers: "never fires in this server",
+        neverChannels: `never fires in #${channelName}`,
+        neverUsers: `never fires for ${userName}`,
+        onlyServers: "only fires in certain servers",
+        onlyChannels: "only fires in certain channels",
+        onlyUsers: "only fires for certain users",
+    };
+    return `${owner} ${text[block.list]} (${where}).`;
+}
