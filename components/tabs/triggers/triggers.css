@@ -459,7 +459,8 @@
 
 .vc-sora-folder-head.paused .vc-sora-folder-name,
 .vc-sora-folder-head.paused .vc-sora-folder-glyph,
-.vc-sora-folder-head.paused .vc-sora-folder-desc {
+.vc-sora-folder-head.paused .vc-sora-folder-desc,
+.vc-sora-folder-head.paused .vc-sora-folder-rules {
     opacity: 0.45;
 }
 

@@ -139,6 +139,16 @@ export function FolderHeader({ folder, count, open, preview, tourId, alwaysShowC
             {props => <span {...props} className="vc-sora-folder-count"><b>{count.on}</b>/{count.total}</span>}
         </Tooltip>
     );
+    const rules = rulesSummary(folder);
+    const rulesMark = rules && (
+        <Tooltip text={rules}>
+            {props => (
+                <span {...props} className="vc-sora-folder-rules" aria-label="Folder rules">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 5h16l-6 7.5V19l-4 1.5v-8z" /></svg>
+                </span>
+            )}
+        </Tooltip>
+    );
 
     return (
         <div
@@ -176,19 +186,12 @@ export function FolderHeader({ folder, count, open, preview, tourId, alwaysShowC
             {/* Always shown, the count sits before the name; on hover, it slides open after it */}
             {alwaysShowCount && countChip}
             <TruncatedText text={folder.name} className="vc-sora-folder-name" />
+            {/* Before the hover count, so it doesn't slide away from the mouse */}
+            {rulesMark}
             {!alwaysShowCount && countChip}
             {folder.hidden && (
                 <Tooltip text="Hidden from the list. Right-click and choose Unhide to bring it back.">
                     {props => <span {...props} className="vc-sora-trigger-offtag">Hidden</span>}
-                </Tooltip>
-            )}
-            {rulesSummary(folder) && (
-                <Tooltip text={rulesSummary(folder)}>
-                    {props => (
-                        <span {...props} className="vc-sora-folder-rules" aria-label="Folder rules">
-                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 5h16l-6 7.5V19l-4 1.5v-8z" /></svg>
-                        </span>
-                    )}
                 </Tooltip>
             )}
             <TruncatedText text={folder.description} className="vc-sora-folder-desc" />
