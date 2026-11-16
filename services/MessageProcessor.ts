@@ -130,29 +130,28 @@ function endsWithSolRadarMark(message: Message): boolean {
     return last?.toLowerCase().endsWith("solradar") === true;
 }
 
-export function isValidMessage(message: Message): boolean {
+export function invalidMessageReason(message: Message): "self-forward" | "reforward" | null {
     // @ts-ignore webhook_id is missing from the Message type
     const webhook_id = message.webhook_id ?? message.author.id ?? undefined;
     const isASelfForward = getActiveTriggers().some(t => {
         const url = t.forwarding.webhookUrl || settings.store.globalWebhookUrl;
         return url && webhook_id && url.includes(webhook_id);
     });
-
-    if (isASelfForward) {
-        logger.warn("This message is a self-forward!");
-        return false;
-    }
+    if (isASelfForward) return "self-forward";
 
     const isReforward = message.embeds.some(e =>
         e.type === "rich" && (e as any).footer?.text?.toLowerCase() === "solradar"
     ) || endsWithSolRadarMark(message);
+    if (isReforward && settings.store.ignoreWebhookForwards) return "reforward";
 
-    if (isReforward && settings.store.ignoreWebhookForwards) {
-        logger.warn("This message is a re-forward! Protection against forward loops is enabled.");
-        return false;
-    }
+    return null;
+}
 
-    return true;
+export function isValidMessage(message: Message): boolean {
+    const reason = invalidMessageReason(message);
+    if (reason === "self-forward") logger.warn("This message is a self-forward!");
+    if (reason === "reforward") logger.warn("This message is a re-forward! Protection against forward loops is enabled.");
+    return reason === null;
 }
 
 /** Why a message is blocked for this trigger, or null when it passes. Same rules as isMessageAllowed. */

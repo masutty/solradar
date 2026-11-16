@@ -7,7 +7,7 @@
 import { Channel, Guild, Message } from "@vencord/discord-types";
 
 import { BiomeDetector } from "../../../services/BiomeDetector";
-import { explainMessageBlocked, explainTriggerMatch, FilterFix, flattenEmbeds, getSnipableLink, isComponentsV2, isValidMessage, sanitizeContent } from "../../../services/MessageProcessor";
+import { explainMessageBlocked, explainTriggerMatch, FilterFix, flattenEmbeds, getSnipableLink, invalidMessageReason, isComponentsV2, sanitizeContent } from "../../../services/MessageProcessor";
 import { lastSeenAgo } from "../../../services/SnipeDeduplicator";
 import { settings } from "../../../settings";
 import { JoinLockStore } from "../../../stores/JoinLockStore";
@@ -118,11 +118,11 @@ export function analyzeMessage(original: Message, channel: Channel, guild: Guild
         return ignored("Discord forwards are skipped.");
     }
 
-    if (!isValidMessage(message)) {
-        const reforward = message.embeds.some(e => e.type === "rich" && (e as any).footer?.text?.toLowerCase() === "solradar");
+    const invalid = invalidMessageReason(message);
+    if (invalid) {
         add({
             group: "read", name: "Valid message", status: "fail",
-            detail: reforward
+            detail: invalid === "reforward"
                 ? "This is a Sol Radar forward from someone else. \"Ignore forwards\" is on to avoid loops."
                 : "Sent by the webhook your triggers forward to.",
         });
