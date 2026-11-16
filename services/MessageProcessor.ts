@@ -249,7 +249,11 @@ export function explainTriggerMatch(message: Message, activeTriggers: Trigger[],
 }
 
 function getMatchingTrigger(message: Message, activeTriggers: Trigger[], channel: Channel): Trigger | null {
-    const { winner, ambiguous } = explainTriggerMatch(message, activeTriggers, { channel });
+    const { winner, ambiguous, rejected } = explainTriggerMatch(message, activeTriggers, { channel });
+
+    for (const r of rejected) {
+        if (r.filtered) logger.debug(`[${r.trigger.name}] ${r.reason} Skipping.`);
+    }
 
     if (ambiguous.length) {
         logger.warn(

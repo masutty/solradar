@@ -340,7 +340,7 @@ export function confirmDeleteFolder(folder: TriggerFolder, onDone?: () => void):
 
 const RULE_FIELDS: [keyof ScopeRules, ChipKind, string, string][] = [
     ["onlyServers", "guild", "Only in these servers", "Leave empty for any server."],
-    ["onlyChannels", "channel", "Only in these channels", "Leave empty for any channel. A channel here runs even if Settings doesn't monitor it."],
+    ["onlyChannels", "channel", "Only in these channels", "Leave empty for any channel."],
     ["onlyUsers", "user", "Only from these users", "Leave empty for anyone."],
     ["neverServers", "guild", "Never in these servers", "On top of the servers ignored in Settings."],
     ["neverChannels", "channel", "Never in these channels", "On top of the channels ignored in Settings."],

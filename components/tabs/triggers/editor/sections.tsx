@@ -413,7 +413,7 @@ function BypassesSection({ draft, patch }: { draft: Draft; patch: Patch; }) {
                 const inherited = Boolean(folder?.bypasses?.[key]);
                 const reason = `On from the ${folder?.name} folder.`;
                 return inherited
-                    ? <SwitchRow key={key} label={label} hint={reason} value disabledReason={reason} onChange={() => { }} />
+                    ? <SwitchRow key={key} label={label} hint={reason} value disabledReason={hint} onChange={() => { }} />
                     : <SwitchRow key={key} label={label} hint={hint} value={Boolean(c[key])} onChange={v => patch({ conditions: { ...c, [key]: v } })} />;
             })}
         </>

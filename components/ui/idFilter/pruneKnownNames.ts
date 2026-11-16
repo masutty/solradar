@@ -5,10 +5,10 @@
  */
 
 import { settings } from "../../../settings";
-import { getTriggers, triggerStoreReady } from "../../../stores/TriggerStore";
+import { getFolders, getTriggers, triggerStoreReady } from "../../../stores/TriggerStore";
 import { KnownNamesStore } from "./KnownNamesStore";
 
-const ID_SETTINGS = ["monitoredGuilds", "monitoredChannels", "ignoredGuilds", "ignoredChannels", "ignoredUsers", "forwardIgnoredGuilds"] as const;
+const ID_SETTINGS = ["monitoredGuilds", "monitoredUsers", "monitoredChannels", "ignoredGuilds", "ignoredChannels", "ignoredUsers", "forwardIgnoredGuilds"] as const;
 
 /** Forgets remembered names of IDs that no setting or trigger uses anymore. */
 export async function pruneKnownNames() {
@@ -24,9 +24,14 @@ export async function pruneKnownNames() {
         add(t.conditions.inChannel);
         add(t.conditions.ignoredChannels);
         add(t.conditions.ignoredGuilds);
+        add(t.conditions.inGuild);
+        add(t.conditions.ignoredUsers);
         add(t.conditions.mentionRoles.map(r => r.id));
         add(t.forwarding.excludedGuilds);
         add(t.forwarding.excludedChannels);
+    }
+    for (const f of getFolders()) {
+        for (const list of Object.values(f.rules ?? {})) add(list);
     }
     await KnownNamesStore.prune(inUse);
 }

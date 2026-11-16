@@ -196,7 +196,7 @@ export function analyzeMessage(original: Message, channel: Channel, guild: Guild
     const wouldMatch = explainTriggerMatch(message, active).matched;
     const removed = match.rejected.filter(r => r.filtered && wouldMatch.includes(r.trigger));
     const removedFixes = [...new Map(removed.flatMap(r => r.fix ? [r.fix] : []).map(f => [`${f.kind}:${f.id}`, f])).values()].slice(0, 3).map(filterFix);
-    const removedDetail = removed.length === 1 ? removed[0].reason : removed.map(r => `${r.trigger.name}: ${r.reason}`).join(" ");
+    const removedDetail = removed.length === 1 ? removed[0].reason : removed.map(r => r.reason.startsWith(r.trigger.name) ? r.reason : `${r.trigger.name}: ${r.reason}`).join(" ");
     if (!trigger) {
         if (match.ambiguous.length) {
             const names = match.ambiguous.map(t => `${t.name} (${t.state.priority})`).join(" and ");

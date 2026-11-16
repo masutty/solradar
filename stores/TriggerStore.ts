@@ -722,7 +722,7 @@ export async function duplicateFolder(id: string): Promise<TriggerFolder | undef
     const copy: TriggerFolder = {
         ...structuredClone(src),
         id: crypto.randomUUID(),
-        name: `${src.name} (copy)`.slice(0, FOLDER_NAME_MAX),
+        name: `${src.name.slice(0, FOLDER_NAME_MAX - " (copy)".length)} (copy)`,
         paused: true,
     };
     delete copy.collapsed;
