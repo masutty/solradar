@@ -32,6 +32,14 @@ export const locksUntilBiomeEnds = (
     detector: { enabled: boolean; accounts: string; },
 ) => detector.enabled && Boolean(detector.accounts.trim()) && hasBiomeStatus(t) && Boolean(t.biome?.lockUntilEnd);
 
+/** The biomes a trigger accepts: the comma-separated keyword, or the trigger name when the keyword is empty. */
+export function expectedBiomes(t: { name: string; biome?: { detectionKeyword: string; }; }): string[] {
+    const parts = (t.biome?.detectionKeyword ?? "").split(",").map(p => p.trim().toUpperCase()).filter(Boolean);
+    return parts.length ? parts : [t.name.trim().toUpperCase()];
+}
+
+export const formatBiomes = (biomes: string[]) => biomes.join(" or ");
+
 export interface TriggerState {
     enabled: boolean;
     autojoin: boolean;
