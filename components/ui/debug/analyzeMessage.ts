@@ -11,7 +11,7 @@ import { explainMessageBlocked, explainTriggerMatch, FilterFix, flattenEmbeds, g
 import { lastSeenAgo } from "../../../services/SnipeDeduplicator";
 import { settings } from "../../../settings";
 import { JoinLockStore } from "../../../stores/JoinLockStore";
-import { getActiveTriggers, getFolder, getTriggers, isTriggerRunning, Trigger, updateFolder, updateTrigger } from "../../../stores/TriggerStore";
+import { expectedBiomes, formatBiomes, getActiveTriggers, getFolder, getTriggers, isTriggerRunning, Trigger, updateFolder, updateTrigger } from "../../../stores/TriggerStore";
 import { SnipableLink } from "../../../types";
 import { formatElapsedTime, getCurrentVersion, parseCsv } from "../../../utils";
 
@@ -278,14 +278,15 @@ export function analyzeMessage(original: Message, channel: Channel, guild: Guild
     add({ group: "join", name: "Auto-join", status: "pass", detail: `On in Settings and for ${t.name}.` });
 
     if (t.biome?.skipRedundantJoin) {
-        const expected = t.biome.detectionKeyword || t.name;
+        const list = expectedBiomes(t);
+        const inBiome = list.find(b => BiomeDetector.isAnyAccountInBiome(b));
         const fresh = FRESH_KEYWORDS.some(kw => message.content.toLowerCase().includes(kw));
-        if (BiomeDetector.isAnyAccountInBiome(expected) && !fresh) {
-            add({ group: "join", name: "Already in biome?", status: "fail", detail: `An account is already in ${expected.toUpperCase()}. A message with "fresh" or "start" would join anyway.` });
+        if (inBiome && !fresh) {
+            add({ group: "join", name: "Already in biome?", status: "fail", detail: `An account is already in ${inBiome}. A message with "fresh" or "start" would join anyway.` });
             after();
-            return saved(`You're already in ${expected.toUpperCase()}, and ${t.name} skips redundant joins.`);
+            return saved(`You're already in ${inBiome}, and ${t.name} skips redundant joins.`);
         }
-        add({ group: "join", name: "Already in biome?", status: "pass", detail: fresh && BiomeDetector.isAnyAccountInBiome(expected) ? `In ${expected.toUpperCase()}, but "fresh" or "start" lets it join.` : `No account is in ${expected.toUpperCase()}.` });
+        add({ group: "join", name: "Already in biome?", status: "pass", detail: fresh && inBiome ? `In ${inBiome}, but "fresh" or "start" lets it join.` : `No account is in ${formatBiomes(list)}.` });
     } else {
         add({ group: "join", name: "Already in biome?", status: "info", detail: `${t.name} doesn't skip redundant joins.` });
     }

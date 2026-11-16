@@ -10,7 +10,7 @@ import { Logger } from "../logger";
 import { Snipe } from "../models/Snipe";
 import { settings } from "../settings";
 import { JoinLockStore } from "../stores/JoinLockStore";
-import { locksUntilBiomeEnds } from "../stores/TriggerStore";
+import { expectedBiomes, locksUntilBiomeEnds } from "../stores/TriggerStore";
 import { SnipableLink, SnipeMetrics, Trigger } from "../types";
 import { getEffectiveKillTargets, Native, parseCsv } from "../utils";
 import { executeAction } from "./ActionExecutor";
@@ -66,8 +66,8 @@ function activateJoinLock(snipe: Snipe): boolean {
 function isRedundantJoin(snipe: Snipe): boolean {
     if (!snipe.trigger.biome?.skipRedundantJoin) return false;
 
-    const expected = snipe.trigger.biome.detectionKeyword || snipe.trigger.name;
-    if (!BiomeDetector.isAnyAccountInBiome(expected)) return false;
+    const inBiome = expectedBiomes(snipe.trigger).find(b => BiomeDetector.isAnyAccountInBiome(b));
+    if (!inBiome) return false;
 
     const freshKeywords = parseCsv("start,fresh");
     if (freshKeywords.size > 0) {
@@ -79,7 +79,7 @@ function isRedundantJoin(snipe: Snipe): boolean {
         }
     }
 
-    snipe.logWarn(`Redundant join skipped: already in biome "${expected}".`);
+    snipe.logWarn(`Redundant join skipped: already in biome "${inBiome}".`);
     return true;
 }
 
