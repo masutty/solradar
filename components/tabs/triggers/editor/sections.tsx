@@ -320,8 +320,8 @@ function BiomeSection({ draft, patch }: { draft: Draft; patch: Patch; }) {
             {biome.detectionEnabled && <>
                 <TextField
                     label="Biome name in the logs"
-                    hint={`Case-insensitive. Empty uses the trigger name, "${draft.name.trim().toUpperCase() || "…"}"`}
-                    tooltip='Matches the BloxstrapRPC "hoverText" field in the Roblox log.'
+                    hint={`Separate several biomes with commas. Empty uses the trigger name, "${draft.name.trim().toUpperCase() || "…"}"`}
+                    tooltip='Case-insensitive. Matches the BloxstrapRPC "hoverText" field in the Roblox log.'
                     value={biome.detectionKeyword}
                     placeholder="e.g. GLITCHED"
                     onChange={v => patchBiome({ detectionKeyword: v })}
