@@ -104,7 +104,7 @@ function InfoIcon() {
 /** The first read of a page: the real rate, one bar split by result, and the four totals. */
 export function SummaryCard({ stats, caption, note }: { stats: Stats; caption: string; note?: string; }) {
     if (!stats.n) {
-        return <Note>No snipes in this period yet. They show up here once Sol Radar joins one.</Note>;
+        return <Note>No snipes in this period yet</Note>;
     }
 
     return (
