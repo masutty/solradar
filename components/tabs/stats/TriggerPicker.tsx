@@ -46,20 +46,14 @@ function PickerMenu({ initial, counts, onChange, onClose }: { initial: Selection
             <Menu.MenuCheckboxItem id="vc-sora-stats-trigger-all" label="All triggers" checked={selection === null} action={clear} />
             {groups.map((g, i) => {
                 const names = g.triggers.map(t => t.name);
-                const state = tickState(selection, names);
                 return (
                     <React.Fragment key={g.folder?.id ?? `loose-${i}`}>
                         <Menu.MenuSeparator />
                         {g.folder && (
                             <Menu.MenuCheckboxItem
                                 id={`vc-sora-stats-folder-${g.folder.id}`}
-                                label={(
-                                    <span className="vc-sora-stats-pick-row">
-                                        <span className="vc-sora-stats-pick-name">{g.folder.name}</span>
-                                        {state === "part" && <span className="vc-sora-stats-pick-count">{names.filter(n => selection?.has(n)).length} of {names.length}</span>}
-                                    </span>
-                                ) as unknown as string}
-                                checked={state === "on"}
+                                label={g.folder.name}
+                                checked={tickState(selection, names) === "on"}
                                 action={() => change(names)}
                             />
                         )}
