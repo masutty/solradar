@@ -933,3 +933,8 @@ button.vc-sora-stats-who {
     background: var(--brand-500);
     border-color: var(--brand-500);
 }
+
+.vc-sora-stats-pick-folder {
+    display: inline-flex;
+    flex-shrink: 0;
+}

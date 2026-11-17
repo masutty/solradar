@@ -7,6 +7,7 @@
 import { ContextMenuApi, Menu, React, Tooltip } from "@webpack/common";
 
 import { getLayout, useFolders, useTriggers } from "../../../stores/TriggerStore";
+import { FolderGlyph } from "../triggers/folders";
 import { TriggerIcon } from "./parts";
 import { pickGroups, Selection, tickState, toggleNames } from "./pick";
 
@@ -81,7 +82,14 @@ function PickerMenu({ initial, counts, onChange, onClose }: { initial: Selection
                                 // Hover opens the folder's triggers; a click on the folder itself ticks or unticks all of them
                                 <Menu.MenuItem
                                     id={`vc-sora-stats-folder-${g.folder.id}`}
-                                    label={g.folder.name}
+                                    label={(
+                                        <span className="vc-sora-stats-pick-row">
+                                            <span className="vc-sora-stats-pick-folder" style={{ color: folders.find(f => f.id === g.folder!.id)?.color }}>
+                                                <FolderGlyph size={18} />
+                                            </span>
+                                            <span className="vc-sora-stats-pick-name">{g.folder.name}</span>
+                                        </span>
+                                    ) as unknown as string}
                                     icon={() => <TickBox state={tickState(selection, names)} />}
                                     action={() => change(names)}
                                 >
