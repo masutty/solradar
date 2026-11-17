@@ -17,6 +17,8 @@ import { Overview } from "./Overview";
 import { TimingPage, WhenPage, WhoPage } from "./Pages";
 import { serverIconUrl, TriggerIcon } from "./parts";
 import { MeasureMenu, PeriodMenu } from "./PeriodMenu";
+import { Selection } from "./pick";
+import { TriggerPicker } from "./TriggerPicker";
 
 /** What the tab is showing a closer look at: a trigger or a server. */
 interface Subject { type: "trigger" | "server"; key: string; name: string; iconUrl?: string; }
@@ -46,6 +48,7 @@ export function StatsTab() {
     const [period, setPeriod] = React.useState<Period>({ id: "1d" });
     const [subject, setSubject] = React.useState<Subject | null>(null);
     const [page, setPage] = React.useState<Page | null>(null);
+    const [selection, setSelection] = React.useState<Selection>(null);
     const allEntries = useSnipeHistory();
     const { anonymizeEverything, historyBoltSteps } = settings.use(["anonymizeEverything", "historyBoltSteps"]);
     // Timing follows the choice made for the ⚡ in Snipe History (Settings, Interface) until another is picked here
@@ -62,14 +65,23 @@ export function StatsTab() {
         () => allEntries.filter(e => e.timestamp >= win.since && e.timestamp < win.until),
         [allEntries, win]
     );
-    const rows = React.useMemo(() => triggerRows(inWindow, win, measure.steps), [inWindow, win, measure]);
-    const overall = React.useMemo(() => computeStats(inWindow, win, undefined, measure.steps), [inWindow, win, measure]);
+    const counts = React.useMemo(() => {
+        const map = new Map<string, number>();
+        for (const e of inWindow) map.set(e.triggerName, (map.get(e.triggerName) ?? 0) + 1);
+        return map;
+    }, [inWindow]);
+    const picked = React.useMemo(
+        () => selection ? inWindow.filter(e => selection.has(e.triggerName)) : inWindow,
+        [inWindow, selection]
+    );
+    const rows = React.useMemo(() => triggerRows(picked, win, measure.steps), [picked, win, measure]);
+    const overall = React.useMemo(() => computeStats(picked, win, undefined, measure.steps), [picked, win, measure]);
     // What the page below the overview looks at: one trigger or server, or every snipe when a page is open without one
     const viewEntries = React.useMemo(
         () => subject != null
-            ? inWindow.filter(e => subject.type === "trigger" ? e.triggerName === subject.key : serverKey(e) === subject.key)
-            : page ? inWindow : null,
-        [inWindow, subject, page]
+            ? picked.filter(e => subject.type === "trigger" ? e.triggerName === subject.key : serverKey(e) === subject.key)
+            : page ? picked : null,
+        [picked, subject, page]
     );
     const view = React.useMemo(
         () => viewEntries == null ? null : computeStats(viewEntries, win, page === "who" ? 50 : undefined, measure.steps),
@@ -111,6 +123,7 @@ export function StatsTab() {
                         )}
                         <span className="vc-sora-stats-grow" />
                         {page === "timing" && <MeasureMenu measure={measure} onChange={setPickedSteps} />}
+                        <TriggerPicker selection={selection} counts={counts} onChange={setSelection} />
                         <PeriodMenu period={period} win={win} onChange={setPeriod} />
                     </div>
                     {page === "timing" ? (
@@ -138,6 +151,7 @@ export function StatsTab() {
                     <div className="vc-sora-stats-crumb">
                         <b className="vc-sora-stats-crumb-root">Stats</b>
                         <span className="vc-sora-stats-grow" />
+                        <TriggerPicker selection={selection} counts={counts} onChange={setSelection} />
                         <PeriodMenu period={period} win={win} onChange={setPeriod} />
                     </div>
                     <Overview
