@@ -938,3 +938,9 @@ button.vc-sora-stats-who {
     display: inline-flex;
     flex-shrink: 0;
 }
+
+/* Stretches the folder label over the row's padding so a click anywhere on it stays inside the label */
+.vc-sora-stats-pick-hit {
+    margin: -6px -8px;
+    padding: 6px 16px 6px 8px;
+}

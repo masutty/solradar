@@ -80,11 +80,11 @@ function PickerMenu({ initial, counts, onChange, onClose }: { initial: Selection
                         {!g.folder && i > 0 && <Menu.MenuSeparator />}
                         {g.folder
                             ? (
-                                // Hover opens the folder's triggers; a click on the folder itself ticks or unticks all of them
+                                // Hover opens the folder's triggers. The row handles its own click so ticking the folder keeps the menu open; Enter still runs action and closes it
                                 <Menu.MenuItem
                                     id={`vc-sora-stats-folder-${g.folder.id}`}
                                     label={(
-                                        <span className="vc-sora-stats-pick-row">
+                                        <span className="vc-sora-stats-pick-row vc-sora-stats-pick-hit" onClick={e => { e.stopPropagation(); change(names); }}>
                                             <span className="vc-sora-stats-pick-folder" style={{ color: folders.find(f => f.id === g.folder!.id)?.color }}>
                                                 <FolderGlyph size={18} />
                                             </span>
