@@ -17,11 +17,12 @@ import { React, showToast, Tooltip } from "@webpack/common";
 import { isComponentsV2 } from "../../services/MessageProcessor";
 import { joinLink, lookupPlaceId, resolveShareLinkRaw } from "../../services/RobloxService";
 import { settings } from "../../settings";
+import { TYPE_COLORS } from "../../stores/TriggerStore";
 import { UIState } from "../../stores/UIStateStore";
 import { SnipableLink } from "../../types";
 import { isDeveloper, parseCsv } from "../../utils";
 import { openEditTriggerModal } from "../tabs/triggers/editor/TriggerEditor";
-import { ALL_STEPS, analyzeMessage, debugReport, DebugResult, DebugStep, Fix, GROUPS, StepStatus, Verdict } from "./debug/analyzeMessage";
+import { ALL_STEPS, analyzeMessage, debugReport, DebugResult, DebugStep, Fix, GROUPS, LeftOutGroup, LeftOutKind, StepStatus, Verdict } from "./debug/analyzeMessage";
 import { ModalCloseButton, ModalContent, ModalFooter, ModalHeader, ModalProps, ModalRoot, ModalSize, openModal } from "./LegacyModal";
 
 type View = "checklist" | "trace";
@@ -216,6 +217,81 @@ function MessagePreview({ message, channel, guild, text }: { message: Message; c
     );
 }
 
+// --- Left out by a filter ---
+
+const TONE_COLOR = { global: "var(--status-danger)", folder: "", own: "var(--text-muted)" };
+
+// Built on render, never at module load, like the status icons
+function KindIcon({ kind }: { kind: LeftOutKind; }) {
+    const line = { fill: "none", stroke: "currentColor", strokeWidth: 2.2, strokeLinecap: "round", strokeLinejoin: "round" } as const;
+    const svg = (children: React.ReactNode, props: object = line) => <svg viewBox="0 0 24 24" aria-hidden="true" {...props}>{children}</svg>;
+    switch (kind) {
+        case "server": return svg(<><rect x="3" y="4" width="18" height="16" rx="5" /><path d="M5 19 19 5" /></>);
+        case "channel": return svg(<path d="M10 4 7 20M17 4l-3 16M4 9h16M3 15h16" />);
+        case "monitor": return svg(<><path d="M3 3l18 18M10.6 5.1A10 10 0 0 1 12 5c6 0 9.5 7 9.5 7a17 17 0 0 1-3 3.9M6.6 6.6C3.9 8.4 2.5 12 2.5 12S6 19 12 19c1.9 0 3.5-.6 4.9-1.5" /><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2" /></>);
+        case "userx": return svg(<><circle cx="10" cy="8" r="4" /><path d="M3 20c1.4-3.8 4-5.8 7-5.8 1.2 0 2.3.3 3.3.9M16 15l5 5M21 15l-5 5" /></>);
+        case "word": return svg(<><path d="M3 18 7.5 6 12 18M4.7 14h5.6" /><path d="M15 18v-6.5a2.5 2.5 0 0 1 5 0V18M15 15h5" /><path d="M2 21 22 3" strokeWidth={1.8} /></>);
+        case "folder": return svg(<path d="M3 6.5A2.5 2.5 0 0 1 5.5 4h4l2 2.5h7A2.5 2.5 0 0 1 21 9v8.5a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 17.5z" />, { fill: "currentColor" });
+        case "user": return svg(<><circle cx="12" cy="8" r="4" /><path d="M4 20c1.5-4 4.5-6 8-6s6.5 2 8 6" /></>);
+    }
+}
+
+function LeftOutTip({ title, dot, body, list, source }: { title: string; dot?: string; body?: string; list?: string[]; source: string; }) {
+    return (
+        <div className="vc-sora-dbg-tip">
+            <b>{dot && <i style={{ background: dot }} />}{title}</b>
+            {body && <span>{body}</span>}
+            {list && <div className="vc-sora-dbg-tip-list">{list.map(n => <span key={n}>{n}</span>)}</div>}
+            <em>{source}</em>
+        </div>
+    );
+}
+
+function LeftOutRows({ groups }: { groups: LeftOutGroup[]; }) {
+    const total = groups.reduce((n, g) => n + g.triggers.length, 0);
+    return (
+        <>
+            <span>{total === 1 ? "1 trigger matched the words but was left out." : `${total} triggers matched the words but were left out.`}</span>
+            <div className="vc-sora-dbg-lo">
+                {groups.map(g => (
+                    <React.Fragment key={`${g.source}|${g.short}|${g.reason}`}>
+                        <Tooltip text={<LeftOutTip title={g.short} body={g.reason} source={g.source} />}>
+                            {props => (
+                                <span {...props} className="vc-sora-dbg-lo-tag" style={{ "--tc": g.tone === "folder" ? g.folderColor : TONE_COLOR[g.tone] } as React.CSSProperties}>
+                                    <KindIcon kind={g.kind} />
+                                </span>
+                            )}
+                        </Tooltip>
+                        <div className="vc-sora-dbg-lo-chips">
+                            {g.byUser
+                                ? (
+                                    <Tooltip text={<LeftOutTip title="Only fire for other users" list={g.triggers.map(t => t.name)} source={g.source} />}>
+                                        {props => (
+                                            <span {...props} className="vc-sora-dbg-chip muted">
+                                                <KindIcon kind="user" />
+                                                <span>{g.triggers.length} {g.triggers.length === 1 ? "trigger" : "triggers"}</span>
+                                            </span>
+                                        )}
+                                    </Tooltip>
+                                )
+                                : g.triggers.map(t => (
+                                    <Tooltip key={t.id} text={<LeftOutTip title={t.name} dot={TYPE_COLORS[t.type]} body={g.reason} source={g.source} />}>
+                                        {props => (
+                                            <span {...props} className="vc-sora-dbg-chip">
+                                                <i style={{ background: TYPE_COLORS[t.type] }} />
+                                                <span>{t.name}</span>
+                                            </span>
+                                        )}
+                                    </Tooltip>
+                                ))}
+                        </div>
+                    </React.Fragment>
+                ))}
+            </div>
+        </>
+    );
+}
+
 /** The analysis steps plus "Not reached" for the ones it never got to. */
 function fullSteps(result: DebugResult): DebugStep[] {
     return ALL_STEPS.map(([group, name]) =>
@@ -239,7 +315,7 @@ function ChecklistView({ result, onFixed }: { result: DebugResult; onFixed: () =
                         <StatusIcon status={s.status} />
                         <div>
                             <b>{s.name}</b>
-                            {s.detail && <span>{s.detail}</span>}
+                            {s.leftOut ? <LeftOutRows groups={s.leftOut} /> : s.detail && <span>{s.detail}</span>}
                             <FixButtons fixes={s.fixes} onFixed={onFixed} />
                         </div>
                     </div>

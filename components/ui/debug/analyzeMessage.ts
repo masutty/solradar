@@ -9,6 +9,7 @@ import { Channel, Guild, Message } from "@vencord/discord-types";
 import { BiomeDetector } from "../../../services/BiomeDetector";
 import { explainTriggerMatch, flattenEmbeds, getSnipableLink, invalidMessageReason, isComponentsV2, sanitizeContent } from "../../../services/MessageProcessor";
 import { FilterFix, hasBypass } from "../../../services/scope";
+import { ScopeBlock } from "../../../services/scopeRules";
 import { lastSeenAgo } from "../../../services/SnipeDeduplicator";
 import { settings } from "../../../settings";
 import { JoinLockStore } from "../../../stores/JoinLockStore";
@@ -29,12 +30,27 @@ export interface Fix {
     run: () => void | Promise<void>;
 }
 
+export type LeftOutKind = "server" | "channel" | "monitor" | "userx" | "word" | "folder" | "user";
+
+/** Triggers that matched the words but were left out for the same reason and source. Only the checklist draws these. */
+export interface LeftOutGroup {
+    kind: LeftOutKind;
+    tone: "global" | "folder" | "own";
+    folderColor?: string;
+    short: string;
+    reason: string;
+    source: string;
+    triggers: Trigger[];
+    byUser?: boolean;
+}
+
 export interface DebugStep {
     group: GroupKey;
     name: string;
     status: StepStatus;
     detail?: string;
     fixes?: Fix[];
+    leftOut?: LeftOutGroup[];
 }
 
 export interface DebugResult {
@@ -89,6 +105,66 @@ function filterFix(fix: FilterFix): Fix {
 
 const patchConditions = (t: Trigger, patch: Partial<Trigger["conditions"]>) => updateTrigger(t.id, { conditions: { ...t.conditions, ...patch } });
 const patchState = (t: Trigger, patch: Partial<Trigger["state"]>) => updateTrigger(t.id, { state: { ...t.state, ...patch } });
+
+type Rejected = ReturnType<typeof explainTriggerMatch>["rejected"][number];
+
+const KIND_BY_LIST: Record<ScopeBlock["list"], LeftOutKind> = {
+    neverServers: "server", neverChannels: "channel", neverUsers: "user",
+    onlyServers: "monitor", onlyChannels: "monitor", onlyUsers: "user",
+};
+const OWN_SHORT: Record<ScopeBlock["list"], string> = {
+    neverServers: "Never in this server", neverChannels: "Never in this channel", neverUsers: "Never for this user",
+    onlyServers: "Not in its servers", onlyChannels: "Not in its channels", onlyUsers: "Other users only",
+};
+const OWN_USER_REASON: Record<"neverUsers" | "onlyUsers", string> = { neverUsers: "Never fires for this user", onlyUsers: "Only fires for certain users" };
+
+// The icon, tone and labels of one left-out trigger
+function describeLeftOut(r: Rejected, username: string): Omit<LeftOutGroup, "triggers"> {
+    const folder = getFolder(r.trigger.folderId);
+    if (r.block) {
+        const { tier, list } = r.block;
+        const byUser = list === "neverUsers" || list === "onlyUsers";
+        if (tier === "global") {
+            const short = { neverServers: "Ignored server", neverChannels: "Ignored channel", neverUsers: "Ignored user", onlyUsers: "Other users only", onlyServers: "Not monitored", onlyChannels: "Not monitored" }[list];
+            return { kind: list === "neverUsers" ? "userx" : KIND_BY_LIST[list], tone: "global", short, reason: r.reason, source: "Settings", byUser };
+        }
+        if (tier === "folder") return { kind: "folder", tone: "folder", folderColor: folder?.color, short: OWN_SHORT[list], reason: r.reason, source: `Folder · ${folder?.name}`, byUser };
+        // Trigger reasons start with the trigger's name, which would only name one of a shared group
+        const reason = byUser ? `${OWN_USER_REASON[list]}${list === "neverUsers" ? ` (${username})` : ""} (its Filters).` : r.reason;
+        return { kind: KIND_BY_LIST[list], tone: "own", short: OWN_SHORT[list], reason, source: "Own filters", byUser };
+    }
+    return r.globalExclude
+        ? { kind: "word", tone: "global", short: "Excluded word", reason: `The global "Must not contain" list has "${r.word}".`, source: "Settings" }
+        : { kind: "word", tone: "own", short: "Excluded word", reason: `Its "Must not contain" has "${r.word}".`, source: "Own filters" };
+}
+
+const TONE_ORDER = { global: 0, folder: 1, own: 2 };
+
+// Rejected triggers that would have matched without the filter, grouped by reason and source. Settings first, then folders, then own filters.
+function leftOutGroups(rejected: Rejected[], wouldMatch: Trigger[], username: string): LeftOutGroup[] {
+    const groups = new Map<string, LeftOutGroup>();
+    for (const r of rejected) {
+        if (r.filtered ? !wouldMatch.includes(r.trigger) : !r.word) continue;
+        const info = describeLeftOut(r, username);
+        const key = `${info.source}|${info.byUser ? info.short : ""}|${info.reason}`;
+        const group = groups.get(key) ?? { ...info, triggers: [] };
+        group.triggers.push(r.trigger);
+        groups.set(key, group);
+    }
+    return [...groups.values()].sort((a, b) => TONE_ORDER[a.tone] - TONE_ORDER[b.tone]);
+}
+
+// The same groups as one plain sentence, for the report and the trace
+function leftOutText(groups: LeftOutGroup[]): string {
+    const shown = groups.filter(g => !g.byUser);
+    const byUserCount = groups.filter(g => g.byUser).reduce((n, g) => n + g.triggers.length, 0);
+    const lines = shown.map(g => {
+        const names = g.triggers.filter(t => !g.reason.startsWith(t.name)).map(t => t.name);
+        return names.length ? `${names.join(", ")}: ${g.reason}` : g.reason;
+    });
+    if (byUserCount) lines.push(`${byUserCount === 1 ? "1 trigger only fires" : `${byUserCount} triggers only fire`} for other users.`);
+    return shown.length === 1 && shown[0].triggers.length === 1 && !byUserCount ? shown[0].reason : lines.join(" ");
+}
 
 const shortCode = (code: string) => code.length > 14 ? `${code.slice(0, 8)}…${code.slice(-5)}` : code;
 const LINK_NAMES: Record<SnipableLink["type"], string> = { share: "Share link", private: "Private server link", joinguard: "Joinguard link" };
@@ -192,23 +268,17 @@ export function analyzeMessage(original: Message, channel: Channel, guild: Guild
     const match = explainTriggerMatch(message, active, { channel });
     trigger = match.winner;
 
-    // Triggers a filter left out, among those that would otherwise have matched
+    // Triggers a filter or an excluded word left out, among those that would otherwise have matched
     const wouldMatch = explainTriggerMatch(message, active).matched;
-    const removed = match.rejected.filter(r => r.filtered && wouldMatch.includes(r.trigger));
-    const removedFixes = [...new Map(removed.flatMap(r => r.fix ? [r.fix] : []).map(f => [`${f.kind}:${f.id}`, f])).values()].slice(0, 3).map(filterFix);
-    // Same reason, one line: "Dreamspace, Miniboss: This server is in ...". User filters only get a count.
-    const shown = removed.filter(r => !r.byUser);
-    const byUserCount = removed.length - shown.length;
-    const groups = new Map<string, string[]>();
-    for (const r of shown) {
-        const names = groups.get(r.reason) ?? [];
-        // Trigger-level reasons already start with the trigger's name
-        if (!r.reason.startsWith(r.trigger.name)) names.push(r.trigger.name);
-        groups.set(r.reason, names);
-    }
-    const lines = [...groups].map(([reason, names]) => names.length ? `${names.join(", ")}: ${reason}` : reason);
-    if (byUserCount) lines.push(`${byUserCount === 1 ? "1 trigger only fires" : `${byUserCount} triggers only fire`} for other users.`);
-    const removedDetail = shown.length === 1 && !byUserCount ? shown[0].reason : lines.join(" ");
+    const leftOut = leftOutGroups(match.rejected, wouldMatch, message.author.username);
+    const leftOutCount = leftOut.reduce((n, g) => n + g.triggers.length, 0);
+    const removedFixes = [...new Map(match.rejected.filter(r => r.filtered && wouldMatch.includes(r.trigger)).flatMap(r => r.fix ? [r.fix] : []).map(f => [`${f.kind}:${f.id}`, f])).values()].slice(0, 3).map(filterFix);
+    const bypassFixes = match.rejected.filter(r => r.globalExclude).slice(0, 3)
+        .map(r => ({ label: `Let ${r.trigger.name} ignore the global list`, run: () => patchConditions(r.trigger, { bypassGlobalExclude: true }) }));
+    const filterFixes = [...removedFixes, ...bypassFixes];
+    const leftOutDetail = leftOutText(leftOut);
+    // Name a trigger that wasn't user-filtered when there is one
+    const firstName = (leftOut.find(g => !g.byUser) ?? leftOut[0])?.triggers[0].name;
     if (!trigger) {
         if (match.ambiguous.length) {
             const names = match.ambiguous.map(t => `${t.name} (${t.state.priority})`).join(" and ");
@@ -220,16 +290,14 @@ export function analyzeMessage(original: Message, channel: Channel, guild: Guild
             });
             return ignored(`${match.ambiguous.map(t => t.name).join(" and ")} all matched, so none of them fires.`);
         }
-        if (removed.length) {
-            add({ group: "match", name: "Filters", status: "fail", detail: removedDetail, fixes: removedFixes.length ? removedFixes : undefined });
-            return ignored(removedDetail);
+        if (leftOutCount) {
+            add({ group: "match", name: "Filters", status: "fail", detail: leftOutDetail, leftOut, fixes: filterFixes.length ? filterFixes : undefined });
+            return ignored(leftOutCount === 1 ? `${firstName} was left out by a filter.` : `${firstName} and ${leftOutCount - 1} ${leftOutCount === 2 ? "other were" : "others were"} left out by filters.`);
         }
-        const globalBlocked = match.rejected.filter(r => r.globalExclude).slice(0, 3);
-        const bypassFixes = globalBlocked.map(r => ({ label: `Let ${r.trigger.name} ignore the global list`, run: () => patchConditions(r.trigger, { bypassGlobalExclude: true }) }));
         add({
             group: "match", name: "Trigger", status: "fail",
-            detail: `None of your ${active.length} active triggers matched.${globalBlocked.length ? ` ${globalBlocked.map(r => r.reason).join("; ")}.` : ""}${offMatches.length ? ` Would match if turned on: ${offNames}.` : ""}`,
-            fixes: [...bypassFixes, ...turnOn],
+            detail: `None of your ${active.length} active triggers matched.${offMatches.length ? ` Would match if turned on: ${offNames}.` : ""}`,
+            fixes: turnOn,
         });
         return ignored(offMatches.length ? offVerdict : "No active trigger matched.");
     }
@@ -238,7 +306,8 @@ export function analyzeMessage(original: Message, channel: Channel, guild: Guild
         detail: `Matched ${trigger.name} (priority ${trigger.state.priority})${match.via ? ` by ${match.via}` : ""}.${offMatches.length ? ` Turned off but would also match: ${offNames}.` : ""}`,
     });
 
-    add({ group: "match", name: "Filters", status: "pass", detail: shown.length ? `Not blocked. ${shown.length === 1 ? "1 other trigger was" : `${shown.length} other triggers were`} filtered out.` : "Not blocked by any filter." });
+    const others = leftOut.filter(g => !g.byUser).reduce((n, g) => n + g.triggers.length, 0);
+    add({ group: "match", name: "Filters", status: "pass", detail: others ? `Not blocked. ${others === 1 ? "1 other trigger was" : `${others} other triggers were`} filtered out.` : "Not blocked by any filter." });
 
     // --- Save to History ---
 

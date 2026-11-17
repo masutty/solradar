@@ -417,3 +417,134 @@
     overflow-wrap: anywhere;
     user-select: text;
 }
+
+/* --- Left out by a filter --- */
+
+.vc-sora-dbg-lo {
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr);
+    gap: 6px 10px;
+    margin-top: 6px;
+    align-items: start;
+}
+
+.vc-sora-dbg-lo-tag {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    width: 22px;
+    height: 22px;
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--tc) 18%, transparent);
+    color: color-mix(in srgb, var(--tc) 75%, white);
+    cursor: help;
+}
+
+.vc-sora-dbg-lo-tag svg {
+    width: 13px;
+    height: 13px;
+}
+
+.vc-sora-dbg-lo-chips {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    min-height: 22px;
+}
+
+.vc-sora-dbg-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    box-sizing: border-box;
+    height: 22px;
+    padding: 0 8px;
+    border-radius: 6px;
+    background: var(--background-mod-normal);
+    color: var(--text-default);
+    font-size: 12.5px;
+    font-weight: 500;
+    cursor: default;
+}
+
+.vc-sora-dbg-chip i {
+    flex-shrink: 0;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+}
+
+.vc-sora-dbg-chip > span {
+    display: inline;
+    max-width: 150px;
+    margin: 0;
+    overflow: hidden;
+    color: inherit;
+    font-size: inherit;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.vc-sora-dbg-chip svg {
+    flex-shrink: 0;
+    width: 12px;
+    height: 12px;
+}
+
+.vc-sora-dbg-chip.muted {
+    background: none;
+    box-shadow: inset 0 0 0 1px var(--background-mod-strong);
+    color: var(--text-muted);
+}
+
+.vc-sora-dbg-tip {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    max-width: 280px;
+    padding: 2px 2px 3px;
+    font-size: 13px;
+}
+
+.vc-sora-dbg-tip b {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--text-default);
+    font-size: 14px;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.vc-sora-dbg-tip b i {
+    flex-shrink: 0;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+}
+
+.vc-sora-dbg-tip span,
+.vc-sora-dbg-tip-list {
+    color: color-mix(in srgb, var(--text-default) 80%, transparent);
+    line-height: 1.4;
+}
+
+.vc-sora-dbg-tip-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.vc-sora-dbg-tip em {
+    margin-top: 2px;
+    padding-top: 6px;
+    border-top: 1px solid var(--background-mod-normal);
+    color: var(--text-muted);
+    font-size: 11px;
+    font-style: normal;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+}

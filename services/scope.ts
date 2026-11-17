@@ -10,7 +10,7 @@ import { settings } from "../settings";
 import { BypassKey, getFolder } from "../stores/TriggerStore";
 import { Trigger } from "../types";
 import { parseCsv } from "../utils";
-import { scopeBlock, scopeReason, Tier } from "./scopeRules";
+import { ScopeBlock, scopeBlock, scopeReason, Tier } from "./scopeRules";
 
 export type FilterFix = { kind: "unignoreGuild" | "unignoreChannel" | "unignoreUser" | "monitorGuild"; id: string; };
 
@@ -45,7 +45,7 @@ function triggerTier(t: Trigger): Tier {
 export function explainScope(
     t: Trigger,
     { channel, message }: { channel: Channel; message: Message; },
-): { reason: string; fix?: FilterFix; byUser: boolean; } | null {
+): { reason: string; fix?: FilterFix; byUser: boolean; block: ScopeBlock; } | null {
     const folder = getFolder(t.folderId);
     const block = scopeBlock({
         userId: message.author.id,
@@ -58,7 +58,7 @@ export function explainScope(
     });
     if (!block) return null;
     // User filters are expected config, the debug modal doesn't list them
-    const out = (r: { reason: string; fix?: FilterFix; }) => ({ ...r, byUser: block.list === "onlyUsers" || block.list === "neverUsers" });
+    const out = (r: { reason: string; fix?: FilterFix; }) => ({ ...r, block, byUser: block.list === "onlyUsers" || block.list === "neverUsers" });
 
     const user = message.author.username;
 

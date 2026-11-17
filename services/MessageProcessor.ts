@@ -12,6 +12,7 @@ import { getActiveTriggers, KeywordSet } from "../stores/TriggerStore";
 import { SnipableLink, Trigger } from "../types";
 import { extractComponentContent, parseCsv } from "../utils";
 import { explainScope, FilterFix, hasBypass } from "./scope";
+import { ScopeBlock } from "./scopeRules";
 
 const logger = new Logger("SolRadar.MessageProcessor");
 
@@ -182,7 +183,7 @@ export function findExcluded(text: string, conditions: Pick<Trigger["conditions"
 }
 
 /** `via` says what made it match: a keyword, a role, or nothing (a trigger with no keywords). */
-function evaluateTrigger(message: Message, trigger: Trigger): { matched: boolean; reason?: string; via?: string; globalExclude?: boolean; } {
+function evaluateTrigger(message: Message, trigger: Trigger): { matched: boolean; reason?: string; via?: string; globalExclude?: boolean; word?: string; } {
     const { conditions } = trigger;
     const { content } = message;
 
@@ -203,9 +204,9 @@ function evaluateTrigger(message: Message, trigger: Trigger): { matched: boolean
 
     const blocker = findExcluded(content, { ...conditions, bypassGlobalExclude: hasBypass(trigger, "bypassGlobalExclude") });
     if (blocker?.global)
-        return { matched: false, reason: `global excluded keyword "${blocker.word}" is in the message`, globalExclude: true };
+        return { matched: false, reason: `global excluded keyword "${blocker.word}" is in the message`, globalExclude: true, word: blocker.word };
     if (blocker)
-        return { matched: false, reason: `excluded keyword "${blocker.word}" is in the message` };
+        return { matched: false, reason: `excluded keyword "${blocker.word}" is in the message`, word: blocker.word };
 
     return { matched: true, via };
 }
@@ -218,15 +219,15 @@ export interface TriggerMatchResult {
     ambiguous: Trigger[];
     /** Every trigger whose conditions matched, before ambiguity and priority are applied */
     matched: Trigger[];
-    /** Why each active trigger didn't match */
-    rejected: { trigger: Trigger; reason: string; globalExclude?: boolean; filtered?: boolean; byUser?: boolean; fix?: FilterFix; }[];
+    /** Why each active trigger didn't match. `block` is the scope list that filtered it, `word` the excluded keyword that rejected it */
+    rejected: { trigger: Trigger; reason: string; globalExclude?: boolean; filtered?: boolean; byUser?: boolean; fix?: FilterFix; block?: ScopeBlock; word?: string; }[];
 }
 
 export function explainTriggerMatch(message: Message, activeTriggers: Trigger[], ctx?: { channel: Channel; }): TriggerMatchResult {
     const filtered: TriggerMatchResult["rejected"] = [];
     const allowed = ctx ? activeTriggers.filter(t => {
         const blocked = explainScope(t, { channel: ctx.channel, message });
-        if (blocked) filtered.push({ trigger: t, reason: blocked.reason, filtered: true, byUser: blocked.byUser, fix: blocked.fix });
+        if (blocked) filtered.push({ trigger: t, reason: blocked.reason, filtered: true, byUser: blocked.byUser, fix: blocked.fix, block: blocked.block });
         return !blocked;
     }) : activeTriggers;
 
@@ -234,7 +235,7 @@ export function explainTriggerMatch(message: Message, activeTriggers: Trigger[],
     const matched = results.filter(r => r.matched).map(r => r.trigger);
     const rejected = [
         ...filtered,
-        ...results.filter(r => !r.matched).map(r => ({ trigger: r.trigger, reason: r.reason ?? "did not match", globalExclude: r.globalExclude })),
+        ...results.filter(r => !r.matched).map(r => ({ trigger: r.trigger, reason: r.reason ?? "did not match", globalExclude: r.globalExclude, word: r.word })),
     ];
 
     const bypass = matched.filter(t => hasBypass(t, "bypassMatchAmbiguity"));
