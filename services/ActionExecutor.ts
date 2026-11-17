@@ -21,6 +21,8 @@ export type UserAction = "nothing" | "public" | "close" | "private" | "home" | "
 export interface PendingActionState {
     title: string;
     description?: string;
+    /** What runs when the timer ends, like "close Roblox" */
+    label: string;
     endsAt: number;
     durationMs: number;
 }
@@ -139,7 +141,7 @@ export function scheduleCancelableAction({ action, timeoutMs, title, iconUrl, de
     }, timeoutMs);
 
     _cancelFn = () => { cancelled = true; clearTimeout(timer); };
-    _setPending({ title, description, endsAt: Date.now() + timeoutMs, durationMs: timeoutMs });
+    _setPending({ title, description, label, endsAt: Date.now() + timeoutMs, durationMs: timeoutMs });
 
     // Without the notification the wait still applies, and the pending banner in the plugin still cancels it
     if (!settings.store.notifyDelayedActions) return;

@@ -1,0 +1,131 @@
+/* Same geometry as a trigger card (10px 12px padding, 40px icon, 12px gap), so the icon and text line up with the list below */
+.vc-sora-drain {
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    box-sizing: border-box;
+    flex-shrink: 0;
+    padding: 10px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    user-select: none;
+    background: color-mix(in srgb, var(--vc-sora-drain-c) 9%, transparent);
+    transition: filter 0.12s;
+}
+
+.vc-sora-drain:hover {
+    filter: brightness(1.12);
+}
+
+.vc-sora-drain > *:not(.vc-sora-drain-fill) {
+    position: relative;
+}
+
+.vc-sora-drain-fill {
+    position: absolute;
+    inset: 0 auto 0 0;
+    background: color-mix(in srgb, var(--vc-sora-drain-c) 15%, transparent);
+    transition: width 0.25s linear;
+}
+
+/* Open-ended: nothing drains, so a soft band sweeps across to show it is still active */
+.vc-sora-drain.open .vc-sora-drain-fill {
+    background: linear-gradient(
+        100deg,
+        color-mix(in srgb, var(--vc-sora-drain-c) 13%, transparent) 30%,
+        color-mix(in srgb, var(--vc-sora-drain-c) 24%, transparent) 50%,
+        color-mix(in srgb, var(--vc-sora-drain-c) 13%, transparent) 70%
+    );
+    background-size: 250% 100%;
+    animation: vc-sora-drain-sweep 3.2s linear infinite;
+}
+
+@keyframes vc-sora-drain-sweep {
+    from { background-position: 125% 0; }
+    to { background-position: -125% 0; }
+}
+
+.vc-sora-drain-tile {
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+    border-radius: 9px;
+    display: grid;
+    place-items: center;
+    background: var(--vc-sora-drain-c);
+    color: #1a1a1e;
+}
+
+.vc-sora-drain-text {
+    flex: 1;
+    min-width: 0;
+}
+
+.vc-sora-drain-title,
+.vc-sora-drain-sub {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.vc-sora-drain-title {
+    font-size: 14.5px;
+    font-weight: 600;
+    color: var(--text-default);
+}
+
+.vc-sora-drain-sub {
+    font-size: 12.5px;
+    color: var(--text-muted);
+}
+
+/* The time and the action share one cell, so the swap on hover doesn't move anything */
+.vc-sora-drain-end {
+    display: grid;
+    place-items: center end;
+    flex-shrink: 0;
+}
+
+.vc-sora-drain-end > * {
+    grid-area: 1 / 1;
+    transition: opacity 0.12s;
+}
+
+.vc-sora-drain-time {
+    font-size: 17px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    color: color-mix(in srgb, var(--vc-sora-drain-c) 70%, white);
+}
+
+.vc-sora-drain-action {
+    opacity: 0;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-default);
+    background: rgb(255 255 255 / 10%);
+}
+
+.vc-sora-drain:hover .vc-sora-drain-time {
+    opacity: 0;
+}
+
+.vc-sora-drain:hover .vc-sora-drain-action {
+    opacity: 1;
+}
+
+.vc-sora-drain-tip {
+    white-space: pre-line;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .vc-sora-drain.open .vc-sora-drain-fill {
+        animation: none;
+    }
+}

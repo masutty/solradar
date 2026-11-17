@@ -42,10 +42,14 @@ export function PendingActionBanner({ style, className }: PendingActionBannerPro
     return (
         <DrainBanner
             accent="var(--red-400)"
-            icon={<TimerIcon size={22} />}
+            icon={<TimerIcon size={21} />}
             title="Action pending"
             subtitle={pending.title}
             time={`${Math.ceil(msLeft / 1000)}s`}
+            action="Cancel"
+            tooltip={`${pending.description ?? pending.title}
+When the timer ends, it will ${pending.label}.
+Click anywhere to cancel.`}
             fraction={msLeft / pending.durationMs}
             onClick={() => PendingActionStore.cancel()}
             style={style}

@@ -44,11 +44,16 @@ export function JoinLockBanner({ style, className }: JoinLockBannerProps) {
     return (
         <DrainBanner
             accent="var(--yellow-300)"
-            icon={<LockIcon size={22} />}
+            icon={<LockIcon size={21} />}
             title="Joins locked"
-            subtitle={`${lock.triggerName} · priority ${lock.priority} or higher is ignored`}
+            subtitle={`${lock.triggerName} · priority ${lock.priority} and up waits`}
             time={openEnded ? "Until biome ends" : formatClock(Math.ceil(msLeft / 1000))}
+            action="Release"
+            tooltip={`${lock.triggerName} holds the join lock.
+Triggers with priority ${lock.priority} or higher won't join until ${openEnded ? "its biome ends" : "the timer ends"}.
+Click anywhere to release.`}
             fraction={openEnded ? 1 : msLeft / (lock.durationSeconds * 1000)}
+            openEnded={openEnded}
             onClick={() => JoinLockStore.release()}
             style={style}
             className={className}
