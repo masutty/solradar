@@ -902,10 +902,6 @@ button.vc-sora-stats-who {
     padding-right: 8px;
 }
 
-.vc-sora-stats-pick-row.nested {
-    padding-left: 18px;
-}
-
 .vc-sora-stats-pick-name {
     flex: 1;
     min-width: 0;
@@ -918,4 +914,22 @@ button.vc-sora-stats-who {
     color: var(--text-muted);
     font-size: 12px;
     font-variant-numeric: tabular-nums;
+}
+
+/* Same size and colors as Discord's menu checkbox, plus a dash for a partly ticked folder */
+.vc-sora-stats-pick-box {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    width: 18px;
+    height: 18px;
+    border-radius: 4px;
+    border: 2px solid var(--interactive-normal);
+    color: var(--white-500, #fff);
+}
+
+.vc-sora-stats-pick-box.on {
+    background: var(--brand-500);
+    border-color: var(--brand-500);
 }

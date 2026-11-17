@@ -27,6 +27,18 @@ function ChevronIcon() {
     );
 }
 
+function TickBox({ state }: { state: "on" | "part" | "off"; }) {
+    return (
+        <span className={`vc-sora-stats-pick-box${state === "off" ? "" : " on"}`} aria-hidden>
+            {state !== "off" && (
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d={state === "on" ? "M5 12.5l4.5 4.5L19 7.5" : "M6 12h12"} />
+                </svg>
+            )}
+        </span>
+    );
+}
+
 function PickerMenu({ initial, counts, onChange, onClose }: { initial: Selection; counts: Map<string, number>; onChange: (s: Selection) => void; onClose: () => void; }) {
     const triggers = useTriggers();
     const folders = useFolders();
@@ -46,32 +58,37 @@ function PickerMenu({ initial, counts, onChange, onClose }: { initial: Selection
             <Menu.MenuCheckboxItem id="vc-sora-stats-trigger-all" label="All triggers" checked={selection === null} action={clear} />
             {groups.map((g, i) => {
                 const names = g.triggers.map(t => t.name);
+                const items = g.triggers.map(t => (
+                    <Menu.MenuCheckboxItem
+                        key={t.name}
+                        id={`vc-sora-stats-trigger-${g.folder?.id ?? "loose"}-${t.name}`}
+                        label={(
+                            <span className="vc-sora-stats-pick-row">
+                                <TriggerIcon src={t.iconUrl} size={18} />
+                                <span className="vc-sora-stats-pick-name">{t.name}</span>
+                                <span className="vc-sora-stats-pick-count">{counts.get(t.name) ?? 0}</span>
+                            </span>
+                        ) as unknown as string}
+                        checked={tickState(selection, [t.name]) === "on"}
+                        action={() => change([t.name])}
+                    />
+                ));
                 return (
                     <React.Fragment key={g.folder?.id ?? `loose-${i}`}>
                         <Menu.MenuSeparator />
-                        {g.folder && (
-                            <Menu.MenuCheckboxItem
-                                id={`vc-sora-stats-folder-${g.folder.id}`}
-                                label={g.folder.name}
-                                checked={tickState(selection, names) === "on"}
-                                action={() => change(names)}
-                            />
-                        )}
-                        {g.triggers.map(t => (
-                            <Menu.MenuCheckboxItem
-                                key={t.name}
-                                id={`vc-sora-stats-trigger-${g.folder?.id ?? "loose"}-${t.name}`}
-                                label={(
-                                    <span className={`vc-sora-stats-pick-row${g.folder ? " nested" : ""}`}>
-                                        <TriggerIcon src={t.iconUrl} size={18} />
-                                        <span className="vc-sora-stats-pick-name">{t.name}</span>
-                                        <span className="vc-sora-stats-pick-count">{counts.get(t.name) ?? 0}</span>
-                                    </span>
-                                ) as unknown as string}
-                                checked={tickState(selection, [t.name]) === "on"}
-                                action={() => change([t.name])}
-                            />
-                        ))}
+                        {g.folder
+                            ? (
+                                // Hover opens the folder's triggers; a click on the folder itself ticks or unticks all of them
+                                <Menu.MenuItem
+                                    id={`vc-sora-stats-folder-${g.folder.id}`}
+                                    label={g.folder.name}
+                                    icon={() => <TickBox state={tickState(selection, names)} />}
+                                    action={() => change(names)}
+                                >
+                                    {items}
+                                </Menu.MenuItem>
+                            )
+                            : items}
                     </React.Fragment>
                 );
             })}
