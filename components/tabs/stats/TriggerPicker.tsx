@@ -84,7 +84,7 @@ function PickerMenu({ initial, counts, onChange, onClose }: { initial: Selection
                                 <Menu.MenuItem
                                     id={`vc-sora-stats-folder-${g.folder.id}`}
                                     label={(
-                                        <span className="vc-sora-stats-pick-row vc-sora-stats-pick-hit" onClick={e => { e.stopPropagation(); change(names); }}>
+                                        <span className="vc-sora-stats-pick-row" onClick={e => { e.stopPropagation(); change(names); }}>
                                             <span className="vc-sora-stats-pick-folder" style={{ color: folders.find(f => f.id === g.folder!.id)?.color }}>
                                                 <FolderGlyph size={18} />
                                             </span>
