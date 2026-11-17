@@ -44,6 +44,7 @@ import {
 import { UIState } from "../../../stores/UIStateStore";
 import { isDeveloper } from "../../../utils";
 import { JoinLockBanner } from "../../JoinLockBanner";
+import { PendingActionBanner } from "../../PendingActionBanner";
 import { fakeMouseEvent } from "../../tour/anchors";
 import { TourAnchor, tourAnchor } from "../../tour/TourAnchor";
 import { useAutoTour } from "../../tour/useAutoTour";
@@ -1070,6 +1071,7 @@ export function TriggersTab() {
                 <span className="vc-sora-triggers-hint" {...tourAnchor("triggers.hint")}>
                     Filter with <code>enabled:</code> <code>join:</code> <code>notify:</code> <code>lock:</code> <code>hidden:</code> <code>priority:&gt;5</code> <code>folder:</code>
                 </span>
+                <PendingActionBanner />
                 <JoinLockBanner />
             </div>
 

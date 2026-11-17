@@ -423,8 +423,8 @@ export function RecentJoinsTab() {
                         )}
                     </Tooltip>
                 </div>
-                <JoinLockBanner />
                 <PendingActionBanner />
+                <JoinLockBanner />
             </div>
 
             <ScrollerThin style={{ flex: 1, paddingRight: 8 }}>
