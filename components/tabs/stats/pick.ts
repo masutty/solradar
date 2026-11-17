@@ -33,13 +33,14 @@ export function pickGroups(
     return groups;
 }
 
+// With no selection only "All triggers" is ticked, so picking a folder or trigger starts a selection of just that
 export function tickState(sel: Selection, names: string[]): "on" | "part" | "off" {
-    const ticked = sel === null ? names.length : names.filter(n => sel.has(n)).length;
+    const ticked = sel === null ? 0 : names.filter(n => sel.has(n)).length;
     return ticked === 0 ? "off" : ticked === names.length ? "on" : "part";
 }
 
 export function toggleNames(sel: Selection, names: string[], all: string[]): Selection {
-    const next = new Set(sel ?? all);
+    const next = new Set(sel ?? []);
     const on = tickState(next, names) === "on";
     for (const n of names) {
         if (on) next.delete(n);

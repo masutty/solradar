@@ -57,6 +57,7 @@ function PickerMenu({ initial, counts, onChange, onClose }: { initial: Selection
     return (
         <Menu.Menu navId="vc-sora-stats-triggers" onClose={onClose} aria-label="Triggers">
             <Menu.MenuCheckboxItem id="vc-sora-stats-trigger-all" label="All triggers" checked={selection === null} action={clear} />
+            <Menu.MenuSeparator />
             {groups.map((g, i) => {
                 const names = g.triggers.map(t => t.name);
                 const items = g.triggers.map(t => (
@@ -76,7 +77,7 @@ function PickerMenu({ initial, counts, onChange, onClose }: { initial: Selection
                 ));
                 return (
                     <React.Fragment key={g.folder?.id ?? `loose-${i}`}>
-                        <Menu.MenuSeparator />
+                        {!g.folder && i > 0 && <Menu.MenuSeparator />}
                         {g.folder
                             ? (
                                 // Hover opens the folder's triggers; a click on the folder itself ticks or unticks all of them
@@ -88,9 +89,9 @@ function PickerMenu({ initial, counts, onChange, onClose }: { initial: Selection
                                                 <FolderGlyph size={18} />
                                             </span>
                                             <span className="vc-sora-stats-pick-name">{g.folder.name}</span>
+                                            <TickBox state={tickState(selection, names)} />
                                         </span>
                                     ) as unknown as string}
-                                    icon={() => <TickBox state={tickState(selection, names)} />}
                                     action={() => change(names)}
                                 >
                                     {items}
