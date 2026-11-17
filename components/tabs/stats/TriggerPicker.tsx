@@ -54,6 +54,23 @@ function PickerMenu({ initial, counts, onChange, onClose }: { initial: Selection
     };
     const clear = () => { setSelection(null); onChange(null); };
 
+    // Discord closes the menu when a row with a submenu is clicked, so a click on a folder row is caught before React sees it
+    const changeRef = React.useRef(change);
+    changeRef.current = change;
+    React.useEffect(() => {
+        const onClick = (e: MouseEvent) => {
+            const row = (e.target as Element | null)?.closest?.("[role=menuitem]");
+            const id = row?.querySelector<HTMLElement>("[data-sora-folder]")?.dataset.soraFolder;
+            const group = id && groups.find(g => g.folder?.id === id);
+            if (!group) return;
+            e.stopPropagation();
+            e.preventDefault();
+            changeRef.current(group.triggers.map(t => t.name));
+        };
+        document.addEventListener("click", onClick, true);
+        return () => document.removeEventListener("click", onClick, true);
+    }, [groups.map(g => g.folder?.id).join()]);
+
     return (
         <Menu.Menu navId="vc-sora-stats-triggers" onClose={onClose} aria-label="Triggers">
             <Menu.MenuCheckboxItem id="vc-sora-stats-trigger-all" label="All triggers" checked={selection === null} action={clear} />
@@ -80,12 +97,12 @@ function PickerMenu({ initial, counts, onChange, onClose }: { initial: Selection
                         {!g.folder && i > 0 && <Menu.MenuSeparator />}
                         {g.folder
                             ? (
-                                // Hover opens the folder's triggers. The row handles its own click so ticking the folder keeps the menu open; Enter still runs action and closes it
+                                // Hover opens the folder's triggers; a click ticks them all (see the click listener above), Enter runs action and closes the menu
                                 <Menu.MenuItem
                                     id={`vc-sora-stats-folder-${g.folder.id}`}
                                     label={(
-                                        <span className="vc-sora-stats-pick-row" onClick={e => { e.stopPropagation(); change(names); }}>
-                                            <span className="vc-sora-stats-pick-folder" style={{ color: folders.find(f => f.id === g.folder!.id)?.color }}>
+                                        <span className="vc-sora-stats-pick-row" data-sora-folder={g.folder.id}>
+                                            <span className="vc-sora-stats-pick-folder" style={{ "--sora-fc": folders.find(f => f.id === g.folder!.id)?.color } as React.CSSProperties}>
                                                 <FolderGlyph size={18} />
                                             </span>
                                             <span className="vc-sora-stats-pick-name">{g.folder.name}</span>

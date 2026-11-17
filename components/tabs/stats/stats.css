@@ -938,3 +938,8 @@ button.vc-sora-stats-who {
     display: inline-flex;
     flex-shrink: 0;
 }
+
+/* On the svg itself, or the hovered menu row turns it white */
+.vc-sora-stats-pick-folder .vc-sora-folder-glyph {
+    color: var(--sora-fc);
+}
