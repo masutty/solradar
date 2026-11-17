@@ -7,6 +7,7 @@
 import { React } from "@webpack/common";
 
 import { SnipeEntry } from "../../../stores/SnipeStore";
+import { jumpToMessage, openSnipeContextMenu } from "../recentJoins/SnipeContextMenu";
 import { ActivityChart, HoursStrip } from "./charts";
 import { coverageNote, fmtDuration, fmtRate, fmtSeconds, Group, kindOf, Measure, peakWindow, plural, RESULT_KINDS, RESULT_LABEL, Stats, timingOf, Win } from "./data";
 import { anonName, Avatar, RESULT_COLOR, SplitBar, TimeAgo } from "./parts";
@@ -129,8 +130,17 @@ export function SnipeTable({ entries, anonymize, empty = "No snipes in this peri
             </div>
             {entries.map(e => {
                 const ms = time ? time(e) : timingOf(e, measure.steps);
+                const jump = e.messageJumpUrl ? () => jumpToMessage(e) : undefined;
                 return (
-                    <div key={e.id} className="vc-sora-stats-rec">
+                    <div
+                        key={e.id}
+                        className={`vc-sora-stats-rec${jump ? " link" : ""}`}
+                        role={jump ? "button" : undefined}
+                        tabIndex={jump ? 0 : undefined}
+                        onClick={jump}
+                        onKeyDown={jump && (k => { if (k.key === "Enter") jump(); })}
+                        onContextMenu={ev => openSnipeContextMenu(ev, e)}
+                    >
                         <TimeAgo className="vc-sora-stats-rec-t" ts={e.timestamp} anonymize={anonymize} />
                         <span className="vc-sora-stats-rec-who">
                             <b>{anonymize ? "Hidden" : e.authorName ?? "Unknown"}</b>

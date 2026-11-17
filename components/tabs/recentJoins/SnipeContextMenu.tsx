@@ -21,7 +21,7 @@ import { SnipeEntry, SnipeStore } from "../../../stores/SnipeStore";
 import { closeAllModals } from "../../ui/LegacyModal";
 import { openJoinModal } from "./JoinModal";
 
-function jumpToMessage(entry: SnipeEntry): void {
+export function jumpToMessage(entry: SnipeEntry): void {
     if (!entry.messageJumpUrl) return;
     try {
         NavigationRouter.transitionTo(new URL(entry.messageJumpUrl).pathname);
