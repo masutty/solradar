@@ -27,23 +27,6 @@ function ChevronIcon() {
     );
 }
 
-function Box({ state }: { state: "on" | "part" | "off"; }) {
-    return (
-        <span className={`vc-sora-stats-pick-box${state === "off" ? "" : " on"}`} aria-hidden>
-            {state === "on" && (
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M5 12.5l4.5 4.5L19 7.5" />
-                </svg>
-            )}
-            {state === "part" && (
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round">
-                    <path d="M6 12h12" />
-                </svg>
-            )}
-        </span>
-    );
-}
-
 function PickerMenu({ initial, counts, onChange, onClose }: { initial: Selection; counts: Map<string, number>; onChange: (s: Selection) => void; onClose: () => void; }) {
     const triggers = useTriggers();
     const folders = useFolders();
@@ -60,38 +43,44 @@ function PickerMenu({ initial, counts, onChange, onClose }: { initial: Selection
 
     return (
         <Menu.Menu navId="vc-sora-stats-triggers" onClose={onClose} aria-label="Triggers">
-            <Menu.MenuItem
-                id="vc-sora-stats-trigger-all"
-                label={<span className="vc-sora-stats-pick-row"><Box state={selection === null ? "on" : "off"} /><span className="vc-sora-stats-pick-name">All triggers</span></span>}
-                action={clear}
-            />
-            {groups.map((g, i) => (
-                <React.Fragment key={g.folder?.id ?? `loose-${i}`}>
-                    <Menu.MenuSeparator />
-                    {g.folder && (
-                        <Menu.MenuItem
-                            id={`vc-sora-stats-folder-${g.folder.id}`}
-                            label={<span className="vc-sora-stats-pick-row"><Box state={tickState(selection, g.triggers.map(t => t.name))} /><span className="vc-sora-stats-pick-name">{g.folder.name}</span></span>}
-                            action={() => change(g.triggers.map(t => t.name))}
-                        />
-                    )}
-                    {g.triggers.map(t => (
-                        <Menu.MenuItem
-                            key={t.name}
-                            id={`vc-sora-stats-trigger-${g.folder?.id ?? "loose"}-${t.name}`}
-                            label={
-                                <span className={`vc-sora-stats-pick-row${g.folder ? " nested" : ""}`}>
-                                    <Box state={tickState(selection, [t.name])} />
-                                    <TriggerIcon src={t.iconUrl} size={18} />
-                                    <span className="vc-sora-stats-pick-name">{t.name}</span>
-                                    <span className="vc-sora-stats-pick-count">{counts.get(t.name) ?? 0}</span>
-                                </span>
-                            }
-                            action={() => change([t.name])}
-                        />
-                    ))}
-                </React.Fragment>
-            ))}
+            <Menu.MenuCheckboxItem id="vc-sora-stats-trigger-all" label="All triggers" checked={selection === null} action={clear} />
+            {groups.map((g, i) => {
+                const names = g.triggers.map(t => t.name);
+                const state = tickState(selection, names);
+                return (
+                    <React.Fragment key={g.folder?.id ?? `loose-${i}`}>
+                        <Menu.MenuSeparator />
+                        {g.folder && (
+                            <Menu.MenuCheckboxItem
+                                id={`vc-sora-stats-folder-${g.folder.id}`}
+                                label={(
+                                    <span className="vc-sora-stats-pick-row">
+                                        <span className="vc-sora-stats-pick-name">{g.folder.name}</span>
+                                        {state === "part" && <span className="vc-sora-stats-pick-count">{names.filter(n => selection?.has(n)).length} of {names.length}</span>}
+                                    </span>
+                                ) as unknown as string}
+                                checked={state === "on"}
+                                action={() => change(names)}
+                            />
+                        )}
+                        {g.triggers.map(t => (
+                            <Menu.MenuCheckboxItem
+                                key={t.name}
+                                id={`vc-sora-stats-trigger-${g.folder?.id ?? "loose"}-${t.name}`}
+                                label={(
+                                    <span className={`vc-sora-stats-pick-row${g.folder ? " nested" : ""}`}>
+                                        <TriggerIcon src={t.iconUrl} size={18} />
+                                        <span className="vc-sora-stats-pick-name">{t.name}</span>
+                                        <span className="vc-sora-stats-pick-count">{counts.get(t.name) ?? 0}</span>
+                                    </span>
+                                ) as unknown as string}
+                                checked={tickState(selection, [t.name]) === "on"}
+                                action={() => change([t.name])}
+                            />
+                        ))}
+                    </React.Fragment>
+                );
+            })}
         </Menu.Menu>
     );
 }
