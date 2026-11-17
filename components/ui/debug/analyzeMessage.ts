@@ -130,7 +130,7 @@ function describeLeftOut(r: Rejected, username: string): Omit<LeftOutGroup, "tri
         }
         if (tier === "folder") return { kind: "folder", tone: "folder", folderColor: folder?.color, short: OWN_SHORT[list], reason: r.reason, source: `Folder · ${folder?.name}`, byUser };
         // Trigger reasons start with the trigger's name, which would only name one of a shared group
-        const reason = byUser ? `${OWN_USER_REASON[list]}${list === "neverUsers" ? ` (${username})` : ""} (its Filters).` : r.reason;
+        const reason = byUser ? `${list === "neverUsers" ? `Never fires for ${username}` : OWN_USER_REASON[list]} (its Filters).` : r.reason;
         return { kind: KIND_BY_LIST[list], tone: "own", short: OWN_SHORT[list], reason, source: "Own filters", byUser };
     }
     return r.globalExclude
