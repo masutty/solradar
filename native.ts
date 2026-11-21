@@ -87,7 +87,7 @@ export async function fetchAttachmentText(_: IpcMainInvokeEvent, url: string): P
     const parsed = new URL(url);
     if (parsed.protocol !== "https:" || !SHARE_HOSTS.has(parsed.hostname)) throw new Error("Blocked attachment host");
 
-    const res = await fetch(parsed);
+    const res = await fetch(parsed, { redirect: "error" });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     if (Number(res.headers.get("content-length")) > SHARE_MAX_BYTES) throw new Error("Attachment too large");
 

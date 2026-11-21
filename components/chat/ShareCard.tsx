@@ -180,6 +180,7 @@ function MultiSummary({ triggers }: { triggers: ImportedTrigger[]; }) {
 function Card({ triggers, label }: { triggers: ImportedTrigger[]; label: string; }) {
     const mine = useTriggers();
     const [done, setDone] = useState<"imported" | "updated" | null>(null);
+    const [busy, setBusy] = useState(false);
 
     const add: ImportedTrigger[] = [];
     const update: ImportedTrigger[] = [];
@@ -195,10 +196,19 @@ function Card({ triggers, label }: { triggers: ImportedTrigger[]; label: string;
     const finish = (added: number, updated: number) => setDone(updated && !added ? "updated" : "imported");
     const pick = () => openFilePicker(importable, label, finish);
     const direct = async () => {
-        const added = add.length ? await importTriggers(add) : 0;
-        const updated = update.length ? await updateFromFile(update) : 0;
-        showToast({ text: importSummary(added, updated), variant: "success" });
-        finish(added, updated);
+        if (busy) return;
+        setBusy(true);
+        try {
+            const added = add.length ? await importTriggers(add) : 0;
+            const updated = update.length ? await updateFromFile(update) : 0;
+            if (!added && !updated) return;
+            showToast({ text: importSummary(added, updated), variant: "success" });
+            finish(added, updated);
+        } catch (e) {
+            showToast({ text: `Couldn't import: ${e}`, variant: "critical" });
+        } finally {
+            setBusy(false);
+        }
     };
 
     let buttons: ReactNode;
@@ -212,10 +222,10 @@ function Card({ triggers, label }: { triggers: ImportedTrigger[]; label: string;
         buttons = (
             <>
                 <Tooltip text={onlyUpdate ? "Review the changes before updating" : "Choose what to import"}>
-                    {props => <Button {...props} onClick={pick}>{onlyUpdate ? "Update" : "Import"}</Button>}
+                    {props => <Button {...props} disabled={busy} onClick={pick}>{onlyUpdate ? "Update" : "Import"}</Button>}
                 </Tooltip>
                 <Tooltip text={onlyUpdate ? "Update your copy right away, without the import window" : "Add it right away, without the import window"}>
-                    {props => <Button {...props} variant="secondary" onClick={direct}>{onlyUpdate ? "Direct update" : "Direct import"}</Button>}
+                    {props => <Button {...props} variant="secondary" disabled={busy} onClick={direct}>{onlyUpdate ? "Direct update" : "Direct import"}</Button>}
                 </Tooltip>
             </>
         );

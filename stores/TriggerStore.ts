@@ -918,7 +918,7 @@ export function parseTriggersFile(json: string, opts?: { adoptIcons?: boolean; }
     const valid = (parsed as any[]).filter(t =>
         t && typeof t === "object" &&
         typeof t.name === "string" &&
-        typeof t.type === "string" &&
+        typeof t.type === "string" && t.type in TYPE_COLORS &&
         t.state && t.conditions
     );
 
@@ -997,7 +997,7 @@ function comparable(t: Trigger): string {
 
 /** Whether an incoming trigger matches the user's copy in everything an update would replace */
 export function sameTrigger(mine: Trigger, incoming: ImportedTrigger): boolean {
-    return comparable(migrateTrigger(withInlineIcon(mine), false)) === comparable(migrateTrigger(incoming, false));
+    return comparable(migrateTrigger(withInlineIcon(mine), false)) === comparable(migrateTrigger(withInlineIcon(incoming), false));
 }
 
 /** Replaces the user's copies with the incoming ones, matched by id. Returns how many changed. */
