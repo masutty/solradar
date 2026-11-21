@@ -9,7 +9,7 @@ import "./ui/modal.css";
 import { Heading } from "@components/Heading";
 import { React } from "@webpack/common";
 
-import { TourStore } from "../stores/TourStore";
+import { runTourAction, TourStore, useTourAction } from "../stores/TourStore";
 import { UIState } from "../stores/UIStateStore";
 import { hasNewVersionAvailable, isDeveloper } from "../utils";
 import { DeveloperTab } from "./tabs/developer";
@@ -80,6 +80,15 @@ export function SolsRadarModal({ modalProps, initialTab }: SolsRadarModalProps) 
         setActiveTab(tab);
         UIState.set("activeTab", tab);
     };
+
+    // Lets a banner jump to one setting: switch to Settings, unfold its block, scroll to it
+    useTourAction("modal.openSetting", (block: string, setting: string) => {
+        handleTabChange("settings");
+        setTimeout(() => {
+            runTourAction("settings.reveal", block);
+            setTimeout(() => document.querySelector(`[data-sora-setting="${setting}"]`)?.scrollIntoView({ behavior: "smooth", block: "center" }), 100);
+        }, 100);
+    });
 
     // The triggers tab keeps the modal at full height, so opening folders or filtering doesn't resize it
     return (

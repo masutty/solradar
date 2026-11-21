@@ -30,3 +30,12 @@ export function TimerIcon({ size = 18 }: { size?: number; }) {
         </svg>
     );
 }
+
+export function WarningIcon({ size = 18 }: { size?: number; }) {
+    return (
+        <svg width={size} height={size} {...svgProps}>
+            <path d="M12 3 2 20h20L12 3Z" />
+            <path d="M12 10v4M12 17v.01" />
+        </svg>
+    );
+}

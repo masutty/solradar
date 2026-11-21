@@ -43,6 +43,7 @@ import {
 } from "../../../stores/TriggerStore";
 import { UIState } from "../../../stores/UIStateStore";
 import { isDeveloper } from "../../../utils";
+import { GlitchCoreBanner } from "../../GlitchCoreBanner";
 import { JoinLockBanner } from "../../JoinLockBanner";
 import { PendingActionBanner } from "../../PendingActionBanner";
 import { fakeMouseEvent } from "../../tour/anchors";
@@ -1073,6 +1074,7 @@ export function TriggersTab() {
                 </span>
                 <PendingActionBanner />
                 <JoinLockBanner />
+                <GlitchCoreBanner />
             </div>
 
             <div ref={containerRef} style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>

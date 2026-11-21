@@ -7,11 +7,13 @@
 import { Channel, Guild, Message } from "@vencord/discord-types";
 
 import { BiomeDetector } from "../../../services/BiomeDetector";
+import { isGlitchCoreCandidate, whyNotClick } from "../../../services/GlitchCore";
 import { explainTriggerMatch, flattenEmbeds, getSnipableLink, invalidMessageReason, isComponentsV2, sanitizeContent } from "../../../services/MessageProcessor";
 import { FilterFix, hasBypass } from "../../../services/scope";
 import { ScopeBlock } from "../../../services/scopeRules";
 import { lastSeenAgo } from "../../../services/SnipeDeduplicator";
 import { settings } from "../../../settings";
+import { GlitchCorePauseStore } from "../../../stores/GlitchCorePauseStore";
 import { JoinLockStore } from "../../../stores/JoinLockStore";
 import { expectedBiomes, formatBiomes, getActiveTriggers, getFolder, getTriggers, isTriggerRunning, Trigger, updateFolder, updateTrigger } from "../../../stores/TriggerStore";
 import { SnipableLink } from "../../../types";
@@ -214,7 +216,21 @@ export function analyzeMessage(original: Message, channel: Channel, guild: Guild
     const readEmbeds = message.content !== contentBefore;
 
     link = getSnipableLink(message.content);
-    if (!link) {
+    // No link, but a button that makes the bot send one. The debug tools never click it.
+    const glitchCore = !link && isGlitchCoreCandidate(original);
+    if (glitchCore) {
+        if (!settings.store.interpretGlitchCoreLinks) {
+            const detail = "Glitch Core link (needs a click). \"Accept Glitch Core links\" is off.";
+            add({ group: "read", name: "Roblox link", status: "fail", detail, fixes: [{ label: "Turn on Glitch Core links", run: () => { settings.store.interpretGlitchCoreLinks = true; } }] });
+            return ignored(detail);
+        }
+        const refusal = whyNotClick(original.id);
+        add({
+            group: "read", name: "Roblox link", status: refusal ? "warn" : "pass",
+            detail: `Glitch Core link (needs a click). Get server link is clicked once a trigger matches. ${refusal ? `A click would be refused right now: ${refusal}.` : "A click would be allowed right now."}`,
+            fixes: GlitchCorePauseStore.current ? [{ label: "Resume Glitch Core clicks", run: () => GlitchCorePauseStore.resume() }] : undefined,
+        });
+    } else if (!link) {
         const text = message.content ?? "";
         const kinds = [/roblox\.com\/share\?code=/i, /roblox\.com\/games\/\d+[^?]*\?privateserverlinkcode=/i, /join-guard\.solsstattracker\.com\//i].filter(re => re.test(text)).length;
         const hasJoinguard = /join-guard\.solsstattracker\.com\//i.test(text);
@@ -238,7 +254,7 @@ export function analyzeMessage(original: Message, channel: Channel, guild: Guild
         add({ group: "read", name: "Roblox link", status: "fail", detail, fixes });
         return ignored(fixes.length ? detail : "There's no Roblox link in this message.");
     }
-    add({
+    if (link) add({
         group: "read", name: "Roblox link", status: "pass",
         detail: `${LINK_NAMES[link.type]}, code ${shortCode(link.code)}${link.type === "private" ? `, place ${link.placeId}` : ""}${readEmbeds ? (v2 ? ". Read from the message's components." : ". Read from an embed.") : "."}`,
     });
@@ -327,8 +343,10 @@ export function analyzeMessage(original: Message, channel: Channel, guild: Guild
     reachedHistory = true;
 
     const t = trigger;
-    const seenAgo = lastSeenAgo(t.name, link.code);
-    if (seenAgo != null) {
+    const seenAgo = link ? lastSeenAgo(t.name, link.code) : null;
+    if (!link) {
+        add({ group: "join", name: "Duplicate link", status: "info", detail: "Checked once the link arrives." });
+    } else if (seenAgo != null) {
         const ago = formatElapsedTime(seenAgo);
         if (settings.store.deduplicateLinks && !hasBypass(t, "bypassLinkDeduplication")) {
             add({
@@ -381,7 +399,7 @@ export function analyzeMessage(original: Message, channel: Channel, guild: Guild
     const mode = settings.store.linkVerification;
     if (hasBypass(t, "bypassLinkVerification")) add({ group: "join", name: "Link check", status: "info", detail: `${t.name} skips link checks.` });
     else if (mode === "disabled") add({ group: "join", name: "Link check", status: "info", detail: "Link checks are off in Settings." });
-    else if (link.type === "joinguard") add({ group: "join", name: "Link check", status: "warn", detail: "Joinguard links can't be checked, so it joins without checking." });
+    else if (link?.type === "joinguard") add({ group: "join", name: "Link check", status: "warn", detail: "Joinguard links can't be checked, so it joins without checking." });
     else if (!settings.store.robloxToken) {
         if (mode === "before") {
             add({ group: "join", name: "Link check", status: "fail", detail: "Links are checked before joining, but no Roblox token is set, so the check fails and it won't join." });
@@ -400,7 +418,7 @@ export function analyzeMessage(original: Message, channel: Channel, guild: Guild
     });
 
     after();
-    return done("join", `Would join ${t.name}`, mode === "before" && !hasBypass(t, "bypassLinkVerification") && link.type !== "joinguard"
+    return done("join", `Would join ${t.name}`, mode === "before" && !hasBypass(t, "bypassLinkVerification") && link?.type !== "joinguard"
         ? "If the link passes the check, it joins and then watches for the biome."
         : "It joins right away, then follows the steps below.");
 }

@@ -26,6 +26,8 @@ export class Snipe {
     readonly guild: Guild;
     readonly link: SnipableLink;
     readonly tMessageReceived: number;
+    /** Set when the link came from clicking a Glitch Core button. performance.now() values. */
+    readonly glitchCore?: { tClicked: number; tLinkReceived: number; };
     readonly messageContent: string = "";
 
     private constructor(
@@ -36,6 +38,7 @@ export class Snipe {
         guild: Guild,
         link: SnipableLink,
         tMessageReceived: number,
+        glitchCore?: { tClicked: number; tLinkReceived: number; },
     ) {
         this.id = id;
         this.message = message;
@@ -44,6 +47,7 @@ export class Snipe {
         this.guild = guild;
         this.link = link;
         this.tMessageReceived = tMessageReceived;
+        this.glitchCore = glitchCore;
     }
 
     static create(
@@ -53,6 +57,7 @@ export class Snipe {
         channel: Channel,
         guild: Guild,
         tMessageReceived: number,
+        glitchCore?: { tClicked: number; tLinkReceived: number; },
     ): Snipe {
         const author = UserStore.getUser(message.author.id);
 
@@ -73,7 +78,7 @@ export class Snipe {
             joinUri: buildJoinUri(link),
         });
 
-        return new Snipe(id, trigger, message, channel, guild, link, tMessageReceived);
+        return new Snipe(id, trigger, message, channel, guild, link, tMessageReceived, glitchCore);
     }
 
     // --- Link ---

@@ -22,6 +22,7 @@ import { PendingActionStore } from "./services/ActionExecutor";
 import { BiomeDetector } from "./services/BiomeDetector";
 import { cancelBiomeDetection } from "./services/BiomeWatcher";
 import { forwardSnipe } from "./services/ForwardingService";
+import { GlitchCoreContext, handleGlitchCoreReply, isGlitchCoreCandidate, requestGlitchCoreLink } from "./services/GlitchCore";
 import { isJoinLocked, join, shouldJoin } from "./services/JoinService";
 import { recordSnipe, shouldProcessEdit, snipedTriggers } from "./services/MessageEditWatcher";
 import { flattenEmbeds, getSnipableLink, isValidMessage, resolveTrigger, sanitizeContent } from "./services/MessageProcessor";
@@ -33,7 +34,7 @@ import { ActiveChannelStore } from "./stores/ActiveChannelStore";
 import { pruneIcons } from "./stores/IconStore";
 import { SnipeStore } from "./stores/SnipeStore";
 import { getTriggers, triggerStoreReady } from "./stores/TriggerStore";
-import { SnipeMetrics } from "./types";
+import { SnipableLink, SnipeMetrics } from "./types";
 import { ensureDailyVersionCheck, getCurrentVersion, Native } from "./utils";
 
 const logger = new Logger("SolRadar");
@@ -52,9 +53,15 @@ async function handleMessage(message: Message, channel: Channel, guild: Guild, t
 
     flattenEmbeds(message);
     const link = getSnipableLink(message.content);
-    if (!link) return;
-    logger.debug(`#${channel.name} @ ${guild.name} | ${link.type.toUpperCase()} ${link.code}`);
-    ActiveChannelStore.registerLink(channel, guild, link);
+    // No link, but a button that makes the bot send one. It is only clicked once a trigger matches
+    const needsClick = !link && settings.store.interpretGlitchCoreLinks && isGlitchCoreCandidate(message);
+    if (!link && !needsClick) return;
+    if (link) {
+        logger.debug(`#${channel.name} @ ${guild.name} | ${link.type.toUpperCase()} ${link.code}`);
+        ActiveChannelStore.registerLink(channel, guild, link);
+    } else {
+        logger.debug(`#${channel.name} @ ${guild.name} | GLITCH CORE (needs a click)`);
+    }
     sanitizeContent(message);
 
     const trigger = resolveTrigger({ message, channel, guild });
@@ -75,9 +82,29 @@ async function handleMessage(message: Message, channel: Channel, guild: Guild, t
 
     if (isJoinLocked(trigger)) return;
 
-    const snipe = Snipe.create(message, link, trigger, channel, guild, tMessageReceived);
+    if (!link) {
+        await requestGlitchCoreLink({ message, channel, guild, trigger, tMessageReceived });
+        return;
+    }
+
+    await runSnipe({ message, channel, guild, trigger, tMessageReceived, link, fromEdit });
+}
+
+interface SnipeContext extends GlitchCoreContext {
+    link: SnipableLink;
+    fromEdit?: boolean;
+    glitchCore?: { tClicked: number; tLinkReceived: number; };
+}
+
+// Everything from the moment the link is known. A Glitch Core link arrives later than its message,
+// so it continues here with the original message, trigger and receive time.
+async function runSnipe({ message, channel, guild, trigger, tMessageReceived, link, fromEdit, glitchCore }: SnipeContext): Promise<void> {
+    const earlier = fromEdit ? snipedTriggers(message.id) : [];
+
+    const snipe = Snipe.create(message, link, trigger, channel, guild, tMessageReceived, glitchCore);
     snipe.logDebug("-- Snipe created! --");
     recordSnipe(message.id, trigger.name);
+    if (glitchCore) snipe.logInfo(`Got the link from Glitch Core ${((glitchCore.tLinkReceived - glitchCore.tClicked) / 1000).toFixed(1)}s after the click.`);
     if (fromEdit) {
         snipe.logInfo(earlier.length
             ? `Found in an edited message. Before the edit it matched: ${earlier.join(", ")}`
@@ -103,6 +130,15 @@ async function handleMessage(message: Message, channel: Channel, guild: Guild, t
     }
 
     markAsSeen(snipe);
+}
+
+function onGlitchCoreLink(ctx: GlitchCoreContext, link: SnipableLink, glitchCore: { tClicked: number; tLinkReceived: number; }) {
+    // Another join may have set the lock while the link was on its way
+    if (isJoinLocked(ctx.trigger)) {
+        logger.info(`Glitch Core link for "${ctx.trigger.name}" dropped: a join lock was set while waiting`);
+        return;
+    }
+    runSnipe({ ...ctx, link, glitchCore }).catch(err => logger.error("Glitch Core snipe failed:", err));
 }
 
 // --- Plugin ---
@@ -202,6 +238,7 @@ export default definePlugin({
     flux: {
         async MESSAGE_CREATE({ message, optimistic }: { message: Message; optimistic: boolean; }) {
             const tMessageReceived = performance.now();
+            if (handleGlitchCoreReply(message, tMessageReceived, onGlitchCoreLink)) return;
             if (optimistic) return;
 
             const channel = ChannelStore.getChannel(message.channel_id);
@@ -217,6 +254,7 @@ export default definePlugin({
         // Experimental: some people post the link first and add the biome in an edit
         async MESSAGE_UPDATE({ message }: { message: Message; }) {
             const tMessageReceived = performance.now();
+            if (handleGlitchCoreReply(message, tMessageReceived, onGlitchCoreLink)) return;
             if (!settings.store.watchMessageEdits) return;
             if (!message?.id || !shouldProcessEdit(message)) return;
 

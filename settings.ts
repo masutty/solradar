@@ -216,6 +216,18 @@ export const settings = definePluginSettings({
         default: false,
         hidden: true,
     },
+    interpretGlitchCoreLinks: {
+        type: OptionType.BOOLEAN,
+        description: "Click the Get server link button of Glitch Core messages to get their link. Default: false",
+        default: false,
+        hidden: true,
+    },
+    glitchCoreBypassClickLimits: {
+        type: OptionType.BOOLEAN,
+        description: "Remove every Glitch Core click limit except one click per message. Not recommended. Default: false",
+        default: false,
+        hidden: true,
+    },
     resolveAmbiguousLinks: {
         type: OptionType.BOOLEAN,
         description: "When a message contains multiple Roblox links, pick the first one found instead of discarding the message. Default: false",

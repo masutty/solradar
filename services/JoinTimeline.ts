@@ -8,7 +8,7 @@
 // Used by the snipe menu's Timing section, the log waterfall and the Developer tab stats.
 
 import { Logger } from "../logger";
-import { RobloxTimelineData, SnipeEntry, SnipeStore } from "../stores/SnipeStore";
+import { RobloxTimelineData, SnipeEntry, SnipeMetrics, SnipeStore } from "../stores/SnipeStore";
 import { Native } from "../utils";
 
 const logger = new Logger("SolRadar.JoinTimeline");
@@ -50,7 +50,7 @@ export function scheduleTimelineCapture(id: number): void {
 // the log waterfall, the Developer stats and the CSV, so they always agree.
 
 export type StepCat = "plugin" | "hw" | "net" | "queue";
-export type JoinStepKey = "read" | "close" | "open" | "startup" | "helper" | "loading" | "resolve" | "prepare" | "server" | "queue" | "connect";
+export type JoinStepKey = "read" | "link" | "close" | "open" | "startup" | "helper" | "loading" | "resolve" | "prepare" | "server" | "queue" | "connect";
 
 /**
  * A server request longer than this was a wait in the server's queue, not the network.
@@ -62,11 +62,12 @@ export const STEP_CATS: Record<StepCat, { name: string; color: string; tip: stri
     plugin: { name: "Plugin", color: "var(--brand-500)", tip: "Sol Radar's own code: reading the message and finding the trigger." },
     hw: { name: "Hardware", color: "var(--vc-sora-hw)", tip: "Roblox starting and loading on your PC." },
     net: { name: "Network", color: "var(--vc-sora-net)", tip: "Roblox talking to its servers." },
-    queue: { name: "Queue", color: "var(--text-muted)", tip: "You waiting in line because the server was full." },
+    queue: { name: "Queue", color: "var(--text-muted)", tip: "You waiting: in line because the server was full, or for a Glitch Core link." },
 };
 
 export const JOIN_STEPS: Record<JoinStepKey, { name: string; cat: StepCat; tip: string; }> = {
     read: { name: "Read message", cat: "plugin", tip: "Finding the trigger and checking for duplicates." },
+    link: { name: "Waited for link", cat: "queue", tip: "Time The Core took to send the link after Get server link was clicked. Only Glitch Core snipes have it." },
     close: { name: "Close Roblox", cat: "hw", tip: "Safe join mode closes the game before joining. Windows ending the Roblox process." },
     open: { name: "Open Roblox", cat: "hw", tip: "Windows creating the Roblox process for the link. Not Sol Radar's code." },
     startup: { name: "Roblox startup", cat: "hw", tip: "A new Roblox process starting before it runs its own code." },
@@ -119,6 +120,11 @@ export interface JoinBreakdown {
 
 const PENDING_MS = CAPTURE_DELAY_MS + 10_000;
 
+/** How long a Glitch Core snipe waited for the bot's link, or null for any other snipe. The overhead counts this wait. */
+function linkWaitMs(m: SnipeMetrics): number | null {
+    return m.clickedAt === undefined ? null : Math.max(0, (m.linkReceivedAt ?? m.clickedAt) - m.clickedAt);
+}
+
 export function joinBreakdown(entry: SnipeEntry, now = Date.now()): JoinBreakdown | null {
     const m = entry.metrics;
     if (!m) return null;
@@ -126,7 +132,9 @@ export function joinBreakdown(entry: SnipeEntry, now = Date.now()): JoinBreakdow
     const steps: JoinStep[] = [];
     let t = 0;
     const push = (key: JoinStepKey, ms: number) => { steps.push({ key, start: t, end: t + ms }); t += ms; };
-    push("read", Math.max(0, m.overheadMs));
+    const waited = linkWaitMs(m);
+    push("read", Math.max(0, m.overheadMs - (waited ?? 0)));
+    if (waited !== null) push("link", waited);
     if (m.joinMode === "safe" || (m.joinMode === undefined && (m.killDurationMs ?? 0) >= 1)) push("close", Math.max(0, m.killDurationMs ?? 0));
     push("open", Math.max(0, m.openUriDurationMs));
     const openEnd = t;
@@ -244,7 +252,7 @@ export function phasesOf(entry: SnipeEntry): Partial<Record<PhaseKey, number>> {
     if (!m) return {};
     const out: Partial<Record<PhaseKey, number>> = {};
     if (m.discordDelayMs != null) out.discord = m.discordDelayMs;
-    out.plugin = m.overheadMs;
+    out.plugin = Math.max(0, m.overheadMs - (linkWaitMs(m) ?? 0));
     out.launch = m.openUriDurationMs;
 
     const b = joinBreakdown(entry);

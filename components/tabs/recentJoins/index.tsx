@@ -16,6 +16,7 @@ import { SnipeEntry, SnipeStore, useSnipeHistory } from "../../../stores/SnipeSt
 import { useTourAction } from "../../../stores/TourStore";
 import { JoinFilter, UIState } from "../../../stores/UIStateStore";
 import { formatElapsedTime } from "../../../utils";
+import { GlitchCoreBanner } from "../../GlitchCoreBanner";
 import { JoinLockBanner } from "../../JoinLockBanner";
 import { PendingActionBanner } from "../../PendingActionBanner";
 import { tourAnchor } from "../../tour/TourAnchor";
@@ -425,6 +426,7 @@ export function RecentJoinsTab() {
                 </div>
                 <PendingActionBanner />
                 <JoinLockBanner />
+                <GlitchCoreBanner />
             </div>
 
             <ScrollerThin style={{ flex: 1, paddingRight: 8 }}>

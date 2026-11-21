@@ -78,6 +78,10 @@ export interface SnipeMetrics {
     launchExe?: string;
     /** Whether Discord's window had focus. */
     discordFocused?: boolean;
+    /** Glitch Core only. Wall clock (epoch ms) of the button click. */
+    clickedAt?: number;
+    /** Glitch Core only. Wall clock (epoch ms) when the link reached the plugin. */
+    linkReceivedAt?: number;
 }
 
 /** What Roblox's own log says about a join, read after the fact. Times are epoch ms. */

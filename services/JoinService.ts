@@ -324,6 +324,10 @@ async function joinServer(uri: string, snipe: Snipe): Promise<JoinServerResult> 
             launchExe: launch?.exe,
             joinMode: settings.store.joinMode === "safe" ? "safe" : "unsafe",
             discordFocused: document.hasFocus(),
+            ...(snipe.glitchCore && {
+                clickedAt: toWall(snipe.glitchCore.tClicked),
+                linkReceivedAt: toWall(snipe.glitchCore.tLinkReceived),
+            }),
         },
     };
 }
