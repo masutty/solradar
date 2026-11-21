@@ -16,15 +16,17 @@
  * GNU Affero General Public License version 3 (AGPL-3.0).
  */
 
+import { DATA_DIR } from "@main/utils/constants";
 import { Logger } from "@utils/Logger";
 import { ChildProcessWithoutNullStreams, exec as execCb, execFile as execFileCb, spawn } from "child_process";
-import { BrowserWindow, dialog, IpcMainInvokeEvent } from "electron";
+import { app, BrowserWindow, dialog, IpcMainInvokeEvent } from "electron";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 import { promisify } from "util";
 
 import { isRobloxPlayerExe, redactUserPath } from "./services/paths";
+import { buildRecoveryScript } from "./services/recoveryScript";
 
 const logger = new Logger("SolRadar.Native");
 
@@ -224,10 +226,10 @@ export async function pickLaunchExe(event: IpcMainInvokeEvent, startIn?: string)
 }
 
 /** Starts an exe detached, without cmd.exe. Resolves as soon as the process exists. */
-function spawnDetached(exe: string, args: string[]): Promise<void> {
+function spawnDetached(exe: string, args: string[], hide = false): Promise<void> {
     return new Promise((resolve, reject) => {
-        // No windowsHide: for a GUI app it would start the Roblox window hidden
-        const child = spawn(exe, args, { detached: true, stdio: "ignore", cwd: path.dirname(exe) });
+        // No windowsHide by default: for a GUI app it would start the Roblox window hidden
+        const child = spawn(exe, args, { detached: true, stdio: "ignore", cwd: path.dirname(exe), windowsHide: hide });
         child.once("spawn", () => { child.unref(); resolve(); });
         child.once("error", reject);
     });
@@ -1264,6 +1266,132 @@ export async function getGitLog(_: IpcMainInvokeEvent, limit = 300): Promise<Git
         logger.error("git log failed:", e);
         return [];
     }
+}
+
+// --- Data backup and recovery ---
+
+const BACKUP_FILE_RE = /^solradar-backup-\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.json$/;
+const BACKUP_KEEP = 10;
+const BACKUP_MIN_AGE_MS = 6 * 60 * 60 * 1000;
+
+// Discord stable only
+const IDB_NAME = "https_discord.com_0.indexeddb";
+const IDB_FOLDERS = [`${IDB_NAME}.leveldb`, `${IDB_NAME}.blob`];
+const MAX_SNAPSHOT_INDEX = 100;
+// The DataStore key of the triggers, as Chromium writes it in the DB manifest (UTF-16BE)
+const TRIGGERS_KEY_UTF16BE = Buffer.from("SolsRadar_Triggers", "utf16le").swap16();
+
+const backupsDir = () => path.join(DATA_DIR, "SolRadar", "backups");
+const discordIdbDir = () => path.join(app.getPath("appData"), "discord", "IndexedDB");
+
+function snapshotIdbDir(index: number): string {
+    const dir = discordIdbDir();
+    return `\\\\?\\GLOBALROOT\\Device\\HarddiskVolumeShadowCopy${index}\\${path.relative(path.parse(dir).root, dir)}`;
+}
+
+async function backupFiles(): Promise<string[]> {
+    const names = await fs.promises.readdir(backupsDir()).catch(() => [] as string[]);
+    return names.filter(n => BACKUP_FILE_RE.test(n)).sort();
+}
+
+/**
+ * Saves a backup file and keeps the 10 newest. Skipped (false) when the newest one is under 6 hours old, unless `force`.
+ * The renderer decides what to back up; the file is written to a temp name first, so it is never half written.
+ */
+export async function writeBackup(_: IpcMainInvokeEvent, json: string, force = false): Promise<boolean> {
+    if (typeof json !== "string") throw new Error("Invalid argument: json must be a string.");
+    const dir = backupsDir();
+    await fs.promises.mkdir(dir, { recursive: true });
+
+    const files = await backupFiles();
+    if (!force && files.length) {
+        const { mtimeMs } = await fs.promises.stat(path.join(dir, files[files.length - 1]));
+        if (Date.now() - mtimeMs < BACKUP_MIN_AGE_MS) return false;
+    }
+
+    const d = new Date();
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const name = `solradar-backup-${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}_${pad(d.getHours())}-${pad(d.getMinutes())}-${pad(d.getSeconds())}.json`;
+    const tmp = path.join(dir, `${name}.tmp`);
+    await fs.promises.writeFile(tmp, json);
+    await fs.promises.rename(tmp, path.join(dir, name));
+
+    const all = [...new Set([...files, name])].sort();
+    for (const old of all.slice(0, -BACKUP_KEEP)) await fs.promises.unlink(path.join(dir, old)).catch(() => { });
+    return true;
+}
+
+/** The backup files, newest first, with their text. */
+export async function readBackups(_: IpcMainInvokeEvent): Promise<{ file: string; text: string; }[]> {
+    const dir = backupsDir();
+    const out: { file: string; text: string; }[] = [];
+    for (const file of (await backupFiles()).reverse()) {
+        try {
+            out.push({ file, text: await fs.promises.readFile(path.join(dir, file), "utf8") });
+        } catch (err) {
+            logger.error(`Could not read backup ${file}:`, err);
+        }
+    }
+    return out;
+}
+
+export type RestorePoint = {
+    /** The number in HarddiskVolumeShadowCopy<N> */
+    index: number;
+    /** Epoch ms of the newest file in the snapshot's database folder */
+    date: number;
+    hasData: boolean;
+};
+
+/** Windows restore points (shadow copies) that have Discord's IndexedDB. Found by probing, which needs no admin rights. */
+export async function listRestorePoints(_: IpcMainInvokeEvent): Promise<RestorePoint[]> {
+    if (process.platform !== "win32") return [];
+
+    const out: RestorePoint[] = [];
+    for (let index = 1; index <= MAX_SNAPSHOT_INDEX; index++) {
+        const db = path.join(snapshotIdbDir(index), IDB_FOLDERS[0]);
+        try {
+            let date = 0;
+            let hasData = false;
+            for (const name of await fs.promises.readdir(db)) {
+                const full = path.join(db, name);
+                date = Math.max(date, (await fs.promises.stat(full)).mtimeMs);
+                if (!hasData && name.startsWith("MANIFEST-")) hasData = (await fs.promises.readFile(full)).includes(TRIGGERS_KEY_UTF16BE);
+            }
+            out.push({ index, date, hasData });
+        } catch { } // no snapshot with this number, or no Discord database in it
+    }
+    return out.sort((a, b) => b.date - a.date);
+}
+
+/**
+ * Swaps Discord's IndexedDB for the one in a restore point. A hidden PowerShell does it after Discord has closed,
+ * then starts Discord again. Discord is closed right after the script starts.
+ */
+export async function restoreFromRestorePoint(_: IpcMainInvokeEvent, index: number): Promise<{ ok: true; } | { ok: false; error: string; }> {
+    if (process.platform !== "win32") return { ok: false, error: "Windows only." };
+    if (!Number.isInteger(index) || index < 1 || index > MAX_SNAPSHOT_INDEX) return { ok: false, error: "Invalid restore point." };
+
+    const snapshotDir = snapshotIdbDir(index);
+    if (!fs.existsSync(path.join(snapshotDir, IDB_FOLDERS[0]))) return { ok: false, error: "That restore point is gone." };
+
+    const discordExe = path.join(process.env.LOCALAPPDATA ?? path.join(os.homedir(), "AppData", "Local"), "Discord", "Update.exe");
+    if (!fs.existsSync(discordExe)) return { ok: false, error: "Discord's Update.exe was not found." };
+
+    try {
+        const scriptPath = path.join(os.tmpdir(), `solradar-recovery-${Date.now()}.ps1`);
+        const script = buildRecoveryScript({ dbDir: discordIdbDir(), snapshotDir, folders: IDB_FOLDERS, discordExe, logPath: `${scriptPath}.log` });
+        // The BOM makes Windows PowerShell read the file as UTF-8, so a non-ASCII user name survives
+        await fs.promises.writeFile(scriptPath, "﻿" + script);
+        await spawnDetached("powershell.exe", ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-WindowStyle", "Hidden", "-File", scriptPath], true);
+    } catch (err) {
+        logger.error("Could not start the recovery script:", err);
+        return { ok: false, error: (err as Error).message };
+    }
+
+    // Lets this answer reach the renderer before Discord closes
+    setTimeout(() => app.quit(), 300);
+    return { ok: true };
 }
 
 // Runs once and answers one JSON line per command. Compiling the Win32 helper takes about a second, so it stays alive between clicks.
