@@ -14,7 +14,7 @@ import { GlitchCorePauseStore } from "../stores/GlitchCorePauseStore";
 import { Trigger } from "../stores/TriggerStore";
 import { SnipableLink } from "../types";
 import { showToast } from "../utils";
-import { getSnipableLink } from "./MessageProcessor";
+import { getSnipableLink, TieBreak } from "./MessageProcessor";
 
 // A "Glitch Core" message has no link, only a button that makes the bot reply with one, privately,
 // after a countdown. Clicking it sends a request as the user, so every click goes through the guard below.
@@ -42,6 +42,7 @@ export interface GlitchCoreContext {
     channel: Channel;
     guild: Guild;
     trigger: Trigger;
+    tieBreak?: TieBreak;
     tMessageReceived: number;
 }
 

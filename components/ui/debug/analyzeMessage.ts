@@ -8,7 +8,7 @@ import { Channel, Guild, Message } from "@vencord/discord-types";
 
 import { BiomeDetector } from "../../../services/BiomeDetector";
 import { isGlitchCoreCandidate, whyNotClick } from "../../../services/GlitchCore";
-import { explainTriggerMatch, flattenEmbeds, getSnipableLink, invalidMessageReason, isComponentsV2, sanitizeContent } from "../../../services/MessageProcessor";
+import { explainTriggerMatch, flattenEmbeds, getSnipableLink, invalidMessageReason, isComponentsV2, sanitizeContent, tieBreakText } from "../../../services/MessageProcessor";
 import { FilterFix, hasBypass } from "../../../services/scope";
 import { ScopeBlock } from "../../../services/scopeRules";
 import { lastSeenAgo } from "../../../services/SnipeDeduplicator";
@@ -319,7 +319,7 @@ export function analyzeMessage(original: Message, channel: Channel, guild: Guild
     }
     add({
         group: "match", name: "Trigger", status: "pass",
-        detail: `Matched ${trigger.name} (priority ${trigger.state.priority})${match.via ? ` by ${match.via}` : ""}.${offMatches.length ? ` Turned off but would also match: ${offNames}.` : ""}`,
+        detail: `Matched ${trigger.name} (priority ${trigger.state.priority})${match.via ? ` by ${match.via}` : ""}.${match.tieBreak ? ` ${tieBreakText(match.tieBreak)}.` : ""}${offMatches.length ? ` Turned off but would also match: ${offNames}.` : ""}`,
     });
 
     const others = leftOut.filter(g => !g.byUser).reduce((n, g) => n + g.triggers.length, 0);

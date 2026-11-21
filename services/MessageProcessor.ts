@@ -8,7 +8,7 @@ import { Channel, Guild, Message } from "@vencord/discord-types";
 
 import { Logger } from "../logger";
 import { settings } from "../settings";
-import { getActiveTriggers, KeywordSet } from "../stores/TriggerStore";
+import { getActiveTriggers, getFolder, KeywordSet } from "../stores/TriggerStore";
 import { SnipableLink, Trigger } from "../types";
 import { extractComponentContent, parseCsv } from "../utils";
 import { explainScope, FilterFix, hasBypass } from "./scope";
@@ -183,7 +183,7 @@ export function findExcluded(text: string, conditions: Pick<Trigger["conditions"
 }
 
 /** `via` says what made it match: a keyword, a role, or nothing (a trigger with no keywords). */
-function evaluateTrigger(message: Message, trigger: Trigger): { matched: boolean; reason?: string; via?: string; globalExclude?: boolean; word?: string; } {
+function evaluateTrigger(message: Message, trigger: Trigger): { matched: boolean; reason?: string; via?: string; keyword?: boolean; role?: boolean; globalExclude?: boolean; word?: string; } {
     const { conditions } = trigger;
     const { content } = message;
 
@@ -194,9 +194,11 @@ function evaluateTrigger(message: Message, trigger: Trigger): { matched: boolean
     const hasMentionRoles = conditions.mentionRoles.length > 0;
 
     let via: string | undefined;
+    let keyword: string | undefined;
+    let role: { id: string; label?: string; } | undefined;
     if (hasKeywords || hasMentionRoles) {
-        const keyword = hasKeywords ? firstKeyword(content, conditions.keywords.match) : undefined;
-        const role = hasMentionRoles ? conditions.mentionRoles.find(r => mentionRoles.includes(r.id)) : undefined;
+        keyword = hasKeywords ? firstKeyword(content, conditions.keywords.match) : undefined;
+        role = hasMentionRoles ? conditions.mentionRoles.find(r => mentionRoles.includes(r.id)) : undefined;
         if (!keyword && !role)
             return { matched: false, reason: "no keyword or role in the message" };
         via = keyword ? `keyword "${keyword}"` : `role ${role!.label || role!.id}`;
@@ -208,13 +210,53 @@ function evaluateTrigger(message: Message, trigger: Trigger): { matched: boolean
     if (blocker)
         return { matched: false, reason: `excluded keyword "${blocker.word}" is in the message`, word: blocker.word };
 
-    return { matched: true, via };
+    return { matched: true, via, keyword: !!keyword, role: !!role };
+}
+
+// --- Specificity ---
+
+type Rank = { content: number; place: number; keyword: boolean; role: boolean; };
+
+function placeScore(t: Trigger): number {
+    const { inGuild, inChannel, fromUser } = t.conditions;
+    const folder = getFolder(t.folderId)?.rules;
+    if (fromUser.length || folder?.onlyUsers?.length) return 3;
+    if (inChannel.length || folder?.onlyChannels?.length) return 2;
+    if (inGuild.length || folder?.onlyServers?.length) return 1;
+    return 0;
+}
+
+const CONTENT_TEXT = (r: Rank) => r.keyword && r.role ? "a keyword and a role" : r.keyword ? "a keyword" : r.role ? "a role" : "any message";
+const PLACE_TEXT = ["anywhere", "in certain servers", "in certain channels", "for certain users"];
+const FIRES = (place: number) => `fires ${PLACE_TEXT[place]}`;
+
+export interface TieBreak {
+    runnerUp: Trigger;
+    by: "content" | "place" | "order";
+    priority: number;
+    /** The reason, without the "Won a priority N tie" lead */
+    detail: string;
+}
+
+export function tieBreakText({ runnerUp, by, priority, detail }: TieBreak): string {
+    return `Won a priority ${priority} tie against ${runnerUp.name}${by === "order" ? " by list order" : ""}: ${detail}`;
+}
+
+function breakTie(winner: Trigger, w: Rank, runnerUp: Trigger, o: Rank): TieBreak {
+    const base = { runnerUp, priority: winner.state.priority };
+    if (w.content !== o.content)
+        return { ...base, by: "content", detail: `it matched ${CONTENT_TEXT(w)}, the other ${o.content ? "matched" : "matches"} ${CONTENT_TEXT(o)}` };
+    if (w.place !== o.place)
+        return { ...base, by: "place", detail: `it only ${FIRES(w.place)}, the other ${FIRES(o.place)}` };
+    return { ...base, by: "order", detail: "they are equally specific" };
 }
 
 export interface TriggerMatchResult {
     winner: Trigger | null;
     /** What made the winner match */
     via?: string;
+    /** Set when the winner shared its priority with another candidate and won on specificity or list order */
+    tieBreak?: TieBreak;
     /** Normal triggers dropped because more than one matched */
     ambiguous: Trigger[];
     /** Every trigger whose conditions matched, before ambiguity and priority are applied */
@@ -242,15 +284,25 @@ export function explainTriggerMatch(message: Message, activeTriggers: Trigger[],
     const normals = matched.filter(t => !hasBypass(t, "bypassMatchAmbiguity"));
     const ambiguous = normals.length > 1 ? normals : [];
 
-    const candidates = [...bypass, ...(normals.length === 1 ? normals : [])];
-    candidates.sort((a, b) => a.state.priority - b.state.priority);
+    const candidates = [...bypass, ...(normals.length === 1 ? normals : [])].map(trigger => {
+        const r = results.find(x => x.trigger === trigger)!;
+        const rank: Rank = { content: (r.keyword ? 1 : 0) + (r.role ? 1 : 0), place: placeScore(trigger), keyword: !!r.keyword, role: !!r.role };
+        return { trigger, rank };
+    });
+    candidates.sort((a, b) =>
+        a.trigger.state.priority - b.trigger.state.priority
+        || b.rank.content - a.rank.content
+        || b.rank.place - a.rank.place);
 
-    const winner = candidates[0] ?? null;
-    return { winner, via: results.find(r => r.trigger === winner)?.via, ambiguous, matched, rejected };
+    const [first, second] = candidates;
+    const winner = first?.trigger ?? null;
+    const tied = second && second.trigger.state.priority === winner!.state.priority;
+    const tieBreak = tied ? breakTie(winner!, first.rank, second.trigger, second.rank) : undefined;
+    return { winner, via: results.find(r => r.trigger === winner)?.via, tieBreak, ambiguous, matched, rejected };
 }
 
-function getMatchingTrigger(message: Message, activeTriggers: Trigger[], channel: Channel): Trigger | null {
-    const { winner, ambiguous, rejected } = explainTriggerMatch(message, activeTriggers, { channel });
+function getMatchingTrigger(message: Message, activeTriggers: Trigger[], channel: Channel): { trigger: Trigger; tieBreak?: TieBreak; } | null {
+    const { winner, tieBreak, ambiguous, rejected } = explainTriggerMatch(message, activeTriggers, { channel });
 
     for (const r of rejected) {
         if (r.filtered) logger.debug(`[${r.trigger.name}] ${r.reason} Skipping.`);
@@ -264,13 +316,14 @@ function getMatchingTrigger(message: Message, activeTriggers: Trigger[], channel
         );
     }
     if (winner) logger.debug(`Winner: "${winner.name}" (p${winner.state.priority}, bypass=${hasBypass(winner, "bypassMatchAmbiguity")})`);
+    if (tieBreak) logger.debug(tieBreakText(tieBreak));
 
-    return winner;
+    return winner && { trigger: winner, tieBreak };
 }
 
 export function resolveTrigger(
     { message, channel, guild }: { message: Message; channel: Channel; guild: Guild; },
-): Trigger | null {
+): { trigger: Trigger; tieBreak?: TieBreak; } | null {
     const activeTriggers = getActiveTriggers();
     if (!activeTriggers.length) return null;
 

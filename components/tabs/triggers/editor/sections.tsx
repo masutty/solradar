@@ -276,7 +276,7 @@ function JoinLockSection({ draft, patch }: { draft: Draft; patch: Patch; }) {
                 <NumberField
                     label="Priority"
                     hint="Lower numbers win, so only triggers with a lower number can join while this lock is on"
-                    tooltip="1 is the highest. While the lock is on, only triggers with a lower number can still join."
+                    tooltip={"When several triggers match one message, the winner is picked in this order:\n1. Lower priority number.\n2. Matched more of its keyword and role conditions.\n3. Limited to a narrower place: users, then channels, then servers.\n4. Its place in the trigger list.\n\nWhile a join lock is on, only triggers with a lower number can still join."}
                     value={draft.state.priority}
                     onChange={v => patchState({ priority: v })}
                 />

@@ -26,7 +26,7 @@ import { forwardSnipe } from "./services/ForwardingService";
 import { GlitchCoreContext, handleGlitchCoreReply, isGlitchCoreCandidate, requestGlitchCoreLink } from "./services/GlitchCore";
 import { isJoinLocked, join, shouldJoin } from "./services/JoinService";
 import { recordSnipe, shouldProcessEdit, snipedTriggers } from "./services/MessageEditWatcher";
-import { flattenEmbeds, getSnipableLink, isValidMessage, resolveTrigger, sanitizeContent } from "./services/MessageProcessor";
+import { flattenEmbeds, getSnipableLink, isValidMessage, resolveTrigger, sanitizeContent, tieBreakText } from "./services/MessageProcessor";
 import { canNotify, notify } from "./services/NotificationService";
 import { redactUserPath } from "./services/paths";
 import { isDuplicateLink, markAsSeen } from "./services/SnipeDeduplicator";
@@ -65,8 +65,9 @@ async function handleMessage(message: Message, channel: Channel, guild: Guild, t
     }
     sanitizeContent(message);
 
-    const trigger = resolveTrigger({ message, channel, guild });
-    if (!trigger) return;
+    const resolved = resolveTrigger({ message, channel, guild });
+    if (!resolved) return;
+    const { trigger, tieBreak } = resolved;
 
     // An edit that keeps the same biome (typo fix, "(ended)" added...) never makes a second snipe
     if (fromEdit && trigger.conditions.ignoreEdits) {
@@ -84,11 +85,11 @@ async function handleMessage(message: Message, channel: Channel, guild: Guild, t
     if (isJoinLocked(trigger)) return;
 
     if (!link) {
-        await requestGlitchCoreLink({ message, channel, guild, trigger, tMessageReceived });
+        await requestGlitchCoreLink({ message, channel, guild, trigger, tieBreak, tMessageReceived });
         return;
     }
 
-    await runSnipe({ message, channel, guild, trigger, tMessageReceived, link, fromEdit });
+    await runSnipe({ message, channel, guild, trigger, tieBreak, tMessageReceived, link, fromEdit });
 }
 
 interface SnipeContext extends GlitchCoreContext {
@@ -99,12 +100,13 @@ interface SnipeContext extends GlitchCoreContext {
 
 // Everything from the moment the link is known. A Glitch Core link arrives later than its message,
 // so it continues here with the original message, trigger and receive time.
-async function runSnipe({ message, channel, guild, trigger, tMessageReceived, link, fromEdit, glitchCore }: SnipeContext): Promise<void> {
+async function runSnipe({ message, channel, guild, trigger, tieBreak, tMessageReceived, link, fromEdit, glitchCore }: SnipeContext): Promise<void> {
     const earlier = fromEdit ? snipedTriggers(message.id) : [];
 
     const snipe = Snipe.create(message, link, trigger, channel, guild, tMessageReceived, glitchCore);
     snipe.logDebug("-- Snipe created! --");
     recordSnipe(message.id, trigger.name);
+    if (tieBreak) snipe.logInfo(tieBreakText(tieBreak));
     if (glitchCore) snipe.logInfo(`Got the link from Glitch Core ${((glitchCore.tLinkReceived - glitchCore.tClicked) / 1000).toFixed(1)}s after the click.`);
     if (fromEdit) {
         snipe.logInfo(earlier.length

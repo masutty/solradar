@@ -9,7 +9,7 @@ import { Tooltip } from "@webpack/common";
 /** A small "?" that shows text on hover. */
 export function HelpTip({ text }: { text: string; }) {
     return (
-        <Tooltip text={text}>
+        <Tooltip text={<div style={{ whiteSpace: "pre-line" }}>{text}</div>}>
             {props => (
                 <span {...props} style={{
                     display: "inline-flex",
