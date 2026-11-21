@@ -563,7 +563,7 @@ function FolderEditor({ modalProps, folder, forTrigger, startPage }: { modalProp
                     </>}
                     <span style={{ flex: 1 }} />
                     <Button size="small" variant="secondary" onClick={modalProps.onClose}>Cancel</Button>
-                    <Button size="small" variant="primary" onClick={save}>{folder ? "Save" : "Create"}</Button>
+                    <Button size="small" variant="positive" onClick={save}>{folder ? "Save" : "Create"}</Button>
                 </div>
             </ModalFooter>
         </ModalRoot>
