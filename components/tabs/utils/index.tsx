@@ -13,6 +13,7 @@ import { settings } from "../../../settings";
 import { JoinLockStore } from "../../../stores/JoinLockStore";
 import { isDeveloper } from "../../../utils";
 import { openActiveChannelsModal } from "../../modals/ActiveChannelsModal";
+import { openRecoveryModal } from "../../modals/RecoveryModal";
 import { AutoPlayControls } from "../../ui/AutoPlayControls";
 import { Note } from "../../ui/Note";
 import { labelText, rowCard, sectionTitle, tabColumn } from "../../ui/styles";
@@ -147,6 +148,14 @@ export function UtilsTab() {
                 button="Open"
                 onClick={openActiveChannelsModal}
             />
+
+            <a
+                role="button"
+                onClick={openRecoveryModal}
+                style={{ alignSelf: "flex-start", marginTop: 24, fontSize: 12, color: "var(--text-muted)", textDecoration: "underline", cursor: "pointer" }}
+            >
+                Recover lost data
+            </a>
         </div>
     );
 }

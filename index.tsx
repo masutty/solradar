@@ -19,6 +19,7 @@ import { openMessageDebugModal } from "./components/ui/MessageDebugModal";
 import { Logger } from "./logger";
 import { Snipe } from "./models/Snipe";
 import { PendingActionStore } from "./services/ActionExecutor";
+import { startAutoBackup, stopAutoBackup } from "./services/BackupService";
 import { BiomeDetector } from "./services/BiomeDetector";
 import { cancelBiomeDetection } from "./services/BiomeWatcher";
 import { forwardSnipe } from "./services/ForwardingService";
@@ -205,6 +206,7 @@ export default definePlugin({
             .then(() => pruneIcons([...getTriggers().map(t => t.iconUrl), ...SnipeStore.all.map(e => e.iconUrl)]))
             .catch(err => logger.error("Failed to prune icons:", err));
         pruneKnownNames().catch(err => logger.error("Failed to prune known names:", err));
+        startAutoBackup().catch(err => logger.error("Failed to start backups:", err));
 
         // Join speed: read the Roblox handler now so the first snipe does not pay for it
         // Natives only reload with a full Discord restart, so this can be missing after Ctrl+R
@@ -233,6 +235,7 @@ export default definePlugin({
         logger.info("Stopping");
         BiomeDetector.stop();
         cancelBiomeDetection();
+        stopAutoBackup();
     },
 
     flux: {
