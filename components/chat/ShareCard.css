@@ -7,8 +7,8 @@
     display: flex;
     flex-direction: column;
     gap: 14px;
-    background: var(--background-secondary);
-    border: 1px solid var(--background-modifier-accent);
+    background: var(--background-mod-subtle);
+    border: 1px solid var(--background-mod-normal);
     border-radius: 8px;
 }
 
@@ -49,7 +49,7 @@
 }
 
 .vc-sora-share-stack > * {
-    border: 3px solid var(--background-secondary);
+    border: 3px solid var(--background-base-lower, var(--background-base-low));
     border-radius: 12px;
     box-sizing: content-box;
 }
@@ -70,7 +70,7 @@
     font-size: 16px;
     font-weight: 600;
     line-height: 1.25;
-    color: var(--header-primary);
+    color: var(--text-strong, var(--text-default));
     overflow-wrap: anywhere;
     display: -webkit-box;
     -webkit-line-clamp: 2;
@@ -166,7 +166,7 @@
 
 .vc-sora-share-skel {
     border-radius: 6px;
-    background: linear-gradient(90deg, var(--background-modifier-hover) 25%, var(--background-modifier-accent) 50%, var(--background-modifier-hover) 75%);
+    background: linear-gradient(90deg, var(--background-mod-subtle) 25%, var(--background-mod-normal) 50%, var(--background-mod-subtle) 75%);
     background-size: 200% 100%;
     animation: vc-sora-share-shimmer 1.2s linear infinite;
 }
