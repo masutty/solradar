@@ -80,6 +80,22 @@ export async function sendWebhookWithIcon(_: IpcMainInvokeEvent, url: string, bo
     if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
 }
 
+const SHARE_MAX_BYTES = 1_000_000;
+const SHARE_HOSTS = new Set(["cdn.discordapp.com", "media.discordapp.net"]);
+
+export async function fetchAttachmentText(_: IpcMainInvokeEvent, url: string): Promise<string> {
+    const parsed = new URL(url);
+    if (parsed.protocol !== "https:" || !SHARE_HOSTS.has(parsed.hostname)) throw new Error("Blocked attachment host");
+
+    const res = await fetch(parsed);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    if (Number(res.headers.get("content-length")) > SHARE_MAX_BYTES) throw new Error("Attachment too large");
+
+    const body = Buffer.from(await res.arrayBuffer());
+    if (body.length > SHARE_MAX_BYTES) throw new Error("Attachment too large");
+    return body.toString("utf8");
+}
+
 // --- Roblox: open URI ---
 
 export type LaunchMethod = "direct" | "shell";
