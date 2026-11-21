@@ -1,6 +1,16 @@
 {
-    "currentVersion": "1.12.2",
+    "currentVersion": "1.13.0",
     "changelog": [
+        {
+            "version": "1.13.0",
+            "entries": [
+                { "type": "Added", "text": "Import triggers from chat", "description": "When a message carries a trigger, pasted as text or sent as a file, a card under it shows what it is. Import lets you pick what to add, and Direct import adds it right away. Turn it off in Settings, under Interface." },
+                { "type": "Added", "text": "Update triggers you already have", "description": "Importing a trigger you already have now offers to update it instead of adding a copy. Your folder and webhook stay as they are." },
+                { "type": "Improved", "text": "Copied triggers keep their folder", "description": "Copy to clipboard now brings the trigger's folder along, and lets whoever imports it update it later." },
+                { "type": "Improved", "text": "Folder editor buttons", "description": "Delete, copy and safe export are now icon buttons at the bottom of the folder editor, like in the trigger editor." },
+                { "type": "Improved", "text": "History timing number starts on Until server slot request", "description": "The number next to the ⚡ in Snipe History now adds up the steps until the server answered by default. You can still change it in Settings, under Interface." }
+            ]
+        },
         {
             "version": "1.12.2",
             "entries": [
