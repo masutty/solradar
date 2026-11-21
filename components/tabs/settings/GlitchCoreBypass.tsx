@@ -13,6 +13,7 @@ import { React } from "@webpack/common";
 import { settings } from "../../../settings";
 import { ModalCloseButton, ModalContent, ModalFooter, ModalHeader, ModalProps, ModalRoot, ModalSize, openModal } from "../../ui/LegacyModal";
 import { Note } from "../../ui/Note";
+import { TechBadge } from "./Setting";
 
 const WARNING = "If your snipes come in often, this many clicks could look like abuse to Discord and put your account at risk";
 
@@ -53,7 +54,10 @@ export function GlitchCoreBypassSetting() {
         <div data-sora-setting="glitchCoreBypassClickLimits" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "10px 14px", borderRadius: 8, background: "var(--background-mod-subtle)" }}>
                 <div style={{ display: "flex", flexDirection: "column", gap: 3, flex: 1, minWidth: 0 }}>
-                    <span style={{ color: "var(--control-secondary-text-default)", fontSize: 14, fontWeight: 500 }}>Remove Glitch Core click limits (not recommended)</span>
+                    <span style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", color: "var(--control-secondary-text-default)", fontSize: 14, fontWeight: 500 }}>
+                        Remove Glitch Core click limits (not recommended)
+                        <TechBadge />
+                    </span>
                     <span style={{ color: "var(--text-muted)", fontSize: 12, lineHeight: 1.4, marginTop: 2 }}>Clicks every Glitch Core button with no limits.</span>
                 </div>
                 <FormSwitch
