@@ -506,7 +506,7 @@ export const settings = definePluginSettings({
     // Developer
     historyBoltSteps: {
         type: OptionType.CUSTOM,
-        default: ["read", "close", "open"] as string[], // JoinStepKeys, see services/JoinTimeline.ts
+        default: ["read", "link", "close", "open", "startup", "helper", "loading", "resolve", "prepare", "server"] as string[], // JoinStepKeys, see services/JoinTimeline.ts
     },
 
     // Link verification

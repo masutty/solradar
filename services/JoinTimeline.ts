@@ -190,11 +190,11 @@ export const BOLT_STEP_KEYS = Object.keys(JOIN_STEPS) as JoinStepKey[];
 const stepsOfCat = (cat: StepCat) => BOLT_STEP_KEYS.filter(k => JOIN_STEPS[k].cat === cat);
 const upTo = (last: JoinStepKey) => BOLT_STEP_KEYS.slice(0, BOLT_STEP_KEYS.indexOf(last) + 1);
 
-export const DEFAULT_BOLT_STEPS: JoinStepKey[] = ["read", "close", "open"];
+export const DEFAULT_BOLT_STEPS: JoinStepKey[] = upTo("server");
 
 export const BOLT_PRESETS: { label: string; tip: string; steps: JoinStepKey[]; }[] = [
-    { label: "Reaction time", tip: "From the message until the link was handed to Windows.", steps: DEFAULT_BOLT_STEPS },
-    { label: "Until server slot request", tip: "From the message until the server answered the request for a slot, not counting any wait in its queue.", steps: upTo("server") },
+    { label: "Reaction time", tip: "From the message until the link was handed to Windows.", steps: ["read", "close", "open"] },
+    { label: "Until server slot request", tip: "From the message until the server answered the request for a slot, not counting any wait in its queue.", steps: DEFAULT_BOLT_STEPS },
     { label: "Until you were let in", tip: "From the message until the server let you in.", steps: upTo("queue") },
     { label: "Until connected", tip: "From the message until you were connected to the server.", steps: BOLT_STEP_KEYS },
     { label: "Plugin total", tip: STEP_CATS.plugin.tip, steps: stepsOfCat("plugin") },
