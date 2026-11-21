@@ -1,6 +1,20 @@
 {
-    "currentVersion": "1.11.0",
+    "currentVersion": "1.12.0",
     "changelog": [
+        {
+            "version": "1.12.0",
+            "entries": [
+                { "type": "Added", "text": "Glitch Core links", "description": "Some messages only have a Get server link button. Turn on Accept Glitch Core links in Settings, under Reading messages, and the button is clicked for you when a trigger matches. The link is used as soon as the bot sends it, with at most one click every 15 seconds." },
+                { "type": "Added", "text": "Automatic backups", "description": "Your triggers, folders and snipes are saved to a file every 6 hours, outside Discord's own storage. If Discord ever wipes its data, use Recover lost data at the bottom of Utilities." },
+                { "type": "Added", "text": "Folder rules", "description": "A folder can limit where its triggers run, ignore servers, channels or users, and skip global rules. You can also duplicate a folder with all its triggers." },
+                { "type": "Added", "text": "Expect several biomes", "description": "Write several biomes in a trigger's biome keyword, separated by commas. The snipe counts as real when any of them shows up." },
+                { "type": "Added", "text": "Stats for several triggers at once", "description": "In Stats, pick triggers and folders to see their numbers together. Click a recent snipe to go to its message." },
+                { "type": "Improved", "text": "Filters work the same on every level", "description": "Only and Never lists in Settings, folders and triggers are all checked before a trigger is chosen, so a blocked trigger no longer makes a match ambiguous. Triggers can now ignore users too." },
+                { "type": "Improved", "text": "New join lock and pending action banners", "description": "They also show on the Triggers tab, and hovering one explains what clicking it does." },
+                { "type": "Improved", "text": "Clearer message debug", "description": "The filters step shows which triggers each filter blocked." },
+                { "type": "Fixed", "text": "The trigger editor's match preview", "description": "It now follows the same keyword rules as real messages and says why a word did not match." }
+            ]
+        },
         {
             "version": "1.11.0",
             "entries": [

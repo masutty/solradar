@@ -18,9 +18,9 @@ import { IdChipInput } from "../../../ui/IdChipInput";
 import { KeywordsInput } from "../../../ui/KeywordsInput";
 import { Note } from "../../../ui/Note";
 import { descriptionText, labelText } from "../../../ui/styles";
+import { BYPASSES } from "./bypasses";
 import { AudioField, NumberField, RoleChipInput, rowStacked, sectionHeading, SwitchRow, TextAreaField, TextField } from "./fields";
 import { AccentField, FloatingPreview, FormatFields, MatchTimingField, ShowFields } from "./forwardEditor";
-import { BYPASSES } from "./bypasses";
 import { MatchPreview } from "./MatchPreview";
 
 export type Draft = Omit<Trigger, "id">;

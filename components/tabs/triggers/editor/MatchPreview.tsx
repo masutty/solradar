@@ -6,8 +6,8 @@
 
 import { React, TextInput, Tooltip, useState } from "@webpack/common";
 
-import { settings } from "../../../../settings";
 import { findExcluded, firstKeyword, stripSnipableLinks } from "../../../../services/MessageProcessor";
+import { settings } from "../../../../settings";
 import { Trigger } from "../../../../types";
 import { COLORS, descriptionText, labelText } from "../../../ui/styles";
 

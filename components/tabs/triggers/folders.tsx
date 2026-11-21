@@ -14,8 +14,8 @@ import { Switch } from "@components/Switch";
 import { Alerts, ContextMenuApi, Menu, React, ScrollerThin, showToast, TextArea, TextInput, Tooltip, useRef, useState } from "@webpack/common";
 
 import {
-    createFolder,
     BypassKey,
+    createFolder,
     deleteFolder,
     duplicateFolder,
     FOLDER_COLORS,
@@ -33,9 +33,9 @@ import { tourAnchor } from "../../tour/TourAnchor";
 import { IdChipInput } from "../../ui/IdChipInput";
 import { resolveRow } from "../../ui/idFilter/resolve";
 import { ChipKind } from "../../ui/idFilter/types";
+import { ModalContent, ModalFooter, ModalHeader, ModalProps, ModalRoot, ModalSize, openModal } from "../../ui/LegacyModal";
 import { Note } from "../../ui/Note";
 import { descriptionText } from "../../ui/styles";
-import { ModalContent, ModalFooter, ModalHeader, ModalProps, ModalRoot, ModalSize, openModal } from "../../ui/LegacyModal";
 import { BYPASSES } from "./editor/bypasses";
 import { SwitchRow } from "./editor/fields";
 import { copyFolderToClipboard, exportFolderToFile, openSafeExportDialogForFolder } from "./exportActions";
@@ -351,7 +351,7 @@ const RULE_FIELDS: [keyof ScopeRules, ChipKind, string, string][] = [
 ];
 
 function idName(kind: ChipKind, id: string): string {
-    const name = resolveRow(kind, id).name;
+    const { name } = resolveRow(kind, id);
     if (!name) return id;
     return kind === "user" ? "@" + name : name;
 }
