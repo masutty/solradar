@@ -10,7 +10,7 @@ import "../tabs/triggers/triggers.css";
 import { Button } from "@components/Button";
 import { Message } from "@vencord/discord-types";
 import { ReactNode } from "react";
-import { showToast, Tooltip, useEffect, useMemo, useState } from "@webpack/common";
+import { showToast, Tooltip, useEffect, useMemo, useRef, useState } from "@webpack/common";
 
 import { settings } from "../../settings";
 import { getFolder, ImportedTrigger, importTriggers, sameTrigger, updateFromFile, useTriggers } from "../../stores/TriggerStore";
@@ -181,6 +181,8 @@ function Card({ triggers, label }: { triggers: ImportedTrigger[]; label: string;
     const mine = useTriggers();
     const [done, setDone] = useState<"imported" | "updated" | null>(null);
     const [busy, setBusy] = useState(false);
+    // State only updates after a render, so two fast clicks would both see busy = false
+    const running = useRef(false);
 
     const add: ImportedTrigger[] = [];
     const update: ImportedTrigger[] = [];
@@ -196,7 +198,8 @@ function Card({ triggers, label }: { triggers: ImportedTrigger[]; label: string;
     const finish = (added: number, updated: number) => setDone(updated && !added ? "updated" : "imported");
     const pick = () => openFilePicker(importable, label, finish);
     const direct = async () => {
-        if (busy) return;
+        if (running.current) return;
+        running.current = true;
         setBusy(true);
         try {
             const added = add.length ? await importTriggers(add) : 0;
@@ -207,6 +210,7 @@ function Card({ triggers, label }: { triggers: ImportedTrigger[]; label: string;
         } catch (e) {
             showToast({ text: `Couldn't import: ${e}`, variant: "critical" });
         } finally {
+            running.current = false;
             setBusy(false);
         }
     };

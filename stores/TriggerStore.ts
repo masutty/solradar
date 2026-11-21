@@ -918,7 +918,7 @@ export function parseTriggersFile(json: string, opts?: { adoptIcons?: boolean; }
     const valid = (parsed as any[]).filter(t =>
         t && typeof t === "object" &&
         typeof t.name === "string" &&
-        typeof t.type === "string" && t.type in TYPE_COLORS &&
+        typeof t.type === "string" && Object.hasOwn(TYPE_COLORS, t.type) &&
         t.state && t.conditions
     );
 
