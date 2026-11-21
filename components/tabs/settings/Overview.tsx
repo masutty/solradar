@@ -48,16 +48,16 @@ function getChecks(s: Pick<typeof settings.store, typeof OVERVIEW_KEYS[number]>)
     if (monitored > 0)
         checks.push({ kind: "info", text: `Only ${monitored} ${monitored === 1 ? "server is" : "servers are"} monitored. Every other server is ignored.` });
     if (!s.anonymizeEverything)
-        checks.push({ kind: "info", text: "Snipes are visible in History. Turn on Anonymize snipes before sharing screenshots." });
+        checks.push({ kind: "info", text: "Snipes show in History, so turn on Anonymize snipes before sharing screenshots" });
     if (s.linkVerification === "disabled")
         checks.push({ kind: "info", text: "Links are not verified." });
 
     if (!checks.some(c => c.kind === "warn"))
-        checks.unshift({ kind: "ok", text: "Everything SolRadar needs is configured." });
+        checks.unshift({ kind: "ok", text: "Everything needed is configured" });
 
     // Always first, since it is the one setting that takes over the mouse
     if (s.inputAutomationEnabled)
-        checks.unshift({ kind: "warn", text: "Input automation is on, so Sol Radar can move your mouse and click on its own" });
+        checks.unshift({ kind: "warn", text: "Input automation is on, so your mouse can be moved and clicked automatically" });
 
     return checks;
 }

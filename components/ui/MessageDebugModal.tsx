@@ -195,9 +195,9 @@ function MessagePreview({ message, channel, guild, text }: { message: Message; c
 
     // Not a copy of the real message: a note says what kind of rich content it has
     const note = hasComponents
-        ? "Built with text blocks and buttons. Shown the way Sol Radar reads it."
+        ? "Built with text blocks and buttons. Shown the way it is read."
         : embeds
-            ? `Has ${embeds === 1 ? "an embed" : `${embeds} embeds`}. Shown the way Sol Radar reads ${embeds === 1 ? "it" : "them"}.`
+            ? `Has ${embeds === 1 ? "an embed" : `${embeds} embeds`}. Shown the way ${embeds === 1 ? "it is" : "they are"} read.`
             : null;
 
     return (

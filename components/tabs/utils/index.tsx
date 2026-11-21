@@ -144,7 +144,7 @@ export function UtilsTab() {
             <p style={sectionTitle}>Monitoring</p>
             <ActionRow
                 label="Active channels"
-                description="Channels where SolRadar saw messages since it started. Not every channel Discord sends you shows up here."
+                description="Channels with messages seen since Discord started. Not every channel Discord sends you shows up here."
                 button="Open"
                 onClick={openActiveChannelsModal}
             />

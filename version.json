@@ -1,6 +1,13 @@
 {
-    "currentVersion": "1.12.0",
+    "currentVersion": "1.12.1",
     "changelog": [
+        {
+            "version": "1.12.1",
+            "entries": [
+                { "type": "Improved", "text": "Glitch Core links explain their click limit", "description": "Hover the ? next to Accept Glitch Core links to see why clicks are limited and where to turn the limit off." },
+                { "type": "Improved", "text": "Cleaner wording", "description": "Settings, tips, tutorials and the message debug no longer name the plugin when they talk about what it does." }
+            ]
+        },
         {
             "version": "1.12.0",
             "entries": [

@@ -66,7 +66,7 @@ export const makeSettingsTour = (): Tour => ({
             title: "Servers that ban snipers",
             body: <>
                 <P>Some servers <Tint color={COLORS.danger}>don't allow macros or auto-joins</Tint>.</P>
-                <P>Add them to <Tint color="var(--text-brand)">Always ignore these servers</Tint> and SolRadar never snipes from them.</P>
+                <P>Add them to <Tint color="var(--text-brand)">Always ignore these servers</Tint> and nothing is sniped from them.</P>
                 <P><Rainbow>You can still snipe there, but if you get punished, that's on you {"¯\\_(ツ)_/¯"}</Rainbow></P>
             </>,
         },
@@ -82,7 +82,7 @@ export const makeSettingsTour = (): Tour => ({
             title: "Link verification",
             body: <>
                 <P>Checks that a server link is real before you trust it.</P>
-                <P>It needs your <b>Roblox cookie</b>, so it's <Tint color={COLORS.positive}>completely optional</Tint>. SolRadar works fine without it.</P>
+                <P>It needs your <b>Roblox cookie</b>, so it's <Tint color={COLORS.positive}>completely optional</Tint>. Everything works fine without it.</P>
             </>,
         },
         {
@@ -108,7 +108,7 @@ export const makeSettingsTour = (): Tour => ({
             body: <>
                 <P>If you decide to use it, your <code>.ROBLOSECURITY</code> cookie goes in <b>Vencord settings → Plugins → SolRadar → Roblox Token</b>.</P>
                 <P><Tint color={COLORS.danger}>Treat it like a password.</Tint> Never share it, and use an alt account if you can.</P>
-                <Muted>SolRadar only sends it to Roblox, to check links.</Muted>
+                <Muted>It is only sent to Roblox, to check links.</Muted>
             </>,
         },
         {
@@ -119,7 +119,7 @@ export const makeSettingsTour = (): Tour => ({
             enter: reveal("biome"),
             title: "Biome actions",
             body: <>
-                <P>After a join, SolRadar can read your Roblox logs to check the biome. Pick what happens when it:</P>
+                <P>After a join, your Roblox logs can be read to check the biome. Pick what happens when it:</P>
                 <Legend>
                     <Row el={<Tint color={COLORS.danger}>Is fake</Tint>}>The biome doesn't match the announcement.</Row>
                     <Row el={<Tint color={COLORS.muted}>Ends</Tint>}>A real biome is over.</Row>

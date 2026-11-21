@@ -40,7 +40,7 @@ function noteFor(entry: SnipeEntry, b: JoinBreakdown, reading: boolean): { text:
     const serverQueue = b.steps.find(s => s.key === "queue");
     if (serverQueue?.end != null) return { text: `The server was full, so you waited ${formatSecs(serverQueue.end - serverQueue.start)} in its queue`, warn: true };
     const linkWait = b.steps.find(s => s.key === "link");
-    if (linkWait?.end != null && b.situation === "warm") return { text: `Waiting for The Core's link took ${formatSecs(linkWait.end - linkWait.start)}. That is the bot, not Sol Radar` };
+    if (linkWait?.end != null && b.situation === "warm") return { text: `Waiting for The Core's link took ${formatSecs(linkWait.end - linkWait.start)}, all on the bot's side` };
     switch (b.situation) {
         case "cold":
             return entry.metrics?.joinMode === "safe"
@@ -48,9 +48,9 @@ function noteFor(entry: SnipeEntry, b: JoinBreakdown, reading: boolean): { text:
                 : { text: "Roblox had to load from closed. Keeping it open skips about 3s", warn: true };
         case "warm": {
             const top = CATS.reduce((a, k) => b.totals[k] > b.totals[a] ? k : a, "plugin" as StepCat);
-            if (top === "hw") return { text: "Most of this time is Roblox starting on your PC, not Sol Radar" };
-            if (top === "net") return { text: "Most of this time is Roblox's servers, not your PC or Sol Radar" };
-            return { text: "Most of this time is Sol Radar. Open Steps to see which part" };
+            if (top === "hw") return { text: "Most of this time is Roblox starting on your PC" };
+            if (top === "net") return { text: "Most of this time is Roblox's servers, not your PC" };
+            return { text: "Most of this time is the plugin itself, open Steps to see which part" };
         }
         case "noSpot":
             return reachedAt(b) !== null
@@ -61,7 +61,7 @@ function noteFor(entry: SnipeEntry, b: JoinBreakdown, reading: boolean): { text:
         case "noLog":
             return { text: "Roblox's log for this join wasn't found. Try reading it again, it may have been busy the first time", action: true };
         case "old":
-            return { text: "Snipes from before this version only have Sol Radar's part" };
+            return { text: "Snipes from before this version only have the plugin's part" };
     }
 }
 
@@ -258,7 +258,7 @@ function Cells({ entry }: { entry: SnipeEntry; }) {
     const isReal = entry.tags.includes("biome-verified-real");
     const cells: [string, string, string][] = [
         // Your PC clock and Discord's never agree exactly, so a few ms below zero just means "instant"
-        ["Discord delay", m?.discordDelayMs == null ? "-" : m.discordDelayMs < 0 ? "~0ms" : formatSecs(m.discordDelayMs), "How long Discord took to deliver the message to Sol Radar. It's measured against your PC clock, so it's only roughly right."],
+        ["Discord delay", m?.discordDelayMs == null ? "-" : m.discordDelayMs < 0 ? "~0ms" : formatSecs(m.discordDelayMs), "How long Discord took to deliver the message. It's measured against your PC clock, so it's only roughly right."],
         ["Link check", took("verify"), "Checking the link leads to a place you allow. Runs while Roblox starts."],
         ["Biome check", took("wait"), "Waiting for your game to show the biome."],
         ["Biome lasted", isReal && entry.biomeDurationMs != null ? formatElapsedTime(entry.biomeDurationMs) : "-", "How long the biome lasted"],

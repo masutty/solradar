@@ -59,7 +59,7 @@ export type JoinStepKey = "read" | "link" | "close" | "open" | "startup" | "help
 const QUEUE_MS = 2500;
 
 export const STEP_CATS: Record<StepCat, { name: string; color: string; tip: string; }> = {
-    plugin: { name: "Plugin", color: "var(--brand-500)", tip: "Sol Radar's own code: reading the message and finding the trigger." },
+    plugin: { name: "Plugin", color: "var(--brand-500)", tip: "The plugin's own code: reading the message and finding the trigger." },
     hw: { name: "Hardware", color: "var(--vc-sora-hw)", tip: "Roblox starting and loading on your PC." },
     net: { name: "Network", color: "var(--vc-sora-net)", tip: "Roblox talking to its servers." },
     queue: { name: "Queue", color: "var(--text-muted)", tip: "You waiting: in line because the server was full, or for a Glitch Core link." },
@@ -69,7 +69,7 @@ export const JOIN_STEPS: Record<JoinStepKey, { name: string; cat: StepCat; tip: 
     read: { name: "Read message", cat: "plugin", tip: "Finding the trigger and checking for duplicates." },
     link: { name: "Waited for link", cat: "queue", tip: "Time The Core took to send the link after Get server link was clicked. Only Glitch Core snipes have it." },
     close: { name: "Close Roblox", cat: "hw", tip: "Safe join mode closes the game before joining. Windows ending the Roblox process." },
-    open: { name: "Open Roblox", cat: "hw", tip: "Windows creating the Roblox process for the link. Not Sol Radar's code." },
+    open: { name: "Open Roblox", cat: "hw", tip: "Windows creating the Roblox process for the link. Not the plugin's code." },
     startup: { name: "Roblox startup", cat: "hw", tip: "A new Roblox process starting before it runs its own code." },
     helper: { name: "Helper", cat: "hw", tip: "The new Roblox passes the link to the Roblox that was already open, then closes." },
     loading: { name: "Roblox loading", cat: "hw", tip: "Roblox loading from closed, then resolving the link. Roblox doesn't log the two apart." },
@@ -193,7 +193,7 @@ const upTo = (last: JoinStepKey) => BOLT_STEP_KEYS.slice(0, BOLT_STEP_KEYS.index
 export const DEFAULT_BOLT_STEPS: JoinStepKey[] = ["read", "close", "open"];
 
 export const BOLT_PRESETS: { label: string; tip: string; steps: JoinStepKey[]; }[] = [
-    { label: "Reaction time", tip: "From the message until Sol Radar handed the link to Windows.", steps: DEFAULT_BOLT_STEPS },
+    { label: "Reaction time", tip: "From the message until the link was handed to Windows.", steps: DEFAULT_BOLT_STEPS },
     { label: "Until server slot request", tip: "From the message until the server answered the request for a slot, not counting any wait in its queue.", steps: upTo("server") },
     { label: "Until you were let in", tip: "From the message until the server let you in.", steps: upTo("queue") },
     { label: "Until connected", tip: "From the message until you were connected to the server.", steps: BOLT_STEP_KEYS },

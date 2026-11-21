@@ -647,7 +647,7 @@ export function SettingsTab() {
                 }] : []),
                 {
                     id: "launchMethod", label: "Launch method",
-                    description: "How Sol Radar hands the join link to Roblox",
+                    description: "How the join link is handed to Roblox",
                     tooltip: "Direct runs the Roblox program below with the join link, without cmd.exe. cmd start asks Windows to open the link, which adds about 100ms. If Direct fails, the join falls back to cmd start.",
                     tech: true,
                 },
@@ -680,8 +680,8 @@ export function SettingsTab() {
                 { id: "deduplicateLinks", label: "Skip repeated links", description: "Ignore a link already seen in the last 10 minutes for the same trigger." },
                 { id: "resolveAmbiguousLinks", label: "Use the first link when there are several", description: "A message with different link types, like a share link next to a private server link, is skipped by default. Turn this on to use the first one." },
                 { id: "interpretJoinguardLinks", label: "Accept Joinguard links", description: "Handle Sol's Stat Tracker Joinguard links. They open your browser for Cloudflare verification, so the place cannot be checked." },
-                { id: "interpretGlitchCoreLinks", label: "Accept Glitch Core links", description: "Some messages have no link, only a Get server link button. When a trigger matches one, the button is clicked for you and the link is used as soon as the bot sends it." },
-                { id: "ignoreWebhookForwards", label: "Ignore SolRadar's own forwards", description: "Skip any message whose embed footer is \"solradar\", or whose last line ends with \"SolRadar\" (the mark of a card), so the plugin never reacts to its own webhooks.", tech: true },
+                { id: "interpretGlitchCoreLinks", label: "Accept Glitch Core links", description: "Some messages have no link, only a Get server link button. When a trigger matches one, the button is clicked for you and the link is used as soon as the bot sends it.", tooltip: "For safety, the button is clicked at most once every 15 seconds. You can turn this limit off in Other, with Remove Glitch Core click limits, but it is not recommended." },
+                { id: "ignoreWebhookForwards", label: "Ignore snipe forwards", description: "Skip any message whose embed footer is \"solradar\", or whose last line ends with \"SolRadar\" (the mark of a card), so the plugin never reacts to its own webhooks.", tech: true },
                 { id: "watchMessageEdits", label: "Check edited messages", description: "Experimental. Also check a message when it is edited, for people who post the link first and add the biome later.", tooltip: "Only edits made in the first minute count. An edit that keeps the same biome never makes a second snipe.", tech: true },
                 { id: "editEndedKeywords", label: "Biome ended words", keywords: true, description: "An edit that contains one of these words is ignored, since people add them when the biome is over. Leave empty to check every edit.", tooltip: "Only used by \"Check edited messages\". Matches whole words and ignores case, so \"over\" matches \"(OVER)\" but not \"overcast\".", tech: true },
             ],
@@ -733,7 +733,7 @@ export function SettingsTab() {
             id: "macro",
             title: "Stop my macro",
             subtitle: "Close your macro when a snipe happens",
-            tooltip: "SolRadar closes the macro by its process name or window title, like ending it in Task Manager. This keeps it from reporting a fake biome to its server.",
+            tooltip: "The macro is closed by its process name or window title, like ending it in Task Manager. This keeps it from reporting a fake biome to its server.",
             master: master("macro", sendKillProcessSignal, v => { settings.store.sendKillProcessSignal = v; }),
             entries: [
                 {
@@ -783,7 +783,7 @@ export function SettingsTab() {
             master: master("adb", sendAdbSignal, v => { settings.store.sendAdbSignal = v; }),
             keepBodyVisible: adbUsedByAction,
             note: sendAdbSignal
-                ? <Note>When a snipe triggers, SolRadar launches the join link, then sends a close signal through ADB (after the delay below, if set).</Note>
+                ? <Note>When a snipe triggers, the join link opens first, then a close signal goes through ADB (after the delay below, if set).</Note>
                 : <Note variant="warning">The close signal is off, but an action uses Prepare ADB, so these settings still apply.</Note>,
             entries: [
                 { id: "ldpAdbPath", label: "ADB path", description: "Full path to adb.exe." },
@@ -799,7 +799,7 @@ export function SettingsTab() {
             subtitle: "Click Play for you when nobody is at the PC",
             tech: true,
             master: master("inputAutomation", inputAutomationEnabled, v => { settings.store.inputAutomationEnabled = v; }),
-            note:<Note variant="warning">This is an early prototype, so it's best left off unless you know what you're doing: while it's on Sol Radar moves your mouse and clicks for you.</Note>,
+            note:<Note variant="warning">This is an early prototype, so it's best left off unless you know what you're doing: while it's on, your mouse is moved and clicked for you.</Note>,
             entries: [
                 { id: "adbAutoPlay", label: "Emulator: tap Play after Prepare ADB", description: "Taps Play on the emulator's title screen after Prepare ADB opens Roblox, and stops on the next snipe." },
                 ...(adbAutoPlay ? [
@@ -823,7 +823,7 @@ export function SettingsTab() {
             title: "Other",
             subtitle: "Small extras",
             entries: [
-                { id: "shouldCheckForUpdates", label: "Check for updates", description: "Look for a new SolRadar version on startup.", tooltip: "Runs at most once a day and shows a notification when an update is available." },
+                { id: "shouldCheckForUpdates", label: "Check for updates", description: "Look for a new version on startup.", tooltip: "Runs at most once a day and shows a notification when an update is available." },
                 { id: "customNotificationSoundDelay", label: "Notification sound delay (ms)", description: "Delay before a trigger's custom sound plays.", tech: true },
                 { key: "glitchCoreBypass", search: "remove glitch core click limits not recommended clicks every glitch core button with no limits", node: <GlitchCoreBypassSetting /> },
             ],

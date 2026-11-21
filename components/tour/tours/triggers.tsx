@@ -44,7 +44,7 @@ export const makeTriggersTour = (): Tour => ({
             kind: "info",
             title: "Welcome to Triggers",
             body: <>
-                <P>A trigger is a rule. It says <b>which messages count</b> and <b>what SolRadar does</b> when one shows up.</P>
+                <P>A trigger is a rule. It says <b>which messages count</b> and <b>what happens</b> when one shows up.</P>
                 <Muted>Already know your way around? Hit <b>Skip tutorial</b>. The <b>?</b> button at the top brings this back anytime.</Muted>
             </>,
         },

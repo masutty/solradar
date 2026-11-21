@@ -115,7 +115,7 @@ export const makeEditorTour = (): Tour => ({
             endOn: editorClosed,
             title: "Biome check",
             body: <>
-                <P>This trigger can watch a biome, so <b>set it up here too</b>. After a join, SolRadar reads your Roblox logs to confirm the biome is real.</P>
+                <P>This trigger can watch a biome, so <b>set it up here too</b>. After a join, your Roblox logs are read to confirm the biome is real.</P>
                 <P><b>Biome name in the logs</b> is the name Roblox shows in its debug console. Press <code>F9</code> in game to see it.</P>
                 <Muted>Biome detection itself is turned on in <b>Vencord settings → Plugins → SolRadar</b>.</Muted>
             </>,

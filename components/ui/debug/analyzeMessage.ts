@@ -193,7 +193,7 @@ export function analyzeMessage(original: Message, channel: Channel, guild: Guild
 
     const isNativeForward = Array.isArray((original as any).messageSnapshots) && (original as any).messageSnapshots.length > 0;
     if (isNativeForward) {
-        add({ group: "read", name: "Valid message", status: "fail", detail: "This is a Discord forward. Sol Radar only reads original messages." });
+        add({ group: "read", name: "Valid message", status: "fail", detail: "This is a Discord forward. Only original messages are read." });
         return ignored("Discord forwards are skipped.");
     }
 
@@ -202,10 +202,10 @@ export function analyzeMessage(original: Message, channel: Channel, guild: Guild
         add({
             group: "read", name: "Valid message", status: "fail",
             detail: invalid === "reforward"
-                ? "This is a Sol Radar forward from someone else. \"Ignore forwards\" is on to avoid loops."
+                ? "This is a snipe forward from someone else. \"Ignore forwards\" is on to avoid loops."
                 : "Sent by the webhook your triggers forward to.",
         });
-        return ignored("Sol Radar skips its own forwards to avoid loops.");
+        return ignored("Your own forwards are skipped to avoid loops.");
     }
     add({ group: "read", name: "Valid message", status: "pass", detail: "Not a self-forward or re-forward." });
 
