@@ -1,6 +1,13 @@
 {
-    "currentVersion": "1.13.0",
+    "currentVersion": "1.13.1",
     "changelog": [
+        {
+            "version": "1.13.1",
+            "entries": [
+                { "type": "Fixed", "text": "Direct import runs once", "description": "Clicking Direct import twice quickly no longer adds the same triggers twice." },
+                { "type": "Fixed", "text": "Broken trigger files are skipped", "description": "A shared trigger with a type that doesn't exist is left out of the import instead of breaking the trigger list." }
+            ]
+        },
         {
             "version": "1.13.0",
             "entries": [
