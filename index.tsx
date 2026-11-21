@@ -11,6 +11,7 @@ import { ChannelType } from "@vencord/discord-types/enums";
 import { ChannelStore, GuildStore } from "@webpack/common";
 import { PropsWithChildren } from "react";
 
+import { ShareCardAccessory } from "./components/chat/ShareCard";
 import { SolsRadarIcon } from "./components/icons/SolsRadarIcon";
 import { SolsRadarChatBarButton } from "./components/ui/buttons/SolsRadarChatBarButton";
 import { SolsRadarTitleBarButton } from "./components/ui/buttons/SolsRadarTitleBarButton";
@@ -152,6 +153,8 @@ export default definePlugin({
     version: getCurrentVersion(),
     authors: [{ name: "masutty", id: 188851299255713792n }],
     settings,
+
+    renderMessageAccessory: props => !props.isMessageSnapshot ? <ShareCardAccessory message={props.message} /> : null,
 
     patches: [
         {

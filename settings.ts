@@ -53,6 +53,13 @@ export const settings = definePluginSettings({
         default: false,
     },
 
+    shareCardsInChat: {
+        type: OptionType.BOOLEAN,
+        description: "Show a card to import triggers shared in messages.",
+        default: true,
+        hidden: true,
+    },
+
     watchMessageEdits: {
         type: OptionType.BOOLEAN,
         description: "Experimental. Also check messages when they are edited, for people who post the link first and add the biome later. Edits on messages older than 1 minute and edits that keep the same biome are ignored.",
