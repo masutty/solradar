@@ -12,7 +12,7 @@ import { React, showToast, useMemo, useState } from "@webpack/common";
 
 import { countChanges, DEFAULT_TRIGGERS, DefaultChanges, DefaultTrigger, describeUpdate, isUpdatable, markDefaultsSeen, pendingChanges } from "../../../stores/defaultTriggers";
 import { emitTourSignal } from "../../../stores/TourStore";
-import { getFolder, getTriggers, ImportedTrigger, importTriggers, Trigger, updateFromDefaults, useTriggers } from "../../../stores/TriggerStore";
+import { getFolder, getTriggers, ImportedTrigger, importTriggers, sameTrigger, Trigger, UPDATE_KEEPS_TEXT, updateFromDefaults, updateFromFile, useTriggers } from "../../../stores/TriggerStore";
 import { HeaderActions } from "../../tour/ReplayTourButton";
 import { ModalContent, ModalFooter, ModalHeader, ModalProps, ModalRoot, ModalSize, openModal } from "../../ui/LegacyModal";
 import { TriggerIcon, TYPE_META } from "./editor/sections";
@@ -56,12 +56,15 @@ function buildItems(source: "defaults" | "file", triggers: ImportedTrigger[], mi
 
     const items = triggers.map((trigger): Item => {
         const own = byId.get(trigger.id);
-        const updatable = source === "defaults" && !!own && isUpdatable(own);
+        const updatable = !!own && (source === "defaults" ? isUpdatable(own) : !sameTrigger(own, trigger));
+        const updateText = !updatable ? undefined
+            : source === "defaults" ? describeUpdate(own!, trigger as DefaultTrigger)
+                : UPDATE_KEEPS_TEXT;
         return {
             trigger,
             have: !!own,
             updatable,
-            updateText: updatable ? describeUpdate(own!, trigger as DefaultTrigger) : undefined,
+            updateText,
             tag: !own && newIds.has(trigger.id) ? "new" : updatable ? "updated" : null,
             changed: newIds.has(trigger.id) || updatedIds.has(trigger.id),
         };
@@ -153,9 +156,10 @@ interface PickerProps {
     fileName?: string;
     /** Change list captured when the picker opened (defaults only) */
     changes?: DefaultChanges;
+    onDone?: (added: number, updated: number) => void;
 }
 
-function ImportPicker({ modalProps, source, triggers, fileName, changes }: PickerProps) {
+function ImportPicker({ modalProps, source, triggers, fileName, changes, onDone }: PickerProps) {
     const mine = useTriggers();
     const [query, setQuery] = useState("");
     const [show, setShow] = useState<"all" | "can">("all");
@@ -193,11 +197,14 @@ function ImportPicker({ modalProps, source, triggers, fileName, changes }: Picke
 
     const doImport = async () => {
         const toAdd = selected.filter(i => !i.have).map(i => i.trigger);
-        const toUpdate = selected.filter(i => i.updatable).map(i => i.trigger.id);
+        const toUpdate = selected.filter(i => i.updatable).map(i => i.trigger);
         const added = toAdd.length ? await importTriggers(toAdd) : 0;
-        const updated = toUpdate.length ? await updateFromDefaults(toUpdate) : 0;
+        const updated = !toUpdate.length ? 0
+            : source === "file" ? await updateFromFile(toUpdate)
+                : await updateFromDefaults(toUpdate.map(t => t.id));
         showToast({ text: importSummary(added, updated), variant: "success" });
         emitTourSignal("triggers:imported");
+        onDone?.(added, updated);
         modalProps.onClose();
     };
 
@@ -277,6 +284,6 @@ export function openDefaultsPicker() {
     markDefaultsSeen();
 }
 
-export function openFilePicker(triggers: ImportedTrigger[], fileName: string) {
-    openModal(p => <ImportPicker modalProps={p} source="file" triggers={triggers} fileName={fileName} />);
+export function openFilePicker(triggers: ImportedTrigger[], fileName: string, onDone?: (added: number, updated: number) => void) {
+    openModal(p => <ImportPicker modalProps={p} source="file" triggers={triggers} fileName={fileName} onDone={onDone} />);
 }
