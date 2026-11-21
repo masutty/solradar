@@ -6,7 +6,7 @@
 
 import "./editor/editor.css";
 
-import { Button, TextButton } from "@components/Button";
+import { Button } from "@components/Button";
 import { Heading } from "@components/Heading";
 import { CloudUploadIcon, CopyIcon, DeleteIcon, EyeIcon, FolderIcon as FileIcon, PencilIcon, UploadIcon } from "@components/Icons";
 import { Paragraph } from "@components/Paragraph";
@@ -37,6 +37,7 @@ import { ModalContent, ModalFooter, ModalHeader, ModalProps, ModalRoot, ModalSiz
 import { Note } from "../../ui/Note";
 import { descriptionText } from "../../ui/styles";
 import { BYPASSES } from "./editor/bypasses";
+import { DownloadIcon, IconButton } from "./editor/IconButton";
 import { SwitchRow } from "./editor/fields";
 import { copyFolderToClipboard, exportFolderToFile, openSafeExportDialogForFolder } from "./exportActions";
 
@@ -555,7 +556,11 @@ function FolderEditor({ modalProps, folder, forTrigger, startPage }: { modalProp
 
             <ModalFooter className="vc-sora-modal-footer">
                 <div className="vc-sora-folder-editor-foot">
-                    {folder && <TextButton variant="danger" onClick={() => confirmDeleteFolder(folder, modalProps.onClose)}>Delete folder</TextButton>}
+                    {folder && <>
+                        <IconButton tooltip="Delete folder" danger onClick={() => confirmDeleteFolder(folder, modalProps.onClose)}><DeleteIcon width={18} height={18} /></IconButton>
+                        <IconButton tooltip="Copy to clipboard" onClick={() => copyFolderToClipboard(folder)}><CopyIcon width={18} height={18} /></IconButton>
+                        <IconButton tooltip="Safe export (without webhooks, filters or bypasses)" onClick={() => openSafeExportDialogForFolder(folder)}><DownloadIcon /></IconButton>
+                    </>}
                     <span style={{ flex: 1 }} />
                     <Button size="small" variant="secondary" onClick={modalProps.onClose}>Cancel</Button>
                     <Button size="small" variant="primary" onClick={save}>{folder ? "Save" : "Create"}</Button>
