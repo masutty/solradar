@@ -1,6 +1,12 @@
 {
-    "currentVersion": "1.12.1",
+    "currentVersion": "1.12.2",
     "changelog": [
+        {
+            "version": "1.12.2",
+            "entries": [
+                { "type": "Fixed", "text": "The most specific trigger now wins a priority tie", "description": "A trigger that takes any message in a channel could beat one that matched a keyword or role just because of its place in the list. Now the more precise one wins. Hover the ? next to Priority to see the full order, and the message debug says when a tie was broken." }
+            ]
+        },
         {
             "version": "1.12.1",
             "entries": [
