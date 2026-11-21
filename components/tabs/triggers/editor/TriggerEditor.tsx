@@ -14,7 +14,7 @@ import { CopyIcon, DeleteIcon } from "@components/Icons";
 import { React, ScrollerThin, Tooltip, useEffect, useState } from "@webpack/common";
 
 import { emitTourSignal, useTourAction } from "../../../../stores/TourStore";
-import { addTrigger, deleteTrigger, makeDefaultTrigger, safeExportDraft, Trigger, updateTrigger, withInlineIcon } from "../../../../stores/TriggerStore";
+import { addTrigger, deleteTrigger, exportTriggerJson, makeDefaultTrigger, safeExportDraft, Trigger, updateTrigger } from "../../../../stores/TriggerStore";
 import { showToast } from "../../../../utils";
 import { HeaderActions } from "../../../tour/ReplayTourButton";
 import { TourAnchor } from "../../../tour/TourAnchor";
@@ -121,8 +121,7 @@ function TriggerEditor({ modalProps, trigger }: { modalProps: ModalProps; trigge
         if (!isEditing) return;
         confirmWebhookThenRun([trigger], () => {
             try {
-                const { id, ...rest } = trigger;
-                navigator.clipboard.writeText(JSON.stringify([withInlineIcon(rest)], null, 2));
+                navigator.clipboard.writeText(exportTriggerJson(trigger));
                 showToast({ text: "Trigger copied to clipboard!", variant: "success" });
             } catch (e) {
                 showToast({ text: `Failed to copy trigger: ${e}`, variant: "critical" });

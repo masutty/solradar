@@ -7,7 +7,7 @@
 import { Paragraph } from "@components/Paragraph";
 import { Alerts, React, showToast } from "@webpack/common";
 
-import { downloadFolderJson, downloadFolderJsonRedacted, downloadTriggerJsonRedacted, exportFolderJson, exportShape, getTriggers, RedactField, Trigger, TriggerFolder } from "../../../stores/TriggerStore";
+import { downloadFolderJson, downloadFolderJsonRedacted, downloadTriggerJsonRedacted, exportFolderJson, exportTriggerJson, getTriggers, RedactField, Trigger, TriggerFolder } from "../../../stores/TriggerStore";
 import { PublicExportOptions } from "./PublicExportOptions";
 
 /** Warns before exporting triggers that have a webhook (same warning as the bulk export). Runs `run` right away if none do. */
@@ -38,7 +38,7 @@ export function confirmWebhookThenRun(triggers: Trigger[], run: () => void): voi
 
 export function copyTriggerToClipboard(trigger: Trigger): void {
     try {
-        navigator.clipboard.writeText(JSON.stringify([exportShape(trigger)], null, 2));
+        navigator.clipboard.writeText(exportTriggerJson(trigger));
         showToast({ text: "Trigger copied to clipboard!", variant: "success" });
     } catch (e) {
         showToast({ text: `Failed to copy trigger: ${e}`, variant: "critical" });

@@ -307,13 +307,13 @@ export function makeDefaultTrigger(type: TriggerType = "BIOME"): Omit<Trigger, "
 // --- Migration ---
 // Runs on every stored trigger. Missing fields get defaults, existing data is kept.
 
-function migrateTrigger(raw: any): Trigger {
+function migrateTrigger(raw: any, adoptIcons = true): Trigger {
     const trigger: Trigger = {
         id: raw.id ?? crypto.randomUUID(),
         type: raw.type ?? "CUSTOM",
         name: raw.name ?? "",
         description: raw.description ?? "",
-        iconUrl: adoptIcon(raw.iconUrl ?? ""),
+        iconUrl: adoptIcons ? adoptIcon(raw.iconUrl ?? "") : raw.iconUrl ?? "",
         biome: {
             detectionEnabled: raw.biome?.detectionEnabled ?? DEFAULT_BIOME.detectionEnabled,
             detectionKeyword: raw.biome?.detectionKeyword ?? DEFAULT_BIOME.detectionKeyword,
@@ -785,12 +785,6 @@ function serialize(list: Trigger[], redact?: Set<RedactField>): string {
     return JSON.stringify(list.map(t => fileShape(t, redact)).filter(Boolean), null, 2);
 }
 
-/** A trigger as it is written to a file, without its id */
-export function exportShape(trigger: Trigger): object {
-    const { id: _, ...shape } = fileShape(trigger) as Trigger;
-    return shape;
-}
-
 export function exportTriggersJson(): string {
     return serialize(_triggers);
 }
@@ -909,7 +903,7 @@ export type ParseResult =
     | { ok: false; error: string; };
 
 /** Validates an exported triggers file. Does not touch the store. */
-export function parseTriggersFile(json: string): ParseResult {
+export function parseTriggersFile(json: string, opts?: { adoptIcons?: boolean; }): ParseResult {
     let parsed: unknown;
     try {
         parsed = JSON.parse(json);
@@ -935,7 +929,7 @@ export function parseTriggersFile(json: string): ParseResult {
     // The picker tells triggers apart by id, so a file can't repeat one
     const ids = new Set<string>();
     const triggers = valid.map(raw => {
-        const t: ImportedTrigger = migrateTrigger(raw);
+        const t: ImportedTrigger = migrateTrigger(raw, opts?.adoptIcons ?? true);
         // Folders travel as the folder itself, never as an id from someone else's list
         delete t.folderId;
         const folder = migrateFolder(raw.folder);
@@ -983,6 +977,55 @@ export async function importTriggers(incoming: ImportedTrigger[]): Promise<numbe
     notifyListeners();
     persist();
     return added.length;
+}
+
+export const UPDATE_KEEPS_TEXT = "Replaces your copy. Keeps your folder and webhook.";
+
+function sortKeys(v: unknown): unknown {
+    if (Array.isArray(v)) return v.map(sortKeys);
+    if (v && typeof v === "object") {
+        return Object.fromEntries(Object.entries(v).sort(([a], [b]) => a < b ? -1 : 1).map(([k, x]) => [k, sortKeys(x)]));
+    }
+    return v;
+}
+
+function comparable(t: Trigger): string {
+    const { id, folderId, hidden, defaultRev, forwarding, ...rest } = t;
+    const { rev, folder, ...shape } = rest as ImportedTrigger;
+    return JSON.stringify(sortKeys(shape));
+}
+
+/** Whether an incoming trigger matches the user's copy in everything an update would replace */
+export function sameTrigger(mine: Trigger, incoming: ImportedTrigger): boolean {
+    return comparable(migrateTrigger(withInlineIcon(mine), false)) === comparable(migrateTrigger(incoming, false));
+}
+
+/** Replaces the user's copies with the incoming ones, matched by id. Returns how many changed. */
+export async function updateFromFile(incoming: ImportedTrigger[]): Promise<number> {
+    await triggerStoreReady;
+
+    let updated = 0;
+    _triggers = _triggers.map(mine => {
+        const next = incoming.find(t => t.id === mine.id);
+        if (!next || sameTrigger(mine, next)) return mine;
+        updated++;
+        const t = migrateTrigger(next);
+        t.id = mine.id;
+        t.forwarding = mine.forwarding;
+        if (mine.folderId) t.folderId = mine.folderId;
+        else delete t.folderId;
+        if (mine.hidden) t.hidden = true;
+        else delete t.hidden;
+        if (mine.defaultRev !== undefined) t.defaultRev = mine.defaultRev;
+        else delete t.defaultRev;
+        return t;
+    });
+
+    if (updated > 0) {
+        notifyListeners();
+        persist();
+    }
+    return updated;
 }
 
 /** Brings the user's copies of these defaults up to date. Returns how many changed. */
@@ -1060,7 +1103,7 @@ export function useFolders(): TriggerFolder[] {
         logger.debug("Stored triggers:", stored);
 
         if (Array.isArray(stored) && stored.length > 0) {
-            _triggers = stored.map(migrateTrigger);
+            _triggers = stored.map(t => migrateTrigger(t));
             // A folder that is gone leaves its triggers outside every folder
             if (foldersLoaded) for (const t of _triggers) if (t.folderId && !getFolder(t.folderId)) delete t.folderId;
             logger.info(`Loaded and migrated ${_triggers.length} triggers.`);
