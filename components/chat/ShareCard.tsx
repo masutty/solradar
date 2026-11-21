@@ -67,7 +67,7 @@ function folderTip(g: Group): string {
 }
 
 function InfoIcon({ one }: { one: boolean; }) {
-    const text = `Someone shared ${one ? "a trigger" : "triggers"} in this message. Import to add ${one ? "it" : "them"} to your trigger list.`;
+    const text = `Shown by Solradar because this message has ${one ? "a trigger" : "triggers"} in it. Import to add ${one ? "it" : "them"} to your trigger list.`;
     return (
         <Tooltip text={text}>
             {props => (
