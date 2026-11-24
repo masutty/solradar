@@ -288,7 +288,7 @@ export function TimingPage({ entries, stats, anonymize, rows, measure, allEntrie
     // Unknown joins are never in this chart, so it would show nothing that belongs to the filter
     const timeouts = outcome !== "unknown" && (
         <>
-            <Section title="Timeouts by timing" />
+            <Section title="Timeouts by timing" right={<Tooltip text={`Always this timing, whatever is picked above. ${REQUEST_SENT_MEASURE.tip}`}>{props => <span {...props} className="vc-sora-stats-hint">{REQUEST_SENT_MEASURE.label}</span>}</Tooltip>} />
             <div className="vc-sora-stats-card vc-sora-stats-panel"><TimeoutByTiming entries={allEntries} anonymize={anonymize} focus={outcome} /></div>
         </>
     );
