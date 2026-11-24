@@ -7,8 +7,8 @@
     display: flex;
     flex-direction: column;
     gap: 14px;
-    background: var(--background-mod-subtle);
-    border: 1px solid var(--background-mod-normal);
+    background: var(--background-base-lowest);
+    border: 1px solid var(--border-subtle);
     border-radius: 8px;
 }
 
@@ -49,7 +49,7 @@
 }
 
 .vc-sora-share-stack > * {
-    border: 3px solid var(--background-base-lower, var(--background-base-low));
+    border: 3px solid var(--background-base-lowest);
     border-radius: 12px;
     box-sizing: content-box;
 }
