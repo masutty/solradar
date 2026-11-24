@@ -1,6 +1,15 @@
 {
-    "currentVersion": "1.13.1",
+    "currentVersion": "1.14.0",
     "changelog": [
+        {
+            "version": "1.14.0",
+            "entries": [
+                { "type": "Added", "text": "Timeouts by timing", "description": "Stats now show from which timing your joins start timing out, with the median of joins that got in and of joins that timed out. Click a column to see its snipes. You'll find it on the Stats page, on each trigger's page and on the Timing page." },
+                { "type": "Added", "text": "Filter Timing by result", "description": "On the Timing page, look at only the joins that got in, the ones that timed out, or the ones whose biome wasn't checked." },
+                { "type": "Improved", "text": "Clearer snipe lists in Stats", "description": "Each row shows who sent the snipe and the channel, with the rest when you hover it. Lists that mix triggers also show each snipe's trigger." },
+                { "type": "Fixed", "text": "Trigger cards in chat", "description": "The card no longer gets lighter when you hover the message, and it matches the color of Discord's own attachments." }
+            ]
+        },
         {
             "version": "1.13.1",
             "entries": [
