@@ -1043,3 +1043,23 @@ button.vc-sora-stats-who {
     color: var(--text-default);
     font-variant-numeric: tabular-nums;
 }
+
+/* Same height as the period button next to it */
+.vc-sora-stats-outcomes {
+    box-sizing: border-box;
+    height: 26px;
+    padding: 2px;
+    align-self: center;
+    flex-wrap: nowrap;
+    background: var(--background-mod-normal);
+}
+
+.vc-sora-stats-outcomes .vc-sora-stats-outcome {
+    height: 22px;
+    padding: 0 8px;
+    font-size: 12.5px;
+}
+
+.vc-sora-stats-outcomes .vc-sora-stats-outcome[aria-pressed="true"] {
+    background: var(--background-mod-strong);
+}

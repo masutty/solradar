@@ -160,7 +160,7 @@ const OUTCOME_PILLS: { id: OutcomeFilter; label: string; color?: string; tip?: s
 
 export function OutcomePills({ value, counts, onChange }: { value: OutcomeFilter; counts: Record<OutcomeFilter, number>; onChange: (v: OutcomeFilter) => void; }) {
     return (
-        <div className="vc-sora-stats-segrow" role="group" aria-label="Which snipes">
+        <div className="vc-sora-stats-segrow vc-sora-stats-outcomes" role="group" aria-label="Which snipes">
             {OUTCOME_PILLS.map(p => {
                 const empty = p.id !== "all" && counts[p.id] === 0;
                 return (
