@@ -403,6 +403,66 @@ export function timingBins(samples: TimingSample[], count = 12): Bin[] {
     return bins;
 }
 
+// --- Outcome ---
+
+/** Got in = real or bait. Unknown = the biome wasn't checked, so there's no telling if you got in. */
+export type Outcome = "got" | "timeout" | "unknown";
+export type OutcomeFilter = Outcome | "all";
+
+export function outcomeOf(entry: SnipeEntry): Outcome | null {
+    const k = kindOf(entry);
+    if (k === "real" || k === "bait") return "got";
+    if (k === "timeout") return "timeout";
+    if (k === "unverified") return "unknown";
+    return null;
+}
+
+// A queued join has no Server request step (the wait becomes Queue), so the comparison stops before both
+export const REQUEST_SENT_STEPS: readonly string[] = BOLT_STEP_KEYS.slice(0, BOLT_STEP_KEYS.indexOf("prepare") + 1);
+
+export const REQUEST_SENT_MEASURE: Measure = {
+    label: "Until the slot request was sent",
+    tip: "From the message until Roblox asked the server for a slot. The same point for joins that got in and joins that waited in a queue.",
+    steps: REQUEST_SENT_STEPS,
+};
+
+export interface OutcomeBin { from: number; to: number; open: boolean; got: TimingSample[]; out: TimingSample[]; }
+
+const OUTCOME_BIN_MS = 500;
+
+/** Joins that got in or timed out, in half-second bins up to the 95th percentile. The last bin also holds anything slower. */
+export function outcomeBins(entries: SnipeEntry[]): OutcomeBin[] {
+    const samples: (TimingSample & { outcome: Outcome; })[] = [];
+    for (const entry of entries) {
+        const outcome = outcomeOf(entry);
+        if (outcome !== "got" && outcome !== "timeout") continue;
+        const ms = timingOf(entry, REQUEST_SENT_STEPS);
+        if (ms != null) samples.push({ entry, ms, outcome });
+    }
+    if (!samples.length) return [];
+
+    const sorted = samples.map(s => s.ms).sort((a, b) => a - b);
+    const lo = Math.floor(sorted[0] / OUTCOME_BIN_MS) * OUTCOME_BIN_MS;
+    const hi = Math.max(lo + OUTCOME_BIN_MS, Math.ceil(sorted[Math.floor(0.95 * (sorted.length - 1))] / OUTCOME_BIN_MS) * OUTCOME_BIN_MS);
+    const count = (hi - lo) / OUTCOME_BIN_MS;
+    const bins: OutcomeBin[] = Array.from({ length: count }, (_, i) => ({ from: lo + i * OUTCOME_BIN_MS, to: lo + (i + 1) * OUTCOME_BIN_MS, open: i === count - 1, got: [], out: [] }));
+    for (const s of samples) {
+        const bin = bins[Math.min(count - 1, Math.floor((s.ms - lo) / OUTCOME_BIN_MS))];
+        (s.outcome === "got" ? bin.got : bin.out).push(s);
+    }
+    return bins;
+}
+
+/** The first bin from which at least 1 in 4 joins timed out, counting only bins at or above it. Needs 4 joins there. */
+export function turningPoint(bins: OutcomeBin[]): { at: number; out: number; total: number; } | null {
+    for (let i = 0; i < bins.length; i++) {
+        let got = 0, out = 0;
+        for (const b of bins.slice(i)) { got += b.got.length; out += b.out.length; }
+        if (got + out >= 4 && out / (got + out) >= 0.25) return { at: bins[i].from, out, total: got + out };
+    }
+    return null;
+}
+
 /** The median timing of each bucket, or null where the bucket has none. */
 export function medianByBucket(samples: TimingSample[], buckets: Bucket[]): (number | null)[] {
     const starts = buckets.map(b => b.start);

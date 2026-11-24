@@ -13,9 +13,9 @@ import { SnipeEntry } from "../../../stores/SnipeStore";
 import { Note } from "../../ui/Note";
 import { COLORS } from "../../ui/styles";
 import { BarItem, StackedBars } from "./charts";
-import { Bin, Bucket, bucketLabel, BucketUnit, fmtSeconds, Measure, medianByBucket, pad2, peakWindow, plural, Stats, stepMedians, timingBins, TimingSample, timingSamples, TriggerRow, WEEKDAYS, whenBreakdown } from "./data";
+import { Bin, Bucket, bucketLabel, BucketUnit, fmtSeconds, Measure, medianByBucket, OutcomeFilter, outcomeBins, pad2, peakWindow, plural, REQUEST_SENT_MEASURE, Stats, stepMedians, timingBins, TimingSample, timingSamples, TriggerRow, turningPoint, WEEKDAYS, whenBreakdown } from "./data";
 import { SnipeTable } from "./Detail";
-import { GroupTable, Section, TriggerIcon } from "./parts";
+import { GroupTable, RESULT_COLOR, Section, TriggerIcon } from "./parts";
 
 // --- Timing ---
 
@@ -151,13 +151,108 @@ function StepLanes({ entries }: { entries: SnipeEntry[]; }) {
     );
 }
 
+const OUTCOME_PILLS: { id: OutcomeFilter; label: string; color?: string; tip?: string; }[] = [
+    { id: "all", label: "All" },
+    { id: "got", label: "Got in", color: COLORS.positive, tip: "Real or bait: you got into the server and the biome was checked" },
+    { id: "timeout", label: "Timed out", color: RESULT_COLOR.timeout, tip: "The biome check gave up, usually because you were stuck in the server's queue" },
+    { id: "unknown", label: "Unknown", color: RESULT_COLOR.unverified, tip: "The biome wasn't checked, so there's no way to tell if you got in" },
+];
+
+export function OutcomePills({ value, counts, onChange }: { value: OutcomeFilter; counts: Record<OutcomeFilter, number>; onChange: (v: OutcomeFilter) => void; }) {
+    return (
+        <div className="vc-sora-stats-segrow" role="group" aria-label="Which snipes">
+            {OUTCOME_PILLS.map(p => {
+                const button = (props: object = {}) => (
+                    <button {...props} type="button" className="vc-sora-seg vc-sora-stats-outcome" aria-pressed={value === p.id} onClick={() => onChange(p.id)}>
+                        {p.color && <i style={{ background: p.color }} />}
+                        {p.label}
+                        <span>{counts[p.id]}</span>
+                    </button>
+                );
+                return p.tip
+                    ? <Tooltip key={p.id} text={p.tip}>{props => button(props)}</Tooltip>
+                    : <React.Fragment key={p.id}>{button()}</React.Fragment>;
+            })}
+        </div>
+    );
+}
+
+/** From which timing joins start timing out. Click a row to list its joins. */
+function TimeoutByTiming({ entries, anonymize }: { entries: SnipeEntry[]; anonymize: boolean; }) {
+    const bins = React.useMemo(() => outcomeBins(entries), [entries]);
+    const [open, setOpen] = React.useState<number | null>(null);
+    if (bins.length < 2) return <span className="vc-sora-stats-low">Needs joins that got in or timed out, with their steps read.</span>;
+
+    const tp = turningPoint(bins);
+    const max = Math.max(...bins.map(b => b.got.length + b.out.length), 1);
+    const picked = open == null ? null : bins.find(b => b.from === open) ?? null;
+    const pickedSamples = picked ? [...picked.got, ...picked.out].sort((a, b) => a.ms - b.ms) : [];
+    const times = new Map(pickedSamples.map(s => [s.entry, s.ms]));
+
+    return (
+        <>
+            {tp ? (
+                <Tooltip text={`From ${fmtSeconds(tp.at)} up, ${tp.out} of ${tp.total} joins timed out.`}>
+                    {props => (
+                        <div {...props} className="vc-sora-stats-turn">
+                            <b>Above {fmtSeconds(tp.at)}</b>
+                            <span>1 in {Math.max(2, Math.round(tp.total / tp.out))} joins times out</span>
+                        </div>
+                    )}
+                </Tooltip>
+            ) : <div className="vc-sora-stats-turn"><span>No timing where timeouts pile up yet</span></div>}
+
+            <div className="vc-sora-stats-otl">
+                {bins.map(b => {
+                    const total = b.got.length + b.out.length;
+                    const range = b.open ? `${fmtSeconds(b.from)} or slower` : `${fmtSeconds(b.from)} to ${fmtSeconds(b.to)}`;
+                    const tip = total
+                        ? `${range}: ${b.got.length} got in, ${b.out.length} timed out. Click to see them.`
+                        : `${range}: no joins`;
+                    return (
+                        <Tooltip key={b.from} text={tip}>
+                            {props => (
+                                <button
+                                    {...props}
+                                    type="button"
+                                    className={`vc-sora-stats-otl-row${tp?.at === b.from ? " turn" : ""}`}
+                                    aria-pressed={open === b.from}
+                                    disabled={!total}
+                                    onClick={() => setOpen(open === b.from ? null : b.from)}
+                                >
+                                    <span>{fmtSeconds(b.from)}{b.open ? "+" : ""}</span>
+                                    <span className="vc-sora-stats-otl-bar" style={{ width: `${Math.max(2, total / max * 100)}%` }}>
+                                        {b.got.length > 0 && <i style={{ flex: b.got.length, background: COLORS.positive }} />}
+                                        {b.out.length > 0 && <i style={{ flex: b.out.length, background: RESULT_COLOR.timeout }} />}
+                                    </span>
+                                </button>
+                            )}
+                        </Tooltip>
+                    );
+                })}
+            </div>
+
+            {picked && (
+                <div className="vc-sora-stats-otl-list">
+                    <SnipeTable entries={pickedSamples.map(s => s.entry)} anonymize={anonymize} measure={REQUEST_SENT_MEASURE} time={e => times.get(e) ?? null} />
+                </div>
+            )}
+        </>
+    );
+}
+
 /** One measure of the join for a trigger or server, or for every trigger when `rows` is given: the spread, how it moved, where the time goes, and the fastest and slowest joins. */
-export function TimingPage({ entries, stats, anonymize, rows, measure }: {
+export function TimingPage({ entries, stats, anonymize, rows, measure, allEntries, outcome, outcomeCounts, onOutcome }: {
     entries: SnipeEntry[];
     stats: Stats;
     anonymize: boolean;
     rows?: TriggerRow[];
     measure: Measure;
+    /** Every snipe on the page before the outcome filter, for the timeout chart */
+    allEntries: SnipeEntry[];
+    outcome: OutcomeFilter;
+    outcomeCounts: Record<OutcomeFilter, number>;
+    onOutcome: (v: OutcomeFilter) => void;
 }) {
     const samples = React.useMemo(() => timingSamples(entries, measure.steps), [entries, measure]);
     const bins = React.useMemo(() => timingBins(samples), [samples]);
@@ -166,14 +261,26 @@ export function TimingPage({ entries, stats, anonymize, rows, measure }: {
     const ordered = React.useMemo(() => samples.slice().sort((a, b) => a.ms - b.ms), [samples]);
 
     const r = stats.timing;
+    const pills = <OutcomePills value={outcome} counts={outcomeCounts} onChange={onOutcome} />;
+    const timeouts = (
+        <>
+            <Section title="Timed out by timing" right={<Tooltip text={REQUEST_SENT_MEASURE.tip}>{props => <span {...props} className="vc-sora-stats-hint">{REQUEST_SENT_MEASURE.label}</span>}</Tooltip>} />
+            <div className="vc-sora-stats-card vc-sora-stats-panel"><TimeoutByTiming entries={allEntries} anonymize={anonymize} /></div>
+        </>
+    );
     if (!r || r.n < 5) {
         return (
-            <Note>{measure.label} needs at least 5 snipes with this timing in this period.</Note>
+            <>
+                {pills}
+                <Note>{measure.label} needs at least 5 snipes with this timing in this period.</Note>
+                {timeouts}
+            </>
         );
     }
 
     return (
         <>
+            {pills}
             <div className="vc-sora-stats-card vc-sora-stats-summary">
                 <div className="vc-sora-stats-headline">
                     <span className="vc-sora-stats-big" style={{ color: COLORS.text }}>{fmtSeconds(r.p50)}</span>
@@ -187,6 +294,8 @@ export function TimingPage({ entries, stats, anonymize, rows, measure }: {
                 </div>
                 <span className="vc-sora-stats-bn-s">{measure.tip}</span>
             </div>
+
+            {timeouts}
 
             <Section title="Where the time goes" right={<span className="vc-sora-stats-hint">Median of each step of the join</span>} />
             <div className="vc-sora-stats-card vc-sora-stats-panel"><StepLanes entries={entries} /></div>

@@ -9,9 +9,9 @@ import "./stats.css";
 import { React } from "@webpack/common";
 
 import { settings } from "../../../settings";
-import { useSnipeHistory } from "../../../stores/SnipeStore";
+import { SnipeEntry, useSnipeHistory } from "../../../stores/SnipeStore";
 import { tabColumn } from "../../ui/styles";
-import { computeStats, measureOf, Period, serverKey, triggerRows, windowOf } from "./data";
+import { computeStats, measureOf, OutcomeFilter, outcomeOf, Period, serverKey, triggerRows, windowOf } from "./data";
 import { Detail } from "./Detail";
 import { Overview } from "./Overview";
 import { TimingPage, WhenPage, WhoPage } from "./Pages";
@@ -83,9 +83,31 @@ export function StatsTab() {
             : page ? picked : null,
         [picked, subject, page]
     );
+    // Timing can look at one outcome only; the other pages always see every snipe
+    const [outcome, setOutcome] = React.useState<OutcomeFilter>("all");
+    const keep = (e: SnipeEntry) => outcome === "all" || outcomeOf(e) === outcome;
+    const timed = page === "timing" && outcome !== "all";
+    const shownEntries = React.useMemo(
+        () => viewEntries && timed ? viewEntries.filter(keep) : viewEntries,
+        [viewEntries, timed, outcome]
+    );
+    const shownRows = React.useMemo(
+        () => timed ? triggerRows(picked.filter(keep), win, measure.steps) : rows,
+        [timed, picked, outcome, win, measure, rows]
+    );
+    const outcomeCounts = React.useMemo(() => {
+        const c: Record<OutcomeFilter, number> = { all: 0, got: 0, timeout: 0, unknown: 0 };
+        for (const e of viewEntries ?? []) {
+            const o = outcomeOf(e);
+            if (!o) continue;
+            c[o]++;
+            c.all++;
+        }
+        return c;
+    }, [viewEntries]);
     const view = React.useMemo(
-        () => viewEntries == null ? null : computeStats(viewEntries, win, page === "who" ? 50 : undefined, measure.steps),
-        [viewEntries, win, page, measure]
+        () => shownEntries == null ? null : computeStats(shownEntries, win, page === "who" ? 50 : undefined, measure.steps),
+        [shownEntries, win, page, measure]
     );
 
     const go = (nextSubject: Subject | null, nextPage: Page | null = null) => {
@@ -127,7 +149,17 @@ export function StatsTab() {
                         <PeriodMenu period={period} win={win} onChange={setPeriod} />
                     </div>
                     {page === "timing" ? (
-                        <TimingPage entries={viewEntries} stats={view} anonymize={anonymizeEverything} rows={subject ? undefined : rows} measure={measure} />
+                        <TimingPage
+                            entries={shownEntries!}
+                            allEntries={viewEntries}
+                            stats={view}
+                            anonymize={anonymizeEverything}
+                            rows={subject ? undefined : shownRows}
+                            measure={measure}
+                            outcome={outcome}
+                            outcomeCounts={outcomeCounts}
+                            onOutcome={setOutcome}
+                        />
                     ) : page === "who" ? (
                         <WhoPage stats={view} anonymize={anonymizeEverything} />
                     ) : page === "when" ? (

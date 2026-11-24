@@ -947,3 +947,107 @@ button.vc-sora-stats-who {
 .vc-sora-stats-pick-folder .vc-sora-folder-glyph {
     color: var(--sora-fc);
 }
+
+/* Outcome filter on the Timing page */
+.vc-sora-stats-outcome {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border: none;
+    border-radius: 6px;
+    background: none;
+    color: var(--text-muted);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.vc-sora-stats-outcome[aria-pressed="true"] {
+    color: var(--text-default);
+    background: var(--background-mod-normal);
+}
+
+.vc-sora-stats-outcome i {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+}
+
+.vc-sora-stats-outcome span {
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+}
+
+/* Timed out by timing */
+.vc-sora-stats-turn {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin-bottom: 10px;
+    font-size: 13px;
+    color: var(--text-muted);
+    cursor: default;
+}
+
+.vc-sora-stats-turn b {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text-default);
+    font-variant-numeric: tabular-nums;
+}
+
+.vc-sora-stats-otl {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.vc-sora-stats-otl-row {
+    display: grid;
+    grid-template-columns: 64px minmax(0, 1fr);
+    gap: 10px;
+    align-items: center;
+    height: 24px;
+    padding: 0 6px;
+    border: none;
+    border-radius: 4px;
+    background: none;
+    color: var(--control-secondary-text-default);
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+    text-align: left;
+    cursor: pointer;
+}
+
+.vc-sora-stats-otl-row:hover:not(:disabled),
+.vc-sora-stats-otl-row[aria-pressed="true"] {
+    background: var(--background-mod-subtle);
+}
+
+.vc-sora-stats-otl-row:disabled {
+    cursor: default;
+    opacity: 0.5;
+}
+
+.vc-sora-stats-otl-row.turn > span:first-child {
+    color: var(--text-feedback-warning, var(--status-warning));
+    font-weight: 600;
+}
+
+.vc-sora-stats-otl-bar {
+    display: flex;
+    gap: 1px;
+    height: 10px;
+    min-width: 3px;
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.vc-sora-stats-otl-bar i {
+    height: 100%;
+}
+
+.vc-sora-stats-otl-list {
+    margin-top: 10px;
+}
