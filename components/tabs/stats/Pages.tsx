@@ -260,7 +260,7 @@ function TimeoutByTiming({ entries, anonymize, focus }: { entries: SnipeEntry[];
 
             {picked && (
                 <div className="vc-sora-stats-otl-list">
-                    <SnipeTable entries={pickedSamples.map(s => s.entry)} anonymize={anonymize} measure={REQUEST_SENT_MEASURE} time={e => times.get(e) ?? null} showTrigger />
+                    <SnipeTable entries={pickedSamples.map(s => s.entry)} anonymize={anonymize} measure={REQUEST_SENT_MEASURE} time={e => times.get(e) ?? null} />
                 </div>
             )}
         </>

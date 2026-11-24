@@ -139,17 +139,17 @@ function SnipeOrigin({ entry, anonymize }: { entry: SnipeEntry; anonymize: boole
 }
 
 /** Snipes as a table: a header, then one separated row each. The last column is the timing picked in `measure`. */
-export function SnipeTable({ entries, anonymize, empty = "No snipes in this period.", measure, time, showTrigger }: {
+export function SnipeTable({ entries, anonymize, empty = "No snipes in this period.", measure, time }: {
     entries: SnipeEntry[];
     anonymize: boolean;
     empty?: string;
     measure: Measure;
     /** Overrides the timing shown, for lists that already know it. */
     time?: (e: SnipeEntry) => number | null;
-    /** Adds a column with each snipe's trigger, for lists that mix triggers. */
-    showTrigger?: boolean;
 }) {
     if (!entries.length) return <span className="vc-sora-stats-low">{empty}</span>;
+    // A trigger column only helps when the list mixes triggers
+    const showTrigger = new Set(entries.map(e => e.triggerName)).size > 1;
     return (
         <div className="vc-sora-stats-table">
             <div className={`vc-sora-stats-rec head${showTrigger ? " trig" : ""}`}>
@@ -173,12 +173,7 @@ export function SnipeTable({ entries, anonymize, empty = "No snipes in this peri
                         onContextMenu={ev => openSnipeContextMenu(ev, e)}
                     >
                         <TimeAgo className="vc-sora-stats-rec-t" ts={e.timestamp} anonymize={anonymize} />
-                        {showTrigger ? <SnipeOrigin entry={e} anonymize={anonymize} /> : (
-                            <span className="vc-sora-stats-rec-who">
-                                <b>{anonymize ? "Hidden" : e.authorName ?? "Unknown"}</b>
-                                {!anonymize && e.channelName && <em>in #{e.channelName.replace(/^#/, "")}</em>}
-                            </span>
-                        )}
+                        <SnipeOrigin entry={e} anonymize={anonymize} />
                         {showTrigger && (
                             <Tooltip text={e.triggerName}>
                                 {props => (
