@@ -153,12 +153,12 @@ function StepLanes({ entries }: { entries: SnipeEntry[]; }) {
 
 const OUTCOME_PILLS: { id: OutcomeFilter; label: string; color?: string; tip?: string; }[] = [
     { id: "all", label: "All" },
-    { id: "got", label: "Got in", color: COLORS.positive, tip: "Real or bait: you got into the server and the biome was checked" },
-    { id: "timeout", label: "Timed out", color: RESULT_COLOR.timeout, tip: "The biome check gave up, usually because you were stuck in the server's queue" },
-    { id: "unknown", label: "Unknown", color: RESULT_COLOR.unverified, tip: "The biome wasn't checked, so there's no way to tell if you got in" },
+    { id: "got", label: "Got in", color: COLORS.positive, tip: "Real or bait" },
+    { id: "timeout", label: "Timed out", color: RESULT_COLOR.timeout, tip: "Usually stuck in the queue" },
+    { id: "unknown", label: "Unknown", color: RESULT_COLOR.unverified, tip: "Biome not checked" },
 ];
 
-export function OutcomePills({ value, counts, onChange }: { value: OutcomeFilter; counts: Record<OutcomeFilter, number>; onChange: (v: OutcomeFilter) => void; }) {
+export function OutcomePills({ value, onChange }: { value: OutcomeFilter; onChange: (v: OutcomeFilter) => void; }) {
     return (
         <div className="vc-sora-stats-segrow" role="group" aria-label="Which snipes">
             {OUTCOME_PILLS.map(p => {
@@ -166,7 +166,6 @@ export function OutcomePills({ value, counts, onChange }: { value: OutcomeFilter
                     <button {...props} type="button" className="vc-sora-seg vc-sora-stats-outcome" aria-pressed={value === p.id} onClick={() => onChange(p.id)}>
                         {p.color && <i style={{ background: p.color }} />}
                         {p.label}
-                        <span>{counts[p.id]}</span>
                     </button>
                 );
                 return p.tip
@@ -178,6 +177,8 @@ export function OutcomePills({ value, counts, onChange }: { value: OutcomeFilter
 }
 
 /** From which timing joins start timing out. Click a row to list its joins. */
+const secs = (ms: number) => `${(ms / 1000).toFixed(1)} s`;
+
 function TimeoutByTiming({ entries, anonymize }: { entries: SnipeEntry[]; anonymize: boolean; }) {
     const bins = React.useMemo(() => outcomeBins(entries), [entries]);
     const [open, setOpen] = React.useState<number | null>(null);
@@ -192,23 +193,20 @@ function TimeoutByTiming({ entries, anonymize }: { entries: SnipeEntry[]; anonym
     return (
         <>
             {tp ? (
-                <Tooltip text={`From ${fmtSeconds(tp.at)} up, ${tp.out} of ${tp.total} joins timed out.`}>
+                <Tooltip text={`${tp.out} of ${tp.total} from here up. ${REQUEST_SENT_MEASURE.tip}`}>
                     {props => (
                         <div {...props} className="vc-sora-stats-turn">
-                            <b>Above {fmtSeconds(tp.at)}</b>
-                            <span>1 in {Math.max(2, Math.round(tp.total / tp.out))} joins times out</span>
+                            <span>Timeouts start at</span>
+                            <b>{secs(tp.at)}</b>
                         </div>
                     )}
                 </Tooltip>
-            ) : <div className="vc-sora-stats-turn"><span>No timing where timeouts pile up yet</span></div>}
+            ) : <div className="vc-sora-stats-turn"><span>No clear point yet</span></div>}
 
             <div className="vc-sora-stats-otl">
                 {bins.map(b => {
                     const total = b.got.length + b.out.length;
-                    const range = b.open ? `${fmtSeconds(b.from)} or slower` : `${fmtSeconds(b.from)} to ${fmtSeconds(b.to)}`;
-                    const tip = total
-                        ? `${range}: ${b.got.length} got in, ${b.out.length} timed out. Click to see them.`
-                        : `${range}: no joins`;
+                    const tip = total ? `${b.got.length} got in · ${b.out.length} timed out` : "None";
                     return (
                         <Tooltip key={b.from} text={tip}>
                             {props => (
@@ -220,7 +218,7 @@ function TimeoutByTiming({ entries, anonymize }: { entries: SnipeEntry[]; anonym
                                     disabled={!total}
                                     onClick={() => setOpen(open === b.from ? null : b.from)}
                                 >
-                                    <span>{fmtSeconds(b.from)}{b.open ? "+" : ""}</span>
+                                    <span>{secs(b.from)}{b.open ? "+" : ""}</span>
                                     <span className="vc-sora-stats-otl-bar" style={{ width: `${Math.max(2, total / max * 100)}%` }}>
                                         {b.got.length > 0 && <i style={{ flex: b.got.length, background: COLORS.positive }} />}
                                         {b.out.length > 0 && <i style={{ flex: b.out.length, background: RESULT_COLOR.timeout }} />}
@@ -242,7 +240,7 @@ function TimeoutByTiming({ entries, anonymize }: { entries: SnipeEntry[]; anonym
 }
 
 /** One measure of the join for a trigger or server, or for every trigger when `rows` is given: the spread, how it moved, where the time goes, and the fastest and slowest joins. */
-export function TimingPage({ entries, stats, anonymize, rows, measure, allEntries, outcome, outcomeCounts, onOutcome }: {
+export function TimingPage({ entries, stats, anonymize, rows, measure, allEntries, outcome, onOutcome }: {
     entries: SnipeEntry[];
     stats: Stats;
     anonymize: boolean;
@@ -251,7 +249,6 @@ export function TimingPage({ entries, stats, anonymize, rows, measure, allEntrie
     /** Every snipe on the page before the outcome filter, for the timeout chart */
     allEntries: SnipeEntry[];
     outcome: OutcomeFilter;
-    outcomeCounts: Record<OutcomeFilter, number>;
     onOutcome: (v: OutcomeFilter) => void;
 }) {
     const samples = React.useMemo(() => timingSamples(entries, measure.steps), [entries, measure]);
@@ -261,10 +258,10 @@ export function TimingPage({ entries, stats, anonymize, rows, measure, allEntrie
     const ordered = React.useMemo(() => samples.slice().sort((a, b) => a.ms - b.ms), [samples]);
 
     const r = stats.timing;
-    const pills = <OutcomePills value={outcome} counts={outcomeCounts} onChange={onOutcome} />;
+    const pills = <OutcomePills value={outcome} onChange={onOutcome} />;
     const timeouts = (
         <>
-            <Section title="Timed out by timing" right={<Tooltip text={REQUEST_SENT_MEASURE.tip}>{props => <span {...props} className="vc-sora-stats-hint">{REQUEST_SENT_MEASURE.label}</span>}</Tooltip>} />
+            <Section title="Timeouts by timing" />
             <div className="vc-sora-stats-card vc-sora-stats-panel"><TimeoutByTiming entries={allEntries} anonymize={anonymize} /></div>
         </>
     );

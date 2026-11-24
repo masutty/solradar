@@ -95,16 +95,6 @@ export function StatsTab() {
         () => timed ? triggerRows(picked.filter(keep), win, measure.steps) : rows,
         [timed, picked, outcome, win, measure, rows]
     );
-    const outcomeCounts = React.useMemo(() => {
-        const c: Record<OutcomeFilter, number> = { all: 0, got: 0, timeout: 0, unknown: 0 };
-        for (const e of viewEntries ?? []) {
-            const o = outcomeOf(e);
-            if (!o) continue;
-            c[o]++;
-            c.all++;
-        }
-        return c;
-    }, [viewEntries]);
     const view = React.useMemo(
         () => shownEntries == null ? null : computeStats(shownEntries, win, page === "who" ? 50 : undefined, measure.steps),
         [shownEntries, win, page, measure]
@@ -157,7 +147,6 @@ export function StatsTab() {
                             rows={subject ? undefined : shownRows}
                             measure={measure}
                             outcome={outcome}
-                            outcomeCounts={outcomeCounts}
                             onOutcome={setOutcome}
                         />
                     ) : page === "who" ? (
