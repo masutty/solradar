@@ -170,6 +170,7 @@ export function StatsTab() {
                     ) : subject && (
                         <Detail
                             name={subject.name}
+                            entries={viewEntries}
                             icon={icon}
                             stats={view}
                             win={win}
@@ -190,6 +191,7 @@ export function StatsTab() {
                         <PeriodMenu period={period} win={win} onChange={setPeriod} />
                     </div>
                     <Overview
+                        entries={picked}
                         stats={overall}
                         rows={rows}
                         anonymize={anonymizeEverything}

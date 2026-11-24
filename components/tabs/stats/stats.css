@@ -1096,3 +1096,14 @@ button.vc-sora-stats-who {
     font-size: 14px;
     color: var(--text-default);
 }
+
+/* Timeouts tile: the timing's name sits on the label row */
+.vc-sora-stats-bn.otl {
+    position: relative;
+}
+
+.vc-sora-stats-bn.otl > .vc-sora-stats-hint {
+    position: absolute;
+    top: 14px;
+    right: 16px;
+}

@@ -4,10 +4,12 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+import { SnipeEntry } from "../../../stores/SnipeStore";
 import { ActivityChart, Spark } from "./charts";
 import { coverageNote, fmtDuration, fmtRate, Group, Measure, Stats, TriggerRow } from "./data";
 import { AuthorsTile, BentoTile, TimingTile, WhenTile } from "./Detail";
 import { GroupTable, Section, SplitBar, summaryCaption, SummaryCard, TriggerIcon } from "./parts";
+import { TimeoutByTiming, TimeoutsHint } from "./Timeouts";
 
 // --- Trigger table ---
 
@@ -39,7 +41,8 @@ function TriggerTable({ rows, onOpen }: { rows: TriggerRow[]; onOpen: (row: Trig
 
 // --- Overview ---
 
-export function Overview({ stats, rows, anonymize, measure, onOpen, onOpenServer, onTiming, onWhen, onWho }: {
+export function Overview({ entries, stats, rows, anonymize, measure, onOpen, onOpenServer, onTiming, onWhen, onWho }: {
+    entries: SnipeEntry[];
     stats: Stats;
     rows: TriggerRow[];
     anonymize: boolean;
@@ -70,6 +73,10 @@ export function Overview({ stats, rows, anonymize, measure, onOpen, onOpenServer
                 <AuthorsTile className="c2" stats={stats} anonymize={anonymize} onOpen={onWho} />
                 <BentoTile className="c4" label="Activity">
                     <ActivityChart stats={stats} />
+                </BentoTile>
+                <BentoTile className="c4 otl" label="Timeouts by timing">
+                    <TimeoutsHint />
+                    <TimeoutByTiming entries={entries} anonymize={anonymize} />
                 </BentoTile>
             </div>
 
