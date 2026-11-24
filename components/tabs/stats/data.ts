@@ -428,9 +428,11 @@ export const REQUEST_SENT_MEASURE: Measure = {
 
 export interface OutcomeBin { from: number; to: number; open: boolean; got: TimingSample[]; out: TimingSample[]; }
 
-const OUTCOME_BIN_MS = 500;
+// Round bin sizes, so the axis reads well whatever the spread
+const BIN_STEPS = [50, 100, 200, 250, 500, 1000, 2000, 5000];
+const MAX_BINS = 24;
 
-/** Joins that got in or timed out, in half-second bins up to the 95th percentile. The last bin also holds anything slower. */
+/** Joins that got in or timed out, in round bins up to the 95th percentile. The last bin also holds anything slower. */
 export function outcomeBins(entries: SnipeEntry[]): OutcomeBin[] {
     const samples: (TimingSample & { outcome: Outcome; })[] = [];
     for (const entry of entries) {
@@ -442,12 +444,14 @@ export function outcomeBins(entries: SnipeEntry[]): OutcomeBin[] {
     if (!samples.length) return [];
 
     const sorted = samples.map(s => s.ms).sort((a, b) => a - b);
-    const lo = Math.floor(sorted[0] / OUTCOME_BIN_MS) * OUTCOME_BIN_MS;
-    const hi = Math.max(lo + OUTCOME_BIN_MS, Math.ceil(sorted[Math.floor(0.95 * (sorted.length - 1))] / OUTCOME_BIN_MS) * OUTCOME_BIN_MS);
-    const count = (hi - lo) / OUTCOME_BIN_MS;
-    const bins: OutcomeBin[] = Array.from({ length: count }, (_, i) => ({ from: lo + i * OUTCOME_BIN_MS, to: lo + (i + 1) * OUTCOME_BIN_MS, open: i === count - 1, got: [], out: [] }));
+    const p95 = sorted[Math.floor(0.95 * (sorted.length - 1))];
+    const step = BIN_STEPS.find(w => (p95 - Math.floor(sorted[0] / w) * w) / w <= MAX_BINS) ?? BIN_STEPS[BIN_STEPS.length - 1];
+    const lo = Math.floor(sorted[0] / step) * step;
+    const hi = Math.max(lo + step, Math.ceil(p95 / step) * step);
+    const count = Math.round((hi - lo) / step);
+    const bins: OutcomeBin[] = Array.from({ length: count }, (_, i) => ({ from: lo + i * step, to: lo + (i + 1) * step, open: i === count - 1, got: [], out: [] }));
     for (const s of samples) {
-        const bin = bins[Math.min(count - 1, Math.floor((s.ms - lo) / OUTCOME_BIN_MS))];
+        const bin = bins[Math.min(count - 1, Math.floor((s.ms - lo) / step))];
         (s.outcome === "got" ? bin.got : bin.out).push(s);
     }
     return bins;

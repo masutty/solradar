@@ -1005,3 +1005,41 @@ button.vc-sora-stats-who {
 .vc-sora-stats-otl-list {
     margin-top: 10px;
 }
+
+.vc-sora-stats-otl-tiles {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.vc-sora-stats-otl-tile {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    background: var(--background-mod-subtle);
+    cursor: default;
+}
+
+.vc-sora-stats-otl-tile span {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.vc-sora-stats-otl-tile i {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+}
+
+.vc-sora-stats-otl-tile b {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text-default);
+    font-variant-numeric: tabular-nums;
+}
