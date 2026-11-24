@@ -1063,3 +1063,57 @@ button.vc-sora-stats-who {
 .vc-sora-stats-outcomes .vc-sora-stats-outcome[aria-pressed="true"] {
     background: var(--background-mod-strong);
 }
+
+/* Snipe table with a trigger column */
+.vc-sora-stats-rec.trig {
+    grid-template-columns: 56px minmax(0, 0.8fr) minmax(0, 1fr) 84px 56px;
+}
+
+.vc-sora-stats-rec-trig {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    color: var(--control-secondary-text-default);
+    font-size: 12.5px;
+}
+
+.vc-sora-stats-rec-trig > span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.vc-sora-stats-origin {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    color: var(--text-default);
+    font-weight: 500;
+}
+
+.vc-sora-stats-origin > span:last-child {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.vc-sora-stats-origin-tip {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.vc-sora-stats-origin-tip > div {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    font-size: 12.5px;
+    color: var(--text-muted);
+}
+
+.vc-sora-stats-origin-tip b {
+    font-size: 14px;
+    color: var(--text-default);
+}
