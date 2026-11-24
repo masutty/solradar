@@ -14,7 +14,7 @@ import { tabColumn } from "../../ui/styles";
 import { computeStats, measureOf, OutcomeFilter, outcomeOf, Period, serverKey, triggerRows, windowOf } from "./data";
 import { Detail } from "./Detail";
 import { Overview } from "./Overview";
-import { TimingPage, WhenPage, WhoPage } from "./Pages";
+import { OutcomePills, TimingPage, WhenPage, WhoPage } from "./Pages";
 import { serverIconUrl, TriggerIcon } from "./parts";
 import { MeasureMenu, PeriodMenu } from "./PeriodMenu";
 import { Selection } from "./pick";
@@ -95,6 +95,20 @@ export function StatsTab() {
         () => timed ? triggerRows(picked.filter(keep), win, measure.steps) : rows,
         [timed, picked, outcome, win, measure, rows]
     );
+    const outcomeCounts = React.useMemo(() => {
+        const c: Record<OutcomeFilter, number> = { all: 0, got: 0, timeout: 0, unknown: 0 };
+        for (const e of viewEntries ?? []) {
+            const o = outcomeOf(e);
+            if (!o) continue;
+            c[o]++;
+            c.all++;
+        }
+        return c;
+    }, [viewEntries]);
+    // A filter that matches nothing in this period falls back to All
+    React.useEffect(() => {
+        if (outcome !== "all" && outcomeCounts[outcome] === 0) setOutcome("all");
+    }, [outcome, outcomeCounts]);
     const view = React.useMemo(
         () => shownEntries == null ? null : computeStats(shownEntries, win, page === "who" ? 50 : undefined, measure.steps),
         [shownEntries, win, page, measure]
@@ -137,6 +151,7 @@ export function StatsTab() {
                         {page === "timing" && <MeasureMenu measure={measure} onChange={setPickedSteps} />}
                         <TriggerPicker selection={selection} counts={counts} onChange={setSelection} />
                         <PeriodMenu period={period} win={win} onChange={setPeriod} />
+                        {page === "timing" && <OutcomePills value={outcome} counts={outcomeCounts} onChange={setOutcome} />}
                     </div>
                     {page === "timing" ? (
                         <TimingPage
@@ -147,7 +162,6 @@ export function StatsTab() {
                             rows={subject ? undefined : shownRows}
                             measure={measure}
                             outcome={outcome}
-                            onOutcome={setOutcome}
                         />
                     ) : page === "who" ? (
                         <WhoPage stats={view} anonymize={anonymizeEverything} />
