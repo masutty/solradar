@@ -26,7 +26,7 @@ import { QuerySearchInput, splitQuery } from "../../ui/QuerySearchInput";
 import { Bar, Redactable, useRedaction } from "../../ui/Redactable";
 import { COLORS } from "../../ui/styles";
 import { useShiftHeld } from "../../ui/useShiftHeld";
-import { FallbackImage, getSnipeStatus } from "./components";
+import { FallbackImage, formatClock, getSnipeStatus } from "./components";
 import { openJoinModal } from "./JoinModal";
 import { openSnipeContextMenu } from "./SnipeContextMenu";
 import { formatSecs, OutcomeGlyph } from "./SnipeTimeline";
@@ -217,7 +217,7 @@ function openMoreMenu(e: React.MouseEvent, hasEntries: boolean) {
 // --- Card ---
 
 function SnipeCard({ entry, index, shiftHeld }: { entry: SnipeEntry; index: number; shiftHeld: boolean; }) {
-    const { historyBoltSteps } = settings.use(["historyBoltSteps"]);
+    const { anonymizeEverything, historyBoltSteps } = settings.use(["anonymizeEverything", "historyBoltSteps"]);
     const redaction = useRedaction(entry.guildId);
     const showBolt = !!entry.metrics && historyBoltSteps.length > 0;
     const boltMs = showBolt ? boltSum(entry, historyBoltSteps) : null;
@@ -240,6 +240,11 @@ function SnipeCard({ entry, index, shiftHeld }: { entry: SnipeEntry; index: numb
     );
     const sep = <span className="vc-sora-history-sep">·</span>;
 
+    // Anonymized history has no day headings, so a revealed time has to carry its date
+    const time = anonymizeEverything
+        ? `${new Date(entry.timestamp).toLocaleDateString()} ${formatClock(entry.timestamp)} (${timeAgo(entry.timestamp)})`
+        : formatClock(entry.timestamp);
+
     return (
         <div
             {...tourAnchor(index === 0 ? "history.firstCard" : undefined)}
@@ -261,14 +266,21 @@ function SnipeCard({ entry, index, shiftHeld }: { entry: SnipeEntry; index: numb
             </div>
 
             <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", justifyContent: "center", gap: 1 }}>
-                <span className="vc-sora-history-title">
-                    {entry.favorite && (
-                        <Tooltip text="Favorite. Kept when you clear the history.">
-                            {props => <span {...props} className="vc-sora-history-fav"><StarFilled width={13} height={13} /></span>}
+                <div className="vc-sora-history-head">
+                    <span className="vc-sora-history-title">
+                        {entry.favorite && (
+                            <Tooltip text="Favorite. Kept when you clear the history.">
+                                {props => <span {...props} className="vc-sora-history-fav"><StarFilled width={13} height={13} /></span>}
+                            </Tooltip>
+                        )}
+                        {entry.triggerName}
+                    </span>
+                    <Redactable redaction={redaction} bars={<Bar width={36} jitter={2} />}>
+                        <Tooltip text={`${fullDateTime(entry.timestamp)} · ${timeAgo(entry.timestamp)}`}>
+                            {props => <span {...props} className="vc-sora-history-clock">{time}</span>}
                         </Tooltip>
-                    )}
-                    {entry.triggerName}
-                </span>
+                    </Redactable>
+                </div>
                 <div className="vc-sora-history-line">
                     <Redactable
                         redaction={redaction}
@@ -297,11 +309,6 @@ function SnipeCard({ entry, index, shiftHeld }: { entry: SnipeEntry; index: numb
             </div>
 
             <div className="vc-sora-history-side">
-                <Redactable redaction={redaction} bars={<span className="vc-sora-history-clock hidden"><Bar width={40} jitter={2} /></span>}>
-                    <Tooltip text={fullDateTime(entry.timestamp)}>
-                        {props => <span {...props} className="vc-sora-history-clock">{timeAgo(entry.timestamp)}</span>}
-                    </Tooltip>
-                </Redactable>
                 {(showBolt || (isReal && entry.biomeDurationMs != null)) && (
                     <span className="vc-sora-history-stats">
                         {showBolt && (

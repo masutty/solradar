@@ -155,16 +155,19 @@
     font-variant-numeric: tabular-nums;
 }
 
-.vc-sora-history-clock {
-    color: var(--text-default);
-    font-family: var(--font-code);
-    font-size: 12px;
-}
-
-.vc-sora-history-clock.hidden {
+.vc-sora-history-head {
     display: flex;
     align-items: center;
-    height: 17px;
+    gap: 8px;
+    min-width: 0;
+}
+
+.vc-sora-history-clock {
+    flex-shrink: 0;
+    color: var(--text-muted);
+    font-size: 11.5px;
+    font-variant-numeric: tabular-nums;
+    opacity: 0.75;
 }
 
 .vc-sora-history-stats {
