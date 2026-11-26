@@ -1,6 +1,15 @@
 {
-    "currentVersion": "1.14.0",
+    "currentVersion": "1.14.1",
     "changelog": [
+        {
+            "version": "1.14.1",
+            "entries": [
+                { "type": "Improved", "text": "New look for Anonymize snipes", "description": "Hidden details are now placeholder bars, in Snipe History, in a snipe's details and in Stats. Click one to reveal it." },
+                { "type": "Improved", "text": "Snipe time next to the trigger name", "description": "Snipe History now shows when each snipe happened beside its trigger name. Hover the time for the full date." },
+                { "type": "Fixed", "text": "Anonymize snipes hides more", "description": "Names, dates and times no longer give away a hidden snipe." },
+                { "type": "Fixed", "text": "Glitch Core snipe times", "description": "The wait for the bot to send the link no longer counts as snipe time, including on your older snipes." }
+            ]
+        },
         {
             "version": "1.14.0",
             "entries": [
