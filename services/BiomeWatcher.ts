@@ -16,6 +16,7 @@ import { formatElapsedTime } from "../utils";
 import { scheduleCancelableAction } from "./ActionExecutor";
 import { BiomeDetector } from "./BiomeDetector";
 import { forwardSnipe } from "./ForwardingService";
+import { linkWaitMs } from "./JoinTimeline";
 
 let _unsubscribeBiomeDetection: (() => void) | null = null;
 let _closeBiomeEndWatch: ((reason: string) => void) | null = null;
@@ -128,7 +129,8 @@ export function startBiomeDetection(snipe: Snipe): void {
             snipe.markAsBiomeReal();
             snipe.logInfo(`Biome confirmed - "${detected}" matched in ${elapsed}ms.`);
             _watchForBiomeEnd(snipe, detected);
-            const joinMs = SnipeStore.getById(snipe.id)?.metrics?.timeToJoinMs;
+            const metrics = SnipeStore.getById(snipe.id)?.metrics;
+            const joinMs = metrics && metrics.timeToJoinMs - (linkWaitMs(metrics) ?? 0);
             showNotification({
                 title: `✅ SoRa :: ${snipe.trigger.name}: biome confirmed`,
                 body: [

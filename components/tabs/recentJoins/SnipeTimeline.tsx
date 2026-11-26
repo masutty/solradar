@@ -102,16 +102,17 @@ function robloxLines(entry: SnipeEntry): StoryLine[] {
     const b = joinBreakdown(entry);
     const at = entry.metrics?.receivedAt;
     if (!b || at === undefined || !b.steps.some(s => ROBLOX_STEPS.has(s.key))) return [];
-    const line = (t: number, message: string): StoryLine => ({ timestamp: at + t, level: "info", message, roblox: true });
+    // The log runs on the real clock, so the link wait the steps leave out goes back in
+    const line = (t: number, message: string): StoryLine => ({ timestamp: at + t + (b.linkWait ?? 0), level: "info", message, roblox: true });
     const out: StoryLine[] = [];
     const loaded = b.steps.find(s => s.key === "loading");
     const handed = b.steps.find(s => s.key === "helper") ?? b.steps.find(s => s.key === "startup");
     if (loaded?.end != null) out.push(line(loaded.end, "Finished loading and resolved the link."));
-    else if (handed?.end != null) out.push(line(handed.end, `Got the link after ${formatSecs(handed.end - b.steps[0].start)}.`));
+    else if (handed?.end != null) out.push(line(handed.end, `Got the link after ${formatSecs(handed.end - b.steps[0].start + (b.linkWait ?? 0))}.`));
     const ask = b.steps.find(s => s.key === "server");
     const queue = b.steps.find(s => s.key === "queue");
     if (queue) out.push(line(queue.start, "The server was full, so you waited in its queue."));
-    if (b.spot !== null) out.push(line(b.spot, `The server let you in (${formatSecs(b.spot)} after the message).`));
+    if (b.spot !== null) out.push(line(b.spot, `The server let you in (${formatSecs(b.spot + (b.linkWait ?? 0))} after the message).`));
     else if (ask) out.push(line(ask.start, "Asked to join, but the server never let you in."));
     if (b.connected !== null) out.push(line(b.connected, "Connected to the server."));
     return out;

@@ -224,7 +224,7 @@ function SnipeCard({ entry, index, shiftHeld }: { entry: SnipeEntry; index: numb
     const boltPreset = BOLT_PRESETS.find(p => sameSteps(p.steps, historyBoltSteps));
     const boltTip = boltPreset
         ? `${boltPreset.label}: ${boltPreset.tip}`
-        : `Sum of ${historyBoltSteps.map(k => JOIN_STEPS[k as keyof typeof JOIN_STEPS]?.name ?? k).join(", ")}. Change it in Settings, under Interface.`;
+        : `Sum of ${historyBoltSteps.filter(k => k in JOIN_STEPS).map(k => JOIN_STEPS[k as keyof typeof JOIN_STEPS].name).join(", ")}. Change it in Settings, under Interface.`;
     const status = getSnipeStatus(entry);
     const isReal = entry.tags.includes("biome-verified-real");
 

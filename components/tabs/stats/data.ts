@@ -63,7 +63,7 @@ export function measureOf(steps: readonly string[]): Measure {
     const use = steps.length ? steps : DEFAULT_BOLT_STEPS;
     const preset = BOLT_PRESETS.find(p => sameSteps(p.steps, use));
     if (preset) return { label: preset.label, tip: preset.tip, steps: use };
-    return { label: "Custom timing", tip: `Sum of ${use.map(k => JOIN_STEPS[k as JoinStepKey]?.name ?? k).join(", ")}.`, steps: use };
+    return { label: "Custom timing", tip: `Sum of ${use.filter(k => k in JOIN_STEPS).map(k => JOIN_STEPS[k as JoinStepKey].name).join(", ")}.`, steps: use };
 }
 
 // --- Period ---

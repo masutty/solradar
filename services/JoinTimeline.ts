@@ -50,7 +50,7 @@ export function scheduleTimelineCapture(id: number): void {
 // the log waterfall, the Developer stats and the CSV, so they always agree.
 
 export type StepCat = "plugin" | "hw" | "net" | "queue";
-export type JoinStepKey = "read" | "link" | "close" | "open" | "startup" | "helper" | "loading" | "resolve" | "prepare" | "server" | "queue" | "connect";
+export type JoinStepKey = "read" | "close" | "open" | "startup" | "helper" | "loading" | "resolve" | "prepare" | "server" | "queue" | "connect";
 
 /**
  * A server request longer than this was a wait in the server's queue, not the network.
@@ -62,12 +62,11 @@ export const STEP_CATS: Record<StepCat, { name: string; color: string; tip: stri
     plugin: { name: "Plugin", color: "var(--brand-500)", tip: "The plugin's own code: reading the message and finding the trigger." },
     hw: { name: "Hardware", color: "var(--vc-sora-hw)", tip: "Roblox starting and loading on your PC." },
     net: { name: "Network", color: "var(--vc-sora-net)", tip: "Roblox talking to its servers." },
-    queue: { name: "Queue", color: "var(--text-muted)", tip: "You waiting: in line because the server was full, or for a Glitch Core link." },
+    queue: { name: "Queue", color: "var(--text-muted)", tip: "You waiting in line because the server was full." },
 };
 
 export const JOIN_STEPS: Record<JoinStepKey, { name: string; cat: StepCat; tip: string; }> = {
     read: { name: "Read message", cat: "plugin", tip: "Finding the trigger and checking for duplicates." },
-    link: { name: "Waited for link", cat: "queue", tip: "Time The Core took to send the link after Get server link was clicked. Only Glitch Core snipes have it." },
     close: { name: "Close Roblox", cat: "hw", tip: "Safe join mode closes the game before joining. Windows ending the Roblox process." },
     open: { name: "Open Roblox", cat: "hw", tip: "Windows creating the Roblox process for the link. Not the plugin's code." },
     startup: { name: "Roblox startup", cat: "hw", tip: "A new Roblox process starting before it runs its own code." },
@@ -93,7 +92,7 @@ export function reachedAt(b: JoinBreakdown): number | null {
 
 export interface JoinStep {
     key: JoinStepKey;
-    /** ms after the message reached Sol Radar */
+    /** ms after the message reached Sol Radar, not counting a Glitch Core link wait */
     start: number;
     /** null: never finished (no spot in the server) */
     end: number | null;
@@ -116,12 +115,17 @@ export interface JoinBreakdown {
     connected: number | null;
     /** Time to the spot by category. Connect comes after the spot, so it isn't counted. */
     totals: Record<StepCat, number>;
+    /** How long a Glitch Core snipe waited for the bot's link. No step or total counts it. */
+    linkWait: number | null;
 }
 
 const PENDING_MS = CAPTURE_DELAY_MS + 10_000;
 
-/** How long a Glitch Core snipe waited for the bot's link, or null for any other snipe. The overhead counts this wait. */
-function linkWaitMs(m: SnipeMetrics): number | null {
+/**
+ * How long a Glitch Core snipe waited for the bot's link, or null for any other snipe.
+ * The bot's countdown isn't snipe time, but the stored overheadMs and timeToJoinMs include it.
+ */
+export function linkWaitMs(m: SnipeMetrics): number | null {
     return m.clickedAt === undefined ? null : Math.max(0, (m.linkReceivedAt ?? m.clickedAt) - m.clickedAt);
 }
 
@@ -134,7 +138,6 @@ export function joinBreakdown(entry: SnipeEntry, now = Date.now()): JoinBreakdow
     const push = (key: JoinStepKey, ms: number) => { steps.push({ key, start: t, end: t + ms }); t += ms; };
     const waited = linkWaitMs(m);
     push("read", Math.max(0, m.overheadMs - (waited ?? 0)));
-    if (waited !== null) push("link", waited);
     if (m.joinMode === "safe" || (m.joinMode === undefined && (m.killDurationMs ?? 0) >= 1)) push("close", Math.max(0, m.killDurationMs ?? 0));
     push("open", Math.max(0, m.openUriDurationMs));
     const openEnd = t;
@@ -142,7 +145,7 @@ export function joinBreakdown(entry: SnipeEntry, now = Date.now()): JoinBreakdow
     const result = (situation: JoinSituation, spot: number | null = null, connected: number | null = null): JoinBreakdown => {
         const totals: Record<StepCat, number> = { plugin: 0, hw: 0, net: 0, queue: 0 };
         for (const s of steps) if (s.end !== null && s.key !== "connect") totals[JOIN_STEPS[s.key].cat] += s.end - s.start;
-        return { situation, steps, spot, connected, totals };
+        return { situation, steps, spot, connected, totals, linkWait: waited };
     };
 
     if (!m.receivedAt || !m.launchedAt) return result("old");
@@ -150,7 +153,8 @@ export function joinBreakdown(entry: SnipeEntry, now = Date.now()): JoinBreakdow
     if (!tl) return result(now - m.launchedAt < PENDING_MS ? "pending" : "noLog");
 
     const st = tl.stages;
-    const rel = (abs: number | undefined) => abs === undefined ? undefined : abs - m.receivedAt!;
+    // Roblox only gets the link after the wait, so taking it out keeps its steps right after ours
+    const rel = (abs: number | undefined) => abs === undefined ? undefined : abs - m.receivedAt! - (waited ?? 0);
     // Clocks can disagree by a few ms; never draw a step that ends before it starts
     let cursor = openEnd;
     const step = (key: JoinStepKey, end: number | undefined) => {
@@ -202,7 +206,13 @@ export const BOLT_PRESETS: { label: string; tip: string; steps: JoinStepKey[]; }
     { label: "Network total", tip: STEP_CATS.net.tip, steps: stepsOfCat("net") },
 ];
 
-export const sameSteps = (a: readonly string[], b: readonly string[]) => a.length === b.length && a.every(k => b.includes(k));
+/** Ignores keys that are no longer steps, which a saved choice may still name. */
+export function sameSteps(a: readonly string[], b: readonly string[]): boolean {
+    const known = (keys: readonly string[]) => keys.filter(k => k in JOIN_STEPS);
+    const left = known(a);
+    const right = known(b);
+    return left.length === right.length && left.every(k => right.includes(k));
+}
 
 /** The picked steps added up, or null when this snipe has none of them. A step this join didn't have counts as 0. */
 export function boltSum(entry: SnipeEntry, steps: readonly string[]): number | null {

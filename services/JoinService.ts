@@ -17,7 +17,7 @@ import { executeAction } from "./ActionExecutor";
 import { BiomeDetector } from "./BiomeDetector";
 import { startBiomeDetection } from "./BiomeWatcher";
 import { stopAllAutoPlay } from "./InputAutomation";
-import { scheduleTimelineCapture } from "./JoinTimeline";
+import { linkWaitMs, scheduleTimelineCapture } from "./JoinTimeline";
 import { redactUserPath, redactUserPaths } from "./paths";
 import { closeGame, getPlaceId } from "./RobloxService";
 import { hasBypass } from "./scope";
@@ -361,7 +361,7 @@ export async function join(snipe: Snipe): Promise<void> {
     scheduleTimelineCapture(snipe.id);
     const m = result.metrics;
     const discordPart = m.discordDelayMs != null ? `, Discord delivery: ${m.discordDelayMs}ms` : "";
-    snipe.logInfo(`Joined in ${m.joinDurationMs.toFixed(1)}ms (overhead: ${m.overheadMs.toFixed(1)}ms, launch: ${m.openUriDurationMs.toFixed(1)}ms ${m.launchMethod ?? "?"}${discordPart})`);
+    snipe.logInfo(`Joined in ${m.joinDurationMs.toFixed(1)}ms (overhead: ${(m.overheadMs - (linkWaitMs(m) ?? 0)).toFixed(1)}ms, launch: ${m.openUriDurationMs.toFixed(1)}ms ${m.launchMethod ?? "?"}${discordPart})`);
 
     // The lock starts right after the launch, so verification time cannot let another snipe through
     const lockActivated = activateJoinLock(snipe);

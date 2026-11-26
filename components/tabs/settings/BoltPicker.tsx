@@ -104,9 +104,11 @@ function BoltModal({ modalProps }: { modalProps: ModalProps; }) {
 export function BoltSetting() {
     const { historyBoltSteps } = settings.use(["historyBoltSteps"]);
     const preset = BOLT_PRESETS.find(p => sameSteps(p.steps, historyBoltSteps));
+    // A saved choice may still name a step that no longer exists
+    const picked = historyBoltSteps.filter(k => k in JOIN_STEPS).length;
     const current = historyBoltSteps.length === 0
         ? "Hidden"
-        : preset?.label ?? `${historyBoltSteps.length} ${historyBoltSteps.length === 1 ? "step" : "steps"} added up`;
+        : preset?.label ?? `${picked} ${picked === 1 ? "step" : "steps"} added up`;
 
     return (
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "10px 14px", borderRadius: 8, background: "var(--background-mod-subtle)" }}>

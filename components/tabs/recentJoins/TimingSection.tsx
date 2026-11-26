@@ -37,11 +37,9 @@ function DocIcon() {
 function noteFor(entry: SnipeEntry, b: JoinBreakdown, reading: boolean): { text: string; warn?: boolean; action?: boolean; } {
     // Opening an older snipe starts a read; don't call the log missing until it's done
     if (reading && !entry.robloxTimeline) return { text: "Reading Roblox's log…" };
-    // The queue total also holds a Glitch Core link wait, which is not the server's queue
     const serverQueue = b.steps.find(s => s.key === "queue");
     if (serverQueue?.end != null) return { text: `The server was full, so you waited ${formatSecs(serverQueue.end - serverQueue.start)} in its queue`, warn: true };
-    const linkWait = b.steps.find(s => s.key === "link");
-    if (linkWait?.end != null && b.situation === "warm") return { text: `Waiting for The Core's link took ${formatSecs(linkWait.end - linkWait.start)}, all on the bot's side` };
+    if (b.linkWait !== null && b.situation === "warm") return { text: `The Core took ${formatSecs(b.linkWait)} to send the link, which isn't counted here` };
     switch (b.situation) {
         case "cold":
             return entry.metrics?.joinMode === "safe"
