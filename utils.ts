@@ -11,6 +11,8 @@ import { AuthenticationStore, showToast as defaultShowToast } from "@webpack/com
 
 import { Logger } from "./logger";
 import { MACRO_PRESETS, settings } from "./settings";
+import { refreshChannel } from "./stores/ChannelStore";
+import type { ChannelInfo } from "./native";
 import { ChangelogEntry, ChangelogVersion, VersionManifest } from "./types";
 import versionManifest from "./version.json";
 export const cl = classNameFactory("vc-sora-");
@@ -254,8 +256,33 @@ export function getCurrentVersionEntries(): ChangelogEntry[] {
     );
 }
 
-/** Fetches the latest published version. Returns false if the update server could not be reached. */
+/** Whether this install has something to update to: a release on main, new commits on dev, nothing elsewhere. */
+export function hasUpdate(channel: ChannelInfo | null): boolean {
+    if (channel?.channel === "custom") return false;
+    if (channel?.channel === "dev") return channel.behind > 0;
+    return hasNewVersionAvailable();
+}
+
+async function checkDevCommits(): Promise<boolean> {
+    const info = await refreshChannel(true);
+    if (!info?.fetched) return false;
+
+    settings.store.lastVersionCheck = Date.now();
+    if (info.behind > 0) {
+        showNotification({
+            title: "SoRa :: Update Available!",
+            body: `${info.behind} new ${info.behind === 1 ? "commit" : "commits"} on dev`
+        });
+    }
+    return true;
+}
+
+/** Looks for an update on this install's channel. Returns false if the update server could not be reached. */
 export async function checkForUpdates(): Promise<boolean> {
+    const channel = await refreshChannel();
+    if (channel?.channel === "custom") return true;
+    if (channel?.channel === "dev") return checkDevCommits();
+
     const manifest = await getLatestPublishedManifest();
 
     if (!manifest) {
@@ -291,6 +318,9 @@ export async function checkForUpdates(): Promise<boolean> {
 }
 
 export async function ensureDailyVersionCheck(): Promise<void> {
+    // Reads the branch even without a check, so the update badge knows the channel
+    await refreshChannel();
+
     if (!settings.store.shouldCheckForUpdates) {
         logger.debug("Update checks are disabled.");
         return;

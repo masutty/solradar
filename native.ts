@@ -1212,8 +1212,8 @@ const RECORD = "%x1e";
 const FIELD_CHAR = String.fromCharCode(0x1f);
 const RECORD_CHAR = String.fromCharCode(0x1e);
 
-async function git(dir: string, args: string[]): Promise<string> {
-    const { stdout } = await execFile("git", ["-C", dir, ...args], { timeout: GIT_TIMEOUT_MS, windowsHide: true, maxBuffer: 8 * 1024 * 1024 });
+async function git(dir: string, args: string[], options: { timeout?: number; env?: NodeJS.ProcessEnv; } = {}): Promise<string> {
+    const { stdout } = await execFile("git", ["-C", dir, ...args], { timeout: GIT_TIMEOUT_MS, windowsHide: true, maxBuffer: 8 * 1024 * 1024, ...options });
     return stdout;
 }
 
@@ -1271,6 +1271,62 @@ export async function getGitInfo(_: IpcMainInvokeEvent, limit = 30): Promise<Git
     } catch (e) {
         logger.error("git failed:", e);
         return { ok: false, error: e instanceof Error ? e.message : String(e) };
+    }
+}
+
+export type ChannelInfo = {
+    /** main and a detached HEAD (a checked out tag) are releases. Any branch but main and dev is custom. */
+    channel: "release" | "dev" | "custom";
+    branch: string;
+    /** Short hash of HEAD. */
+    head: string;
+    /** How many commits origin/dev has that HEAD doesn't, as of the last fetch. Always 0 outside dev. */
+    behind: number;
+    /** The newest of those commits. */
+    missing: GitCommit[];
+    /** False when a fetch was asked for and failed. */
+    fetched: boolean;
+};
+
+const FETCH_TIMEOUT_MS = 20_000;
+
+/** Which branch the plugin runs, and on dev what's new on origin. null without git. */
+export async function getChannelInfo(_: IpcMainInvokeEvent, fetch = false): Promise<ChannelInfo | null> {
+    const dir = findPluginRepo();
+    if (!dir) return null;
+
+    try {
+        const [branch, head] = (await Promise.all([
+            git(dir, ["rev-parse", "--abbrev-ref", "HEAD"]),
+            git(dir, ["rev-parse", "--short", "HEAD"]),
+        ])).map(out => out.trim());
+        const channel = branch === "main" || branch === "HEAD" ? "release" : branch === "dev" ? "dev" : "custom";
+        const info: ChannelInfo = { channel, branch, head, behind: 0, missing: [], fetched: true };
+        if (channel !== "dev") return info;
+
+        if (fetch) {
+            try {
+                // Names the tracking ref, so a single-branch clone updates it too. Never stops to ask for a password.
+                await git(dir, ["fetch", "--quiet", "origin", "+refs/heads/dev:refs/remotes/origin/dev"], {
+                    timeout: FETCH_TIMEOUT_MS,
+                    env: { ...process.env, GIT_TERMINAL_PROMPT: "0", GCM_INTERACTIVE: "never" },
+                });
+            } catch (e) {
+                logger.warn("git fetch failed:", e);
+                info.fetched = false;
+            }
+        }
+
+        // Throws when origin/dev was never fetched, which counts as nothing new
+        try {
+            info.behind = Number((await git(dir, ["rev-list", "--count", "HEAD..origin/dev"])).trim());
+            info.missing = await gitLog(dir, ["-n5", "HEAD..origin/dev"]);
+        } catch { }
+
+        return info;
+    } catch (e) {
+        logger.error("git failed:", e);
+        return null;
     }
 }
 

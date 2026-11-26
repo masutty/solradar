@@ -9,9 +9,10 @@ import "./ui/modal.css";
 import { Heading } from "@components/Heading";
 import { React } from "@webpack/common";
 
+import { useChannel } from "../stores/ChannelStore";
 import { runTourAction, TourStore, useTourAction } from "../stores/TourStore";
 import { UIState } from "../stores/UIStateStore";
-import { hasNewVersionAvailable, isDeveloper } from "../utils";
+import { hasUpdate, isDeveloper } from "../utils";
 import { DeveloperTab } from "./tabs/developer";
 import { RecentJoinsTab } from "./tabs/recentJoins";
 import { SettingsTab } from "./tabs/settings";
@@ -66,7 +67,7 @@ export function SolsRadarModal({ modalProps, initialTab }: SolsRadarModalProps) 
     const [activeTab, setActiveTab] = React.useState<TabId>(() =>
         resolveTab(initialTab ?? UIState.get("activeTab"))
     );
-    const hasUpdate = hasNewVersionAvailable();
+    const updatePending = hasUpdate(useChannel());
 
     const tabsRef = React.useRef<HTMLDivElement>(null);
 
@@ -155,7 +156,7 @@ export function SolsRadarModal({ modalProps, initialTab }: SolsRadarModalProps) 
                         }}
                     >
                         {tab.label}
-                        {tab.id === "updates" && hasUpdate && (
+                        {tab.id === "updates" && updatePending && (
                             <span
                                 style={{
                                     position: "absolute",

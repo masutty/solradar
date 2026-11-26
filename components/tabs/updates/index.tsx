@@ -11,7 +11,9 @@ import { Paragraph } from "@components/Paragraph";
 import { openUserProfile } from "@utils/discord";
 import { Alerts, React, Tooltip, UserStore, UserUtils, useStateFromStores } from "@webpack/common";
 
+import type { ChannelInfo } from "../../../native";
 import { settings } from "../../../settings";
+import { refreshChannel, useChannel } from "../../../stores/ChannelStore";
 import { ChangelogEntry, ChangelogVersion } from "../../../types";
 import {
     checkForUpdates,
@@ -19,7 +21,7 @@ import {
     getCurrentVersion,
     getLatestKnownChangelog,
     getLatestKnownVersion,
-    hasNewVersionAvailable,
+    hasUpdate,
     isVersionNewer,
 } from "../../../utils";
 import { COLORS, sectionTitle, tabColumn } from "../../ui/styles";
@@ -70,6 +72,7 @@ const STATUS_COLOR = {
     ok: COLORS.positive,
     update: COLORS.warning,
     dev: COLORS.brand,
+    custom: "hsl(270deg 60% 58%)",
     error: COLORS.danger,
 };
 
@@ -196,7 +199,8 @@ function getReleases(updateAvailable: boolean): ChangelogVersion[] {
 
 type CheckState = "idle" | "checking" | "error";
 
-function StatusCard({ updateAvailable, latestVersion, checkState, lastCheck, onCheck }: {
+function StatusCard({ channel, updateAvailable, latestVersion, checkState, lastCheck, onCheck }: {
+    channel: ChannelInfo | null;
     updateAvailable: boolean;
     latestVersion: string | null;
     checkState: CheckState;
@@ -207,17 +211,40 @@ function StatusCard({ updateAvailable, latestVersion, checkState, lastCheck, onC
     const checking = checkState === "checking";
     const failed = checkState === "error";
 
+    const dev = channel?.channel === "dev" ? channel : null;
+    const custom = channel?.channel === "custom";
+
     // Newer than what is published: a build that isn't out yet
-    const inDevelopment = !!latestVersion && isVersionNewer(latestVersion, currentVersion);
+    const inDevelopment = !dev && !custom && !!latestVersion && isVersionNewer(latestVersion, currentVersion);
 
     const title = checking ? "Checking for updates"
         : failed ? "Couldn't check for updates"
-            : updateAvailable ? "Update available"
-                : inDevelopment ? "Development version"
-                    : "You're up to date";
+            : custom ? channel.branch
+                : dev ? updateAvailable ? `${dev.behind} new ${dev.behind === 1 ? "commit" : "commits"} on dev` : "Development build"
+                    : updateAvailable ? "Update available"
+                        : inDevelopment ? "Development version"
+                            : "You're up to date";
 
-    const color = failed ? STATUS_COLOR.error : updateAvailable ? STATUS_COLOR.update : inDevelopment ? STATUS_COLOR.dev : STATUS_COLOR.ok;
-    const icon = checking ? "…" : failed ? "!" : updateAvailable ? "↑" : inDevelopment ? "β" : "✓";
+    const color = failed ? STATUS_COLOR.error
+        : custom ? STATUS_COLOR.custom
+            : updateAvailable ? STATUS_COLOR.update
+                : dev || inDevelopment ? STATUS_COLOR.dev
+                    : STATUS_COLOR.ok;
+    const icon = checking ? "…" : failed ? "!" : custom ? "⑂" : updateAvailable ? "↑" : dev || inDevelopment ? "β" : "✓";
+
+    const version = !dev && !custom && updateAvailable && latestVersion ? `v${currentVersion} → v${latestVersion}` : `v${currentVersion}`;
+    // A detached HEAD has no branch name worth showing
+    const build = !channel || channel.branch === "HEAD" ? version
+        : custom ? `${version} · ${channel.head}`
+            : dev ? `${channel.branch} · ${version} · ${channel.head}`
+            : `${channel.branch} · ${version}`;
+
+    const checked = lastCheck ? `checked ${timeAgo(lastCheck)}` : null;
+    const note = custom ? "This is a custom branch, there are no updates to check. Hi developer!"
+        : failed ? dev ? "Couldn't reach origin to check dev, try again in a bit." : "The update server didn't answer. Try again in a bit."
+            : dev ? checked ? `Up to date with dev, ${checked}.` : "Not checked yet."
+                : inDevelopment ? `Newer than the published v${latestVersion}, so things may still change or break.`
+                    : lastCheck ? `Last checked ${timeAgo(lastCheck)}.` : "Not checked yet.";
 
     return (
         <div style={{ display: "flex", flexDirection: "column", gap: 12, padding: 18, borderRadius: 10, background: "var(--background-mod-subtle)" }}>
@@ -235,29 +262,35 @@ function StatusCard({ updateAvailable, latestVersion, checkState, lastCheck, onC
                     background: `color-mix(in srgb, ${color} 15%, transparent)`,
                 }}>{icon}</span>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 18, fontWeight: 800, color: "var(--text-default)" }}>{title}</div>
+                    <div style={{ fontSize: 18, fontWeight: 800, color: "var(--text-default)", overflowWrap: "anywhere" }}>{title}</div>
                     <div style={{ fontSize: 13, fontFamily: "var(--font-code)", color: "var(--text-muted)" }}>
-                        {updateAvailable && latestVersion ? `v${currentVersion} → v${latestVersion}` : `v${currentVersion}`}
+                        {build}
                     </div>
                 </div>
             </div>
+
+            {dev && updateAvailable && !checking && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                    {dev.missing.map(c => (
+                        <div key={c.hash} style={{ display: "flex", gap: 8, fontSize: 13 }}>
+                            <code style={{ color: "var(--text-muted)" }}>{c.short}</code>
+                            <span style={{ color: "var(--text-default)", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.subject}</span>
+                        </div>
+                    ))}
+                    {dev.behind > dev.missing.length && <span style={{ fontSize: 12, color: "var(--text-muted)" }}>and {dev.behind - dev.missing.length} more</span>}
+                </div>
+            )}
 
             {updateAvailable && !checking ? (
                 <div style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 13, color: "var(--text-default)" }}>
                     <span>How to update</span>
                     <ol style={{ margin: 0, paddingLeft: 20, display: "flex", flexDirection: "column", gap: 4, color: "var(--text-muted)" }}>
-                        <li>Run SolRadar Helper again, or run <code>git pull</code> in the plugin folder and rebuild Vencord.</li>
+                        <li>{dev ? "Run" : "Run SolRadar Helper again, or run"} <code>git pull</code> in the plugin folder and rebuild Vencord.</li>
                         <li>Restart Discord.</li>
                     </ol>
                 </div>
             ) : !checking && (
-                <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
-                    {failed
-                        ? "The update server didn't answer. Try again in a bit."
-                        : inDevelopment
-                            ? `Newer than the published v${latestVersion}, so things may still change or break.`
-                            : lastCheck ? `Last checked ${timeAgo(lastCheck)}.` : "Not checked yet."}
-                </span>
+                <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{note}</span>
             )}
 
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center", paddingTop: 12, borderTop: "1px solid var(--background-mod-subtle)" }}>
@@ -270,14 +303,14 @@ function StatusCard({ updateAvailable, latestVersion, checkState, lastCheck, onC
                         )}
                     </Tooltip>
                 ))}
-                <Tooltip text={checking ? "Checking for updates…" : "Check for updates now"}>
+                <Tooltip text={custom ? "Updates aren't checked on this branch" : checking ? "Checking for updates…" : "Check for updates now"}>
                     {props => (
                         <Button
                             {...props}
                             size="small"
                             variant="secondary"
                             onClick={onCheck}
-                            disabled={checking}
+                            disabled={checking || custom}
                             aria-label="Check for updates now"
                         >
                             <svg className={checking ? "vc-sora-spin" : undefined} width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
@@ -449,8 +482,13 @@ export function UpdatesTab() {
     const { lastVersionCheck, lastKnownPublishedVersion } = settings.use(["lastVersionCheck", "lastKnownPublishedVersion"]);
     const [checkState, setCheckState] = React.useState<CheckState>("idle");
 
-    const updateAvailable = hasNewVersionAvailable();
-    const releases = getReleases(updateAvailable);
+    const channel = useChannel();
+    const updateAvailable = hasUpdate(channel);
+    // The changelog only marks a new release for installs that follow releases
+    const newRelease = updateAvailable && channel?.channel !== "dev";
+    const releases = getReleases(newRelease);
+
+    React.useEffect(() => { void refreshChannel(); }, []);
 
     const handleCheck = async () => {
         setCheckState("checking");
@@ -461,6 +499,7 @@ export function UpdatesTab() {
     return (
         <div style={tabColumn}>
             <StatusCard
+                channel={channel}
                 updateAvailable={updateAvailable}
                 latestVersion={lastKnownPublishedVersion || null}
                 checkState={checkState}
@@ -474,7 +513,7 @@ export function UpdatesTab() {
             </div>
 
             <p style={sectionTitle}>Changelog</p>
-            <ReleaseList releases={releases} newVersion={updateAvailable ? lastKnownPublishedVersion : null} />
+            <ReleaseList releases={releases} newVersion={newRelease ? lastKnownPublishedVersion : null} />
         </div>
     );
 }
