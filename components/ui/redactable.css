@@ -1,0 +1,40 @@
+.vc-sora-redacted {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    max-width: 100%;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.vc-sora-redacted.column {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 14px;
+    padding-block: 6px;
+}
+
+.vc-sora-redacted-bar {
+    display: block;
+    flex-shrink: 0;
+    max-width: 100%;
+    height: 8px;
+    border-radius: 4px;
+    background: color-mix(in srgb, var(--text-muted) 28%, transparent);
+    transition: background 0.12s;
+}
+
+.vc-sora-redacted-bar.round {
+    border-radius: 50%;
+}
+
+.vc-sora-redacted:hover .vc-sora-redacted-bar {
+    background: color-mix(in srgb, var(--text-muted) 45%, transparent);
+}
+
+/* No box of its own, so the revealed content keeps its parent's layout */
+.vc-sora-revealed {
+    display: contents;
+    cursor: pointer;
+}

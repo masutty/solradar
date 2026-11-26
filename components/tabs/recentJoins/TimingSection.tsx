@@ -13,6 +13,7 @@ import { React, Tooltip } from "@webpack/common";
 import { captureRobloxTimeline, isTimelineComplete, JOIN_STEPS, JoinBreakdown, joinBreakdown, reachedAt, STEP_CATS, StepCat } from "../../../services/JoinTimeline";
 import { SnipeEntry } from "../../../stores/SnipeStore";
 import { formatElapsedTime } from "../../../utils";
+import { Bar, Redactable, Redaction } from "../../ui/Redactable";
 import { COLORS, sectionTitle } from "../../ui/styles";
 import { formatSecs, traceAxis } from "./SnipeTimeline";
 import { phaseSpans } from "./steps";
@@ -248,7 +249,7 @@ function Grid({ b }: { b: JoinBreakdown; }) {
     );
 }
 
-function Cells({ entry }: { entry: SnipeEntry; }) {
+function Cells({ entry, redaction }: { entry: SnipeEntry; redaction: Redaction; }) {
     const m = entry.metrics;
     const spans = phaseSpans(entry);
     const took = (key: "verify" | "wait") => {
@@ -256,12 +257,14 @@ function Cells({ entry }: { entry: SnipeEntry; }) {
         return s ? formatSecs(s.end - s.start) : "-";
     };
     const isReal = entry.tags.includes("biome-verified-real");
-    const cells: [string, string, string][] = [
+    const cells: [string, React.ReactNode, string][] = [
         // Your PC clock and Discord's never agree exactly, so a few ms below zero just means "instant"
         ["Discord delay", m?.discordDelayMs == null ? "-" : m.discordDelayMs < 0 ? "~0ms" : formatSecs(m.discordDelayMs), "How long Discord took to deliver the message. It's measured against your PC clock, so it's only roughly right."],
         ["Link check", took("verify"), "Checking the link leads to a place you allow. Runs while Roblox starts."],
         ["Biome check", took("wait"), "Waiting for your game to show the biome."],
-        ["Biome lasted", isReal && entry.biomeDurationMs != null ? formatElapsedTime(entry.biomeDurationMs) : "-", "How long the biome lasted"],
+        ["Biome lasted", isReal && entry.biomeDurationMs != null
+            ? <Redactable redaction={redaction} bars={<Bar width={44} />}>{formatElapsedTime(entry.biomeDurationMs)}</Redactable>
+            : "-", "How long the biome lasted"],
     ];
     return (
         <div className="vc-sora-tm-cells">
@@ -279,7 +282,7 @@ function Cells({ entry }: { entry: SnipeEntry; }) {
     );
 }
 
-export function TimingSection({ entry }: { entry: SnipeEntry; }) {
+export function TimingSection({ entry, redaction }: { entry: SnipeEntry; redaction: Redaction; }) {
     const [view, setView] = React.useState<View>("summary");
     const [reading, setReading] = React.useState(false);
     const [hover, setHover] = React.useState<StepCat | null>(null);
@@ -335,7 +338,7 @@ export function TimingSection({ entry }: { entry: SnipeEntry; }) {
                         ? <Steps b={b} />
                         : <Grid b={b} />}
 
-            <Cells entry={entry} />
+            <Cells entry={entry} redaction={redaction} />
         </>
     );
 }

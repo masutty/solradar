@@ -14,13 +14,12 @@ import { copyToClipboard } from "@utils/clipboard";
 import { NavigationRouter, React, showToast, Tooltip } from "@webpack/common";
 
 import { joinUri } from "../../../services/RobloxService";
-import { settings } from "../../../settings";
 import { SnipeEntry, SnipeLogEntry, SnipeStore, useSnipeEntry } from "../../../stores/SnipeStore";
 import { useTourAction } from "../../../stores/TourStore";
 import { SnipeTag } from "../../../types";
 import { TourAnchor, tourAnchor } from "../../tour/TourAnchor";
 import { closeAllModals, ModalCloseButton, ModalContent, ModalFooter, ModalHeader, ModalProps, ModalRoot, openModal } from "../../ui/LegacyModal";
-import Spoiler from "../../ui/Spoiler";
+import { Bar, Redactable, Redaction, useRedaction } from "../../ui/Redactable";
 import { COLORS, sectionTitle } from "../../ui/styles";
 import { FallbackImage, formatClock, getSnipeStatus } from "./components";
 import { RawView, StoryView } from "./SnipeTimeline";
@@ -52,18 +51,6 @@ function timeAgo(ts: number): string {
 
 function logToText(log: SnipeLogEntry[]): string {
     return log.map(l => `${formatClock(l.timestamp, true)} ${l.level.toUpperCase()} ${l.message}`).join("\n");
-}
-
-function Hidden({ anonymize, children, block }: { anonymize: boolean; children: React.ReactNode; block?: boolean; }) {
-    if (!anonymize) return <>{children}</>;
-    return (
-        <Spoiler
-            style={block ? { display: "block", width: "100%" } : undefined}
-            placeholder={block ? <span style={{ fontSize: 13, color: COLORS.muted }}>Hidden by Anonymize snipes. Click to reveal.</span> : undefined}
-        >
-            {children}
-        </Spoiler>
-    );
 }
 
 const card: React.CSSProperties = { borderRadius: 8, background: "var(--background-mod-subtle)" };
@@ -126,18 +113,18 @@ function BiomeVerdict({ entry }: { entry: SnipeEntry; }) {
     );
 }
 
-function Details({ entry, anonymize }: { entry: SnipeEntry; anonymize: boolean; }) {
+function Details({ entry, redaction }: { entry: SnipeEntry; redaction: Redaction; }) {
     const rows: [string, React.ReactNode][] = [
         ...(entry.authorName ? [["Posted by", (
-            <Hidden key="a" anonymize={anonymize}>
+            <Redactable key="a" redaction={redaction} bars={<><Bar width={16} round /><Bar width={86} /></>}>
                 <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
                     <FallbackImage src={entry.authorAvatarUrl} style={{ width: 16, height: 16, borderRadius: "50%" }} />
                     {entry.authorName}
                 </span>
-            </Hidden>
+            </Redactable>
         )] as [string, React.ReactNode]] : []),
-        ...(entry.channelName ? [["Channel", <Hidden key="c" anonymize={anonymize}>#{entry.channelName}</Hidden>] as [string, React.ReactNode]] : []),
-        ...(entry.guildName ? [["Server", <Hidden key="s" anonymize={anonymize}>{entry.guildName}</Hidden>] as [string, React.ReactNode]] : []),
+        ...(entry.channelName ? [["Channel", <Redactable key="c" redaction={redaction} bars={<Bar width={64} />}>#{entry.channelName}</Redactable>] as [string, React.ReactNode]] : []),
+        ...(entry.guildName ? [["Server", <Redactable key="s" redaction={redaction} bars={<Bar width={104} />}>{entry.guildName}</Redactable>] as [string, React.ReactNode]] : []),
         ["Type", typeLabel(entry.triggerType)],
         ["Priority", entry.triggerPriority],
         ...joinContextRows(entry),
@@ -217,7 +204,7 @@ function JoinModal({ entry: initialEntry, modalProps }: {
     modalProps: ModalProps;
 }) {
     const entry = useSnipeEntry(initialEntry.id) ?? initialEntry;
-    const { anonymizeEverything } = settings.use(["anonymizeEverything"]);
+    const redaction = useRedaction(entry.guildId);
     const [view, setView] = React.useState<View>("timeline");
     useTourAction("details.setView", (v: View) => setView(v));
     const status = getSnipeStatus(entry);
@@ -261,7 +248,9 @@ function JoinModal({ entry: initialEntry, modalProps }: {
                             </span>
                         </div>
                         <div style={{ fontSize: 12.5, color: COLORS.muted, marginTop: 2 }}>
-                            {timeAgo(entry.timestamp)} · <Hidden anonymize={anonymizeEverything}>{new Date(entry.timestamp).toLocaleString()}</Hidden>
+                            <Redactable redaction={redaction} bars={<><Bar width={46} /><Bar width={110} /></>}>
+                                {timeAgo(entry.timestamp)} · {new Date(entry.timestamp).toLocaleString()}
+                            </Redactable>
                         </div>
                     </div>
                     <ModalCloseButton onClick={modalProps.onClose} />
@@ -270,12 +259,12 @@ function JoinModal({ entry: initialEntry, modalProps }: {
 
             <ModalContent>
                 <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: "12px 0 16px" }}>
-                    <TimingSection entry={entry} />
+                    <TimingSection entry={entry} redaction={redaction} />
 
                     {isBiomeEntry && <TourAnchor id="details.verdict"><BiomeVerdict entry={entry} /></TourAnchor>}
 
                     <p style={sectionTitle}>Details</p>
-                    <Details entry={entry} anonymize={anonymizeEverything} />
+                    <Details entry={entry} redaction={redaction} />
 
                     <TourAnchor id="details.timeline">
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginTop: 12 }}>
@@ -297,10 +286,11 @@ function JoinModal({ entry: initialEntry, modalProps }: {
                             </Tooltip>
                         </div>
                     </div>
-                    <Hidden anonymize={anonymizeEverything} block>
-                        {view === "timeline" ? <StoryView entry={entry} quote={<MessageQuote entry={entry} />} />
+                    {/* Not wrapped once revealed, so a click inside the log doesn't hide it again */}
+                    {redaction.hidden
+                        ? <Redactable redaction={redaction} column bars={<><Bar width={260} /><Bar width={190} /><Bar width={230} /><Bar width={150} /></>}>{null}</Redactable>
+                        : view === "timeline" ? <StoryView entry={entry} quote={<MessageQuote entry={entry} />} />
                             : <RawView entry={entry} />}
-                    </Hidden>
                     </TourAnchor>
                 </div>
             </ModalContent>

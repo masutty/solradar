@@ -7,6 +7,7 @@
 import { Tooltip } from "@webpack/common";
 
 import { SnipeEntry } from "../../../stores/SnipeStore";
+import { Bar, Redactable, Redaction, useRedaction } from "../../ui/Redactable";
 import { jumpToMessage, openSnipeContextMenu } from "../recentJoins/SnipeContextMenu";
 import { fmtSeconds, kindOf, Measure, RESULT_LABEL, timingOf } from "./data";
 import { Avatar, RESULT_COLOR, TimeAgo, TriggerIcon } from "./parts";
@@ -22,16 +23,16 @@ export function ResultLabel({ entry }: { entry: SnipeEntry; }) {
 const channelOf = (e: SnipeEntry) => e.channelName ? `#${e.channelName.replace(/^#/, "")}` : null;
 
 // Avatar and channel in the row, everything else in the tooltip
-function SnipeOrigin({ entry, anonymize }: { entry: SnipeEntry; anonymize: boolean; }) {
-    const author = anonymize ? "Hidden" : entry.authorName ?? "Unknown";
-    const channel = anonymize ? null : channelOf(entry);
+function SnipeOrigin({ entry }: { entry: SnipeEntry; }) {
+    const author = entry.authorName ?? "Unknown";
+    const channel = channelOf(entry);
     const card = (
         <div className="vc-sora-stats-origin-tip">
-            <Avatar src={entry.authorAvatarUrl} name={author} anonymize={anonymize} />
+            <Avatar src={entry.authorAvatarUrl} name={author} />
             <div>
                 <b>{author}</b>
                 {channel && <span>{channel}</span>}
-                {!anonymize && entry.guildName && <span>{entry.guildName}</span>}
+                {entry.guildName && <span>{entry.guildName}</span>}
             </div>
         </div>
     );
@@ -39,7 +40,7 @@ function SnipeOrigin({ entry, anonymize }: { entry: SnipeEntry; anonymize: boole
         <Tooltip text={card}>
             {props => (
                 <span {...props} className="vc-sora-stats-origin">
-                    <Avatar src={entry.authorAvatarUrl} name={author} anonymize={anonymize} />
+                    <Avatar src={entry.authorAvatarUrl} name={author} />
                     <span>{channel ?? author}</span>
                 </span>
             )}
@@ -47,10 +48,41 @@ function SnipeOrigin({ entry, anonymize }: { entry: SnipeEntry; anonymize: boole
     );
 }
 
+function SnipeRow({ entry: e, ms, showTrigger }: { entry: SnipeEntry; ms: number | null; showTrigger: boolean; }) {
+    const redaction: Redaction = useRedaction();
+    const jump = e.messageJumpUrl ? () => jumpToMessage(e) : undefined;
+    return (
+        <div
+            className={`vc-sora-stats-rec${jump ? " link" : ""}${showTrigger ? " trig" : ""}`}
+            role={jump ? "button" : undefined}
+            tabIndex={jump ? 0 : undefined}
+            onClick={jump}
+            onKeyDown={jump && (k => { if (k.key === "Enter") jump(); })}
+            onContextMenu={ev => openSnipeContextMenu(ev, e)}
+        >
+            <TimeAgo className="vc-sora-stats-rec-t" ts={e.timestamp} redaction={redaction} />
+            <Redactable redaction={redaction} bars={<><Bar width={20} round /><Bar width={72} /></>}>
+                <SnipeOrigin entry={e} />
+            </Redactable>
+            {showTrigger && (
+                <Tooltip text={e.triggerName}>
+                    {props => (
+                        <span {...props} className="vc-sora-stats-rec-trig">
+                            <TriggerIcon src={e.iconUrl} size={16} />
+                            <span>{e.triggerName}</span>
+                        </span>
+                    )}
+                </Tooltip>
+            )}
+            <ResultLabel entry={e} />
+            <span className="vc-sora-stats-rec-ms">{fmtSeconds(ms)}</span>
+        </div>
+    );
+}
+
 /** Snipes as a table: a header, then one separated row each. The last column is the timing picked in `measure`. */
-export function SnipeTable({ entries, anonymize, empty = "No snipes in this period.", measure, time }: {
+export function SnipeTable({ entries, empty = "No snipes in this period.", measure, time }: {
     entries: SnipeEntry[];
-    anonymize: boolean;
     empty?: string;
     measure: Measure;
     /** Overrides the timing shown, for lists that already know it. */
@@ -68,36 +100,7 @@ export function SnipeTable({ entries, anonymize, empty = "No snipes in this peri
                 <span>Result</span>
                 <span>Time</span>
             </div>
-            {entries.map(e => {
-                const ms = time ? time(e) : timingOf(e, measure.steps);
-                const jump = e.messageJumpUrl ? () => jumpToMessage(e) : undefined;
-                return (
-                    <div
-                        key={e.id}
-                        className={`vc-sora-stats-rec${jump ? " link" : ""}${showTrigger ? " trig" : ""}`}
-                        role={jump ? "button" : undefined}
-                        tabIndex={jump ? 0 : undefined}
-                        onClick={jump}
-                        onKeyDown={jump && (k => { if (k.key === "Enter") jump(); })}
-                        onContextMenu={ev => openSnipeContextMenu(ev, e)}
-                    >
-                        <TimeAgo className="vc-sora-stats-rec-t" ts={e.timestamp} anonymize={anonymize} />
-                        <SnipeOrigin entry={e} anonymize={anonymize} />
-                        {showTrigger && (
-                            <Tooltip text={e.triggerName}>
-                                {props => (
-                                    <span {...props} className="vc-sora-stats-rec-trig">
-                                        <TriggerIcon src={e.iconUrl} size={16} />
-                                        <span>{e.triggerName}</span>
-                                    </span>
-                                )}
-                            </Tooltip>
-                        )}
-                        <ResultLabel entry={e} />
-                        <span className="vc-sora-stats-rec-ms">{fmtSeconds(ms)}</span>
-                    </div>
-                );
-            })}
+            {entries.map(e => <SnipeRow key={e.id} entry={e} ms={time ? time(e) : timingOf(e, measure.steps)} showTrigger={showTrigger} />)}
         </div>
     );
 }

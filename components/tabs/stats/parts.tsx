@@ -8,6 +8,7 @@ import { GuildStore, React, Tooltip } from "@webpack/common";
 
 import { guildIconUrl } from "../../ui/idFilter/resolve";
 import { Note } from "../../ui/Note";
+import { Bar, Redactable, Redaction, useRedaction } from "../../ui/Redactable";
 import { card, COLORS, descriptionText, sectionTitle } from "../../ui/styles";
 import { FallbackImage, formatTimeAgo } from "../recentJoins/components";
 import { Bucket, bucketLabel, bucketTotal, BucketUnit, Counts, fmtRate, Group, plural, RESULT_KINDS, RESULT_LABEL, RESULT_WORD, ResultKind, Stats } from "./data";
@@ -155,13 +156,14 @@ export function BucketTip({ unit, bucket }: { unit: BucketUnit; bucket: Bucket; 
 
 // --- Time ---
 
-/** "34m ago", with the full date and time on hover. Hidden while anonymizing, like in Snipe History. */
-export function TimeAgo({ ts, anonymize, className }: { ts: number; anonymize: boolean; className?: string; }) {
-    if (anonymize) return <span className={className}>{formatTimeAgo(ts)}</span>;
+/** "34m ago", with the full date and time on hover. */
+export function TimeAgo({ ts, redaction, className }: { ts: number; redaction: Redaction; className?: string; }) {
     return (
-        <Tooltip text={new Date(ts).toLocaleString()}>
-            {props => <span {...props} className={className}>{formatTimeAgo(ts)}</span>}
-        </Tooltip>
+        <Redactable redaction={redaction} bars={<Bar width={40} />}>
+            <Tooltip text={new Date(ts).toLocaleString()}>
+                {props => <span {...props} className={className}>{formatTimeAgo(ts)}</span>}
+            </Tooltip>
+        </Redactable>
     );
 }
 
@@ -173,24 +175,43 @@ export function serverIconUrl(key: string): string | undefined {
     return guild ? guildIconUrl(guild) : undefined;
 }
 
-/** The real name, or "Server 1", "Author 2"... when anonymizing. */
-export function anonName(kind: "Server" | "Channel" | "Author", index: number, name: string, anonymize: boolean) {
-    return anonymize ? `${kind} ${index + 1}` : name;
-}
-
-export function Avatar({ src, name, anonymize }: { src?: string; name: string; anonymize: boolean; }) {
-    if (anonymize || !src) {
-        return <span className="vc-sora-stats-av">{anonymize ? "?" : name[0]?.toUpperCase() ?? "?"}</span>;
+export function Avatar({ src, name }: { src?: string; name: string; }) {
+    if (!src) {
+        return <span className="vc-sora-stats-av">{name[0]?.toUpperCase() ?? "?"}</span>;
     }
     return <FallbackImage src={src} style={{ width: 20, height: 20, borderRadius: "50%", flexShrink: 0, objectFit: "cover" }} />;
 }
 
+function GroupRow({ group: g, kind, onOpen }: {
+    group: Group;
+    kind: "Server" | "Channel" | "Author";
+    onOpen?: (group: Group) => void;
+}) {
+    const redaction = useRedaction();
+    const hasAvatar = kind !== "Channel";
+    const cells = (
+        <>
+            <span className="vc-sora-stats-who-name">
+                <Redactable redaction={redaction} bars={<>{hasAvatar && <Bar width={20} round />}<Bar width={84} /></>}>
+                    {hasAvatar && <Avatar src={kind === "Author" ? g.avatar : serverIconUrl(g.key)} name={g.name} />}
+                    <span>{g.name}</span>
+                </Redactable>
+            </span>
+            <SplitBar counts={g} height={6} />
+            <span className="vc-sora-stats-who-rate">{fmtRate(g.v ? Math.round(g.real / g.v * 100) : null)}</span>
+            <span className="vc-sora-stats-who-n">{g.n}</span>
+        </>
+    );
+    return onOpen
+        ? <button type="button" className="vc-sora-stats-who link" onClick={() => onOpen(g)}>{cells}</button>
+        : <div className="vc-sora-stats-who">{cells}</div>;
+}
+
 /** Servers, channels or authors as a table: name, split bar, real rate, snipes. With `onOpen` each row opens its own page. */
-export function GroupTable({ groups, kind, anonymize, onOpen }: {
+export function GroupTable({ groups, kind, onOpen }: {
     groups: Group[];
     kind: "Server" | "Channel" | "Author";
-    anonymize: boolean;
-    onOpen?: (group: Group, label: string) => void;
+    onOpen?: (group: Group) => void;
 }) {
     if (!groups.length) return <span className="vc-sora-stats-low">Nothing yet.</span>;
     return (
@@ -201,23 +222,7 @@ export function GroupTable({ groups, kind, anonymize, onOpen }: {
                 <span>Real</span>
                 <span>Snipes</span>
             </div>
-            {groups.map((g, i) => {
-                const label = anonName(kind, i, g.name, anonymize);
-                const cells = (
-                    <>
-                        <span className="vc-sora-stats-who-name">
-                            {kind !== "Channel" && <Avatar src={kind === "Author" ? g.avatar : serverIconUrl(g.key)} name={g.name} anonymize={anonymize} />}
-                            <span>{label}</span>
-                        </span>
-                        <SplitBar counts={g} height={6} />
-                        <span className="vc-sora-stats-who-rate">{fmtRate(g.v ? Math.round(g.real / g.v * 100) : null)}</span>
-                        <span className="vc-sora-stats-who-n">{g.n}</span>
-                    </>
-                );
-                return onOpen
-                    ? <button key={g.key} type="button" className="vc-sora-stats-who link" onClick={() => onOpen(g, label)}>{cells}</button>
-                    : <div key={g.key} className="vc-sora-stats-who">{cells}</div>;
-            })}
+            {groups.map(g => <GroupRow key={g.key} group={g} kind={kind} onOpen={onOpen} />)}
         </div>
     );
 }

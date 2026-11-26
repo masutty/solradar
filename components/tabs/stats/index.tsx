@@ -10,6 +10,7 @@ import { React } from "@webpack/common";
 
 import { settings } from "../../../settings";
 import { SnipeEntry, useSnipeHistory } from "../../../stores/SnipeStore";
+import { Bar, useRedaction } from "../../ui/Redactable";
 import { tabColumn } from "../../ui/styles";
 import { computeStats, measureOf, OutcomeFilter, outcomeOf, Period, serverKey, triggerRows, windowOf } from "./data";
 import { Detail } from "./Detail";
@@ -44,13 +45,19 @@ function scrollToTop(el: HTMLElement | null) {
     }
 }
 
+// Not clickable to reveal: it sits inside the crumb's button, which has to keep navigating
+function ServerName({ name }: { name: string; }) {
+    const { hidden } = useRedaction();
+    return hidden ? <Bar width={96} /> : <>{name}</>;
+}
+
 export function StatsTab() {
     const [period, setPeriod] = React.useState<Period>({ id: "1d" });
     const [subject, setSubject] = React.useState<Subject | null>(null);
     const [page, setPage] = React.useState<Page | null>(null);
     const [selection, setSelection] = React.useState<Selection>(null);
     const allEntries = useSnipeHistory();
-    const { anonymizeEverything, historyBoltSteps } = settings.use(["anonymizeEverything", "historyBoltSteps"]);
+    const { historyBoltSteps } = settings.use(["historyBoltSteps"]);
     // Timing follows the choice made for the ⚡ in Snipe History (Settings, Interface) until another is picked here
     const [pickedSteps, setPickedSteps] = React.useState<readonly string[] | null>(null);
     const stepsKey = (pickedSteps ?? historyBoltSteps).join(",");
@@ -122,9 +129,10 @@ export function StatsTab() {
 
     const icon = subject == null ? null : subject.type === "trigger"
         ? <TriggerIcon src={subject.iconUrl} size={40} />
-        : serverIconUrl(subject.key) && !anonymizeEverything
+        : serverIconUrl(subject.key)
             ? <TriggerIcon src={serverIconUrl(subject.key)} size={40} />
-            : <span className="vc-sora-stats-av big">{anonymizeEverything ? "?" : subject.name[0]?.toUpperCase() ?? "?"}</span>;
+            : <span className="vc-sora-stats-av big">{subject.name[0]?.toUpperCase() ?? "?"}</span>;
+    const subjectName = subject?.type === "server" ? <ServerName key={subject.key} name={subject.name} /> : subject?.name;
 
     return (
         <div ref={root} style={tabColumn}>
@@ -138,7 +146,7 @@ export function StatsTab() {
                         {subject && (
                             <>
                                 <span>/</span>
-                                {page ? <button type="button" onClick={() => go(subject)}>{subject.name}</button> : <b>{subject.name}</b>}
+                                {page ? <button type="button" onClick={() => go(subject)}>{subjectName}</button> : <b>{subjectName}</b>}
                             </>
                         )}
                         {page && (
@@ -158,23 +166,23 @@ export function StatsTab() {
                             entries={shownEntries!}
                             allEntries={viewEntries}
                             stats={view}
-                            anonymize={anonymizeEverything}
                             rows={subject ? undefined : shownRows}
                             measure={measure}
                             outcome={outcome}
                         />
                     ) : page === "who" ? (
-                        <WhoPage stats={view} anonymize={anonymizeEverything} />
+                        <WhoPage stats={view} />
                     ) : page === "when" ? (
                         <WhenPage entries={viewEntries} stats={view} />
                     ) : subject && (
                         <Detail
+                            key={subject.key}
                             name={subject.name}
+                            isServer={subject.type === "server"}
                             entries={viewEntries}
                             icon={icon}
                             stats={view}
                             win={win}
-                            anonymize={anonymizeEverything}
                             measure={measure}
                             onTiming={() => go(subject, "timing")}
                             onWho={() => go(subject, "who")}
@@ -194,9 +202,8 @@ export function StatsTab() {
                         entries={picked}
                         stats={overall}
                         rows={rows}
-                        anonymize={anonymizeEverything}
                         onOpen={row => go({ type: "trigger", key: row.name, name: row.name, iconUrl: row.iconUrl })}
-                        onOpenServer={(group, label) => go({ type: "server", key: group.key, name: label })}
+                        onOpenServer={group => go({ type: "server", key: group.key, name: group.name })}
                         measure={measure}
                         onTiming={() => go(null, "timing")}
                         onWhen={() => go(null, "when")}

@@ -7,9 +7,10 @@
 import { React } from "@webpack/common";
 
 import { SnipeEntry } from "../../../stores/SnipeStore";
+import { Bar, Redactable, useRedaction } from "../../ui/Redactable";
 import { ActivityChart, HoursStrip } from "./charts";
 import { coverageNote, fmtDuration, fmtRate, fmtSeconds, Group, Measure, peakWindow, plural, RESULT_KINDS, RESULT_LABEL, Stats, Win } from "./data";
-import { anonName, Avatar, RESULT_COLOR, SplitBar, TimeAgo } from "./parts";
+import { Avatar, RESULT_COLOR, SplitBar, TimeAgo } from "./parts";
 import { SnipeTable } from "./SnipeTable";
 import { TimeoutByTiming, TimeoutsHint } from "./Timeouts";
 
@@ -95,26 +96,35 @@ export function WhenTile({ stats, onOpen, className = "" }: { stats: Stats; onOp
 }
 
 /** The three busiest authors. Opens the Who and where page. */
-export function AuthorsTile({ stats, anonymize, onOpen, className = "" }: { stats: Stats; anonymize: boolean; onOpen: () => void; className?: string; }) {
+export function AuthorsTile({ stats, onOpen, className = "" }: { stats: Stats; onOpen: () => void; className?: string; }) {
     return (
         <BentoTile className={className} label="Top authors" onOpen={stats.authors.length ? onOpen : undefined}>
-            <AuthorRows authors={stats.authors} anonymize={anonymize} />
+            <AuthorRows authors={stats.authors} />
         </BentoTile>
     );
 }
 
-function AuthorRows({ authors, anonymize }: { authors: Group[]; anonymize: boolean; }) {
+function AuthorRow({ author: g }: { author: Group; }) {
+    const redaction = useRedaction();
+    return (
+        <div className="vc-sora-stats-mw">
+            <span className="vc-sora-stats-mw-who">
+                <Redactable redaction={redaction} bars={<><Bar width={20} round /><Bar width={84} /></>}>
+                    <Avatar src={g.avatar} name={g.name} />
+                    <span className="vc-sora-stats-mw-name">{g.name}</span>
+                </Redactable>
+            </span>
+            <b>{g.n}</b>
+            <em>{fmtRate(g.v ? Math.round(g.real / g.v * 100) : null)}</em>
+        </div>
+    );
+}
+
+function AuthorRows({ authors }: { authors: Group[]; }) {
     if (!authors.length) return <span className="vc-sora-stats-low">Nothing yet</span>;
     return (
         <div className="vc-sora-stats-table">
-            {authors.slice(0, 3).map((g, i) => (
-                <div key={g.key} className="vc-sora-stats-mw">
-                    <Avatar src={g.avatar} name={g.name} anonymize={anonymize} />
-                    <span className="vc-sora-stats-mw-name">{anonName("Author", i, g.name, anonymize)}</span>
-                    <b>{g.n}</b>
-                    <em>{fmtRate(g.v ? Math.round(g.real / g.v * 100) : null)}</em>
-                </div>
-            ))}
+            {authors.slice(0, 3).map(g => <AuthorRow key={g.key} author={g} />)}
         </div>
     );
 }
@@ -122,28 +132,36 @@ function AuthorRows({ authors, anonymize }: { authors: Group[]; anonymize: boole
 // --- Detail ---
 
 /** One trigger or server: a mosaic of compact cards. The result card leads, the rest sit around it. */
-export function Detail({ name, icon, entries, stats, win, anonymize, measure, onTiming, onWho, onWhen }: {
+export function Detail({ name, isServer, icon, entries, stats, win, measure, onTiming, onWho, onWhen }: {
     name: string;
+    /** A server's name and icon are hidden while anonymizing. A trigger's are yours, so they stay. */
+    isServer: boolean;
     entries: SnipeEntry[];
     icon: React.ReactNode;
     stats: Stats;
     win: Win;
-    anonymize: boolean;
     measure: Measure;
     onTiming: () => void;
     onWho: () => void;
     onWhen: () => void;
 }) {
+    const redaction = useRedaction();
     const note = [coverageNote(stats), stats.n > 0 && stats.n < 10 ? `Only ${plural(stats.n, "snipe")} so far, so these numbers can still move a lot.` : ""].filter(Boolean).join(" ");
 
     return (
         <>
             <div className="vc-sora-stats-dhead">
-                {icon}
+                {isServer
+                    ? <Redactable redaction={redaction} bars={<Bar width={40} round />}>{icon}</Redactable>
+                    : icon}
                 <div>
-                    <div className="vc-sora-stats-dhead-name">{name}</div>
+                    <div className="vc-sora-stats-dhead-name">
+                        {isServer
+                            ? <Redactable redaction={redaction} bars={<Bar width={120} />}>{name}</Redactable>
+                            : name}
+                    </div>
                     <div className="vc-sora-stats-dhead-sub">
-                        {plural(stats.all, "snipe")} in {win.label}{stats.last != null && <> · last <TimeAgo ts={stats.last} anonymize={anonymize} /></>}
+                        {plural(stats.all, "snipe")} in {win.label}{stats.last != null && <> · last <TimeAgo ts={stats.last} redaction={redaction} /></>}
                     </div>
                 </div>
             </div>
@@ -181,14 +199,14 @@ export function Detail({ name, icon, entries, stats, win, anonymize, measure, on
 
                 <BentoTile className="c4 otl" label="Timeouts by timing">
                     <TimeoutsHint />
-                    <TimeoutByTiming entries={entries} anonymize={anonymize} />
+                    <TimeoutByTiming entries={entries} />
                 </BentoTile>
 
                 <WhenTile className="c2" stats={stats} onOpen={onWhen} />
-                <AuthorsTile className="c2" stats={stats} anonymize={anonymize} onOpen={onWho} />
+                <AuthorsTile className="c2" stats={stats} onOpen={onWho} />
 
                 <BentoTile className="c4" label="Recent snipes">
-                    <SnipeTable entries={stats.recent} anonymize={anonymize} measure={measure} />
+                    <SnipeTable entries={stats.recent} measure={measure} />
                 </BentoTile>
             </div>
         </>

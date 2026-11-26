@@ -41,13 +41,12 @@ function TriggerTable({ rows, onOpen }: { rows: TriggerRow[]; onOpen: (row: Trig
 
 // --- Overview ---
 
-export function Overview({ entries, stats, rows, anonymize, measure, onOpen, onOpenServer, onTiming, onWhen, onWho }: {
+export function Overview({ entries, stats, rows, measure, onOpen, onOpenServer, onTiming, onWhen, onWho }: {
     entries: SnipeEntry[];
     stats: Stats;
     rows: TriggerRow[];
-    anonymize: boolean;
     onOpen: (row: TriggerRow) => void;
-    onOpenServer: (group: Group, label: string) => void;
+    onOpenServer: (group: Group) => void;
     measure: Measure;
     onTiming: () => void;
     onWhen: () => void;
@@ -70,13 +69,13 @@ export function Overview({ entries, stats, rows, anonymize, measure, onOpen, onO
                 <BentoTile className="c1" label="Failed joins" value={stats.failed} />
                 <BentoTile className="c1" label="Ignored" value={stats.ignored} />
                 <WhenTile className="c2" stats={stats} onOpen={onWhen} />
-                <AuthorsTile className="c2" stats={stats} anonymize={anonymize} onOpen={onWho} />
+                <AuthorsTile className="c2" stats={stats} onOpen={onWho} />
                 <BentoTile className="c4" label="Activity">
                     <ActivityChart stats={stats} />
                 </BentoTile>
                 <BentoTile className="c4 otl" label="Timeouts by timing">
                     <TimeoutsHint />
-                    <TimeoutByTiming entries={entries} anonymize={anonymize} />
+                    <TimeoutByTiming entries={entries} />
                 </BentoTile>
             </div>
 
@@ -85,7 +84,7 @@ export function Overview({ entries, stats, rows, anonymize, measure, onOpen, onO
 
             <Section title="Servers" right={<span className="vc-sora-stats-hint">Click a server for details</span>} />
             <div className="vc-sora-stats-card vc-sora-stats-panel">
-                <GroupTable groups={stats.servers} kind="Server" anonymize={anonymize} onOpen={onOpenServer} />
+                <GroupTable groups={stats.servers} kind="Server" onOpen={onOpenServer} />
             </div>
         </>
     );

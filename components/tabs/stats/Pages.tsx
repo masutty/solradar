@@ -181,10 +181,9 @@ export function OutcomePills({ value, counts, onChange }: { value: OutcomeFilter
 }
 
 /** One measure of the join for a trigger or server, or for every trigger when `rows` is given: the spread, how it moved, where the time goes, and the fastest and slowest joins. */
-export function TimingPage({ entries, stats, anonymize, rows, measure, allEntries, outcome }: {
+export function TimingPage({ entries, stats, rows, measure, allEntries, outcome }: {
     entries: SnipeEntry[];
     stats: Stats;
-    anonymize: boolean;
     rows?: TriggerRow[];
     measure: Measure;
     /** Every snipe on the page before the outcome filter, for the timeout chart */
@@ -202,7 +201,7 @@ export function TimingPage({ entries, stats, anonymize, rows, measure, allEntrie
     const timeouts = outcome !== "unknown" && (
         <>
             <Section title="Timeouts by timing" right={<TimeoutsHint />} />
-            <div className="vc-sora-stats-card vc-sora-stats-panel"><TimeoutByTiming entries={allEntries} anonymize={anonymize} focus={outcome} /></div>
+            <div className="vc-sora-stats-card vc-sora-stats-panel"><TimeoutByTiming entries={allEntries} focus={outcome} /></div>
         </>
     );
     if (!r || r.n < 5) {
@@ -252,12 +251,12 @@ export function TimingPage({ entries, stats, anonymize, rows, measure, allEntrie
 
             <Section title="Fastest joins" />
             <div className="vc-sora-stats-card vc-sora-stats-panel">
-                <SnipeTable entries={ordered.slice(0, 5).map(s => s.entry)} anonymize={anonymize} measure={measure} time={e => byEntry.get(e) ?? null} />
+                <SnipeTable entries={ordered.slice(0, 5).map(s => s.entry)} measure={measure} time={e => byEntry.get(e) ?? null} />
             </div>
 
             <Section title="Slowest joins" />
             <div className="vc-sora-stats-card vc-sora-stats-panel">
-                <SnipeTable entries={ordered.slice(-5).reverse().map(s => s.entry)} anonymize={anonymize} measure={measure} time={e => byEntry.get(e) ?? null} />
+                <SnipeTable entries={ordered.slice(-5).reverse().map(s => s.entry)} measure={measure} time={e => byEntry.get(e) ?? null} />
             </div>
         </>
     );
@@ -274,7 +273,7 @@ const WHO_TABS: { id: WhoTab; label: string; }[] = [
 ];
 
 /** Who sent the snipes, and in which channels and servers, with each one's real rate. */
-export function WhoPage({ stats, anonymize }: { stats: Stats; anonymize: boolean; }) {
+export function WhoPage({ stats }: { stats: Stats; }) {
     const [tab, setTab] = React.useState<WhoTab>("authors");
     const groups = tab === "authors" ? stats.authors : tab === "channels" ? stats.channels : stats.servers;
 
@@ -298,7 +297,7 @@ export function WhoPage({ stats, anonymize }: { stats: Stats; anonymize: boolean
                 })}
             </div>
             <div className="vc-sora-stats-card vc-sora-stats-panel">
-                <GroupTable groups={groups} kind={tab === "authors" ? "Author" : tab === "channels" ? "Channel" : "Server"} anonymize={anonymize} />
+                <GroupTable groups={groups} kind={tab === "authors" ? "Author" : tab === "channels" ? "Channel" : "Server"} />
             </div>
         </>
     );

@@ -23,7 +23,7 @@ import { tourAnchor } from "../../tour/TourAnchor";
 import { useAutoTour } from "../../tour/useAutoTour";
 import { DeleteButton } from "../../ui/buttons/DeleteButton";
 import { QuerySearchInput, splitQuery } from "../../ui/QuerySearchInput";
-import Spoiler from "../../ui/Spoiler";
+import { Bar, Redactable, useRedaction } from "../../ui/Redactable";
 import { COLORS } from "../../ui/styles";
 import { useShiftHeld } from "../../ui/useShiftHeld";
 import { FallbackImage, getSnipeStatus } from "./components";
@@ -216,12 +216,9 @@ function openMoreMenu(e: React.MouseEvent, hasEntries: boolean) {
 
 // --- Card ---
 
-function Hidden({ anonymize, children }: { anonymize: boolean; children: React.ReactNode; }) {
-    return anonymize ? <Spoiler>{children}</Spoiler> : <>{children}</>;
-}
-
 function SnipeCard({ entry, index, shiftHeld }: { entry: SnipeEntry; index: number; shiftHeld: boolean; }) {
-    const { anonymizeEverything, historyBoltSteps } = settings.use(["anonymizeEverything", "historyBoltSteps"]);
+    const { historyBoltSteps } = settings.use(["historyBoltSteps"]);
+    const redaction = useRedaction(entry.guildId);
     const showBolt = !!entry.metrics && historyBoltSteps.length > 0;
     const boltMs = showBolt ? boltSum(entry, historyBoltSteps) : null;
     const boltPreset = BOLT_PRESETS.find(p => sameSteps(p.steps, historyBoltSteps));
@@ -236,7 +233,7 @@ function SnipeCard({ entry, index, shiftHeld }: { entry: SnipeEntry; index: numb
         <Tooltip text={tip}>
             {props => (
                 <span {...props} className={`vc-sora-history-field ${className}`}>
-                    <Hidden anonymize={anonymizeEverything}>{content}</Hidden>
+                    {content}
                 </span>
             )}
         </Tooltip>
@@ -273,6 +270,14 @@ function SnipeCard({ entry, index, shiftHeld }: { entry: SnipeEntry; index: numb
                     {entry.triggerName}
                 </span>
                 <div className="vc-sora-history-line">
+                    <Redactable
+                        redaction={redaction}
+                        bars={<>
+                            {entry.authorName && <Bar width={84} jitter={4} />}
+                            {entry.channelName && <Bar width={64} jitter={4} />}
+                            {entry.guildName && <Bar width={96} jitter={4} />}
+                        </>}
+                    >
                     {entry.authorName && <>
                         {field("author", `Posted by ${entry.authorName}`, (
                             <span style={{ display: "inline-flex", alignItems: "center", gap: 5, maxWidth: "100%" }}>
@@ -287,13 +292,16 @@ function SnipeCard({ entry, index, shiftHeld }: { entry: SnipeEntry; index: numb
                         {entry.guildName && sep}
                     </>}
                     {entry.guildName && field("server", entry.guildName, entry.guildName)}
+                    </Redactable>
                 </div>
             </div>
 
             <div className="vc-sora-history-side">
-                <Tooltip text={fullDateTime(entry.timestamp)}>
-                    {props => <span {...props} className="vc-sora-history-clock">{timeAgo(entry.timestamp)}</span>}
-                </Tooltip>
+                <Redactable redaction={redaction} bars={<span className="vc-sora-history-clock hidden"><Bar width={40} jitter={2} /></span>}>
+                    <Tooltip text={fullDateTime(entry.timestamp)}>
+                        {props => <span {...props} className="vc-sora-history-clock">{timeAgo(entry.timestamp)}</span>}
+                    </Tooltip>
+                </Redactable>
                 {(showBolt || (isReal && entry.biomeDurationMs != null)) && (
                     <span className="vc-sora-history-stats">
                         {showBolt && (
@@ -302,9 +310,11 @@ function SnipeCard({ entry, index, shiftHeld }: { entry: SnipeEntry; index: numb
                             </Tooltip>
                         )}
                         {isReal && entry.biomeDurationMs != null && (
-                            <Tooltip text="How long the real biome lasted">
-                                {props => <span {...props}>🌿 {formatElapsedTime(entry.biomeDurationMs!)}</span>}
-                            </Tooltip>
+                            <Redactable redaction={redaction} bars={<>🌿 <Bar width={34} jitter={2} /></>}>
+                                <Tooltip text="How long the real biome lasted">
+                                    {props => <span {...props}>🌿 {formatElapsedTime(entry.biomeDurationMs!)}</span>}
+                                </Tooltip>
+                            </Redactable>
                         )}
                     </span>
                 )}
@@ -319,6 +329,7 @@ export function RecentJoinsTab() {
     const entries = useSnipeHistory();
     const saved = UIState.get("recentJoins");
     const shiftHeld = useShiftHeld();
+    const { anonymizeEverything } = settings.use(["anonymizeEverything"]);
     const [search, setSearch] = useState(saved.search);
     const [filter, setFilter] = useState<Filter>(saved.tagFilter);
 
@@ -443,7 +454,8 @@ export function RecentJoinsTab() {
                         {visible.map((entry, i) => {
                             const day = dayKey(entry.timestamp);
                             const count = dayCounts.get(day) ?? 0;
-                            const heading = day !== lastDay
+                            // Anonymized history is one flat list: headings and their counts would date each snipe
+                            const heading = !anonymizeEverything && day !== lastDay
                                 ? <div className="vc-sora-history-day">{dayLabel(entry.timestamp)}<span className="vc-sora-history-day-count">{count} {count === 1 ? "snipe" : "snipes"}</span></div>
                                 : null;
                             lastDay = day;

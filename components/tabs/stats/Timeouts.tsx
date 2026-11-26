@@ -48,7 +48,7 @@ const median = (samples: TimingSample[]) => {
 };
 
 /** From which timing joins start timing out. Click a column to list its joins. */
-export function TimeoutByTiming({ entries, anonymize, focus = "all" }: { entries: SnipeEntry[]; anonymize: boolean; focus?: OutcomeFilter; }) {
+export function TimeoutByTiming({ entries, focus = "all" }: { entries: SnipeEntry[]; focus?: OutcomeFilter; }) {
     const bins = React.useMemo(() => outcomeBins(entries), [entries]);
     const [open, setOpen] = React.useState<number | null>(null);
     if (bins.length < 2) return <span className="vc-sora-stats-low">Needs joins that got in or timed out, with their steps read.</span>;
@@ -104,7 +104,7 @@ export function TimeoutByTiming({ entries, anonymize, focus = "all" }: { entries
 
             {picked && (
                 <div className="vc-sora-stats-otl-list">
-                    <SnipeTable entries={pickedSamples.map(s => s.entry)} anonymize={anonymize} measure={REQUEST_SENT_MEASURE} time={e => times.get(e) ?? null} />
+                    <SnipeTable entries={pickedSamples.map(s => s.entry)} measure={REQUEST_SENT_MEASURE} time={e => times.get(e) ?? null} />
                 </div>
             )}
         </>

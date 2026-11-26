@@ -411,6 +411,12 @@ export const settings = definePluginSettings({
         default: true,
         hidden: true,
     },
+    anonymizeGuilds: {
+        type: OptionType.STRING,
+        description: "Comma-separated list of guild IDs whose snipes are always anonymized. Developer only.",
+        default: "",
+        hidden: true,
+    },
     shouldCheckForUpdates: {
         type: OptionType.BOOLEAN,
         description: "Whether to check for updates. Default: true",

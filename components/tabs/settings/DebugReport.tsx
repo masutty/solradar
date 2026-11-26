@@ -26,7 +26,7 @@ const NEVER_INCLUDED = new Set(["robloxToken"]);
 const SKIPPED = new Set(["lastKnownPublishedChangelog"]);
 // Only included as-is when "detailed information" is on.
 const PRIVATE_TEXT = new Set(["privateServerLink", "globalWebhookUrl"]);
-const PRIVATE_LISTS = new Set(["monitoredUsers", "monitoredGuilds", "monitoredChannels", "ignoredGuilds", "ignoredChannels", "ignoredUsers", "forwardIgnoredGuilds", "detectorAccounts"]);
+const PRIVATE_LISTS = new Set(["monitoredUsers", "monitoredGuilds", "monitoredChannels", "ignoredGuilds", "ignoredChannels", "ignoredUsers", "forwardIgnoredGuilds", "anonymizeGuilds", "detectorAccounts"]);
 const LOG_LINES = 100;
 const SNIPE_COUNT = 20;
 

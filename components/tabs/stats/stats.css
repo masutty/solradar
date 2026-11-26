@@ -374,7 +374,8 @@ button.vc-sora-stats-who {
     color: var(--text-default);
 }
 
-.vc-sora-stats-who-name > span:last-child {
+.vc-sora-stats-who-name > span:last-child,
+.vc-sora-stats-who-name .vc-sora-revealed > span:last-child {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -407,6 +408,14 @@ button.vc-sora-stats-who {
     align-items: center;
     min-height: 32px;
     padding: 0 4px;
+}
+
+.vc-sora-stats-mw-who {
+    grid-column: span 2;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
 }
 
 .vc-sora-stats-mw-name {

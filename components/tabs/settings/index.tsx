@@ -14,7 +14,7 @@ import { React, showToast, TextInput, Tooltip } from "@webpack/common";
 import { settings } from "../../../settings";
 import { useTourAction } from "../../../stores/TourStore";
 import { UIState } from "../../../stores/UIStateStore";
-import { getEffectiveKillTargets } from "../../../utils";
+import { getEffectiveKillTargets, isDeveloper } from "../../../utils";
 import { TourAnchor } from "../../tour/TourAnchor";
 import { useAutoTour } from "../../tour/useAutoTour";
 import { ChipKind } from "../../ui/IdChipInput";
@@ -765,7 +765,11 @@ export function SettingsTab() {
             title: "Interface",
             subtitle: "Privacy and menus",
             entries: [
-                { id: "anonymizeEverything", label: "Anonymize snipes", description: "Hides the author, server, channel, message and logs of each snipe in History. Turn it on before sharing screenshots.", tooltip: "Click an entry in Snipe History to reveal it on its own." },
+                { id: "anonymizeEverything", label: "Anonymize snipes", description: "Hides who posted each snipe, where and when, so History is safe to screenshot.", tooltip: "Click a hidden bar to reveal that snipe." },
+                ...(isDeveloper() ? [{
+                    id: "anonymizeGuilds" as const, label: "Always anonymize these servers", chipKind: "guild" as const,
+                    description: "Their snipes stay hidden even with Anonymize snipes off.",
+                }] : []),
                 { id: "hideInactiveIndicator", label: "Hide the inactive dot", description: "Hide the red dot on the menu button while auto-join is off." },
                 { id: "useButtonsForOrderingTriggers", label: "Reorder triggers with buttons", description: "Use the ▲▼ buttons instead of drag and drop." },
                 { id: "alwaysShowFolderCount", label: "Always show folder counts", description: "Show how many triggers are on next to each folder's name, not only on hover." },

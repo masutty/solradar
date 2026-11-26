@@ -8,7 +8,7 @@ import { settings } from "../../../settings";
 import { getFolders, getTriggers, triggerStoreReady } from "../../../stores/TriggerStore";
 import { KnownNamesStore } from "./KnownNamesStore";
 
-const ID_SETTINGS = ["monitoredGuilds", "monitoredUsers", "monitoredChannels", "ignoredGuilds", "ignoredChannels", "ignoredUsers", "forwardIgnoredGuilds"] as const;
+const ID_SETTINGS = ["monitoredGuilds", "monitoredUsers", "monitoredChannels", "ignoredGuilds", "ignoredChannels", "ignoredUsers", "forwardIgnoredGuilds", "anonymizeGuilds"] as const;
 
 /** Forgets remembered names of IDs that no setting or trigger uses anymore. */
 export async function pruneKnownNames() {
